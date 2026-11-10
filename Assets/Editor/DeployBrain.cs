@@ -15,6 +15,62 @@ namespace PoSumo.EditorTools
     {
         private const string RESULTS_DIR = "Training/results";
 
+        // ---- Graduation gate (AGENTS.md rule 4, 2026-11-10) -------------------
+        //
+        // A run's brain is exported to the game only when Tools/graduation_gate.py
+        // has written a PASSING GATE.json into that run's directory: 100 straight
+        // successful episodes and no NaN anywhere. Without one the deploy is
+        // REFUSED with a DEPLOY RESULT line saying why.
+        //
+        // The toggle below exists because short corrective runs (the 5-minute
+        // Unique01 waves, a 60-minute warm start) can never reach a 100-episode
+        // streak, and the user decides whether such a brain ships. It is an
+        // EditorPrefs value, so it is per machine and off by default.
+        private const string UNGATED_PREF = "PoSumo.AllowUngatedDeploy";
+        private const string UNGATED_MENU = "PoSumo/Allow Ungated Brain Deploy";
+
+        [MenuItem(UNGATED_MENU)]
+        private static void ToggleUngated()
+        {
+            EditorPrefs.SetBool(UNGATED_PREF, !EditorPrefs.GetBool(UNGATED_PREF, false));
+        }
+
+        [MenuItem(UNGATED_MENU, true)]
+        private static bool ToggleUngatedValidate()
+        {
+            Menu.SetChecked(UNGATED_MENU, EditorPrefs.GetBool(UNGATED_PREF, false));
+            return true;
+        }
+
+        /// The run directory a deploy source lives in: the folder directly under
+        /// Training/results, whatever depth the .onnx sits at.
+        private static string RunDirOf(string source)
+        {
+            string full = Path.GetFullPath(source).Replace('\\', '/');
+            string results = Path.GetFullPath(RESULTS_DIR).Replace('\\', '/').TrimEnd('/') + "/";
+            if (!full.StartsWith(results, System.StringComparison.OrdinalIgnoreCase)) return null;
+            string rest = full.Substring(results.Length);
+            int slash = rest.IndexOf('/');
+            return slash < 0 ? null : results + rest.Substring(0, slash);
+        }
+
+        /// Null when the run may ship; otherwise the reason it may not.
+        private static string GateRefusal(string source)
+        {
+            string runDir = RunDirOf(source);
+            if (runDir == null) return null;   // not a training run (a hand-staged file)
+            string gate = Path.Combine(runDir, "GATE.json");
+            if (!File.Exists(gate))
+            {
+                return $"no GATE.json in {runDir} - run Training/venv/Scripts/python.exe " +
+                       $"Tools/graduation_gate.py {runDir} --behavior <Name>";
+            }
+            string json = File.ReadAllText(gate);
+            if (System.Text.RegularExpressions.Regex.IsMatch(json, @"""passed""\s*:\s*true")) return null;
+            return $"GATE.json in {runDir} says the run did NOT pass: " +
+                   System.Text.RegularExpressions.Regex.Match(json, @"""reasons""[^\]]*\]").Value;
+        }
+
         // The menu items no longer pin a run id. They used to hold string literals
         // (*_unified01 -> *_stamina01 -> ...) that rotted every time the campaign
         // moved on: nothing checked them until a human clicked the menu, and the
@@ -219,6 +275,18 @@ namespace PoSumo.EditorTools
 
         private static void CopyInto(string source, string behaviorName, string agentFolder, string note)
         {
+            string refusal = GateRefusal(source);
+            if (refusal != null)
+            {
+                if (!EditorPrefs.GetBool(UNGATED_PREF, false))
+                {
+                    Debug.LogError($"DEPLOY RESULT: Refused — graduation gate: {refusal}. " +
+                                   $"To ship it anyway tick {UNGATED_MENU}.");
+                    return;
+                }
+                Debug.LogWarning($"DEPLOY: UNGATED — {refusal}. Shipping because {UNGATED_MENU} is on.");
+                note += " | UNGATED";
+            }
             Directory.CreateDirectory(agentFolder);
             string destination = $"{agentFolder}/{behaviorName}.onnx";
             File.Copy(source, destination, overwrite: true);
@@ -248,12 +316,61 @@ namespace PoSumo.EditorTools
 
             character.inferenceModel = model;
             EditorUtility.SetDirty(character);
+            string flagNote = SyncBalanceFlag(model, character);
             AssetDatabase.SaveAssets();
+            note += flagNote;
 
             var info = new FileInfo(destination);
             Debug.Log($"DEPLOY RESULT: Succeeded | {behaviorName} | {note} | {info.Length / 1024}KB | " +
                       $"{source} -> {destination} | " +
                       "character.inferenceModel set");
+        }
+
+        /// The only vector flag a Real01 run changes is balanceObservations (trained
+        /// with -posumoBalanceObs while the sheet stayed off). Reads the deployed
+        /// model's input width and sets the flag on this sheet AND on every
+        /// placeholder that borrows this brain, so neither ships a STALE BRAIN.
+        private static string SyncBalanceFlag(Unity.InferenceEngine.ModelAsset model,
+                                              Agent_CharacterDefinition character)
+        {
+            int width = -1;
+            try
+            {
+                var loaded = Unity.InferenceEngine.ModelLoader.Load(model);
+                var shape = loaded.inputs[0].shape;
+                if (!shape.isRankDynamic && shape.rank > 0) width = shape.Get(shape.rank - 1);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"DEPLOY: could not read {model.name}'s input width ({e.GetType().Name}); " +
+                                 "observation flags left as they are.");
+                return "";
+            }
+            int without = Agent_Biped.ObservationCount + (character.contactObservations ? 4 : 0)
+                          + (character.staminaObservation ? 1 : 0) + (character.extendedObservations ? 3 : 0)
+                          + (character.intentObservations ? 2 : 0);
+            bool want;
+            if (width == without) want = false;
+            else if (width == without + 2) want = true;
+            else
+            {
+                Debug.LogError($"DEPLOY: {model.name} takes {width} inputs; the sheet builds {without} " +
+                               $"(+2 with balance). No flag change fixes that — this brain will be STALE.");
+                return " | STALE WIDTH";
+            }
+
+            int changed = 0;
+            foreach (string guid in AssetDatabase.FindAssets("t:Agent_CharacterDefinition"))
+            {
+                var sheet = AssetDatabase.LoadAssetAtPath<Agent_CharacterDefinition>(AssetDatabase.GUIDToAssetPath(guid));
+                if (sheet == null) continue;
+                bool ownsOrBorrows = sheet == character || sheet.borrowedBrainFrom == character.behaviorName;
+                if (!ownsOrBorrows || sheet.balanceObservations == want) continue;
+                sheet.balanceObservations = want;
+                EditorUtility.SetDirty(sheet);
+                changed++;
+            }
+            return changed > 0 ? $" | balanceObservations={want} on {changed} sheet(s)" : "";
         }
     }
 }

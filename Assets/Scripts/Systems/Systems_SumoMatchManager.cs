@@ -411,6 +411,8 @@ namespace PoSumo
         private void EndRound(Agent_Biped winner, Agent_Biped loser)
         {
             RecordRoundStats(decided: true);
+            // For the graduation gate: only a WIN is a successful sumo episode.
+            winner.NoteEpisodeOutcome(true);
             winner.AddReward(1f);
             loser.AddReward(-1f);
             winner.EndEpisode();

@@ -96,8 +96,8 @@ Policy runtime: `com.unity.ai.inference` **is** Sentis under its new name, so th
 | Non-adjacent parts collide | Only the 30 leg-vs-trunk pairs collide (`Agent_BipedBody.EnableLegTrunkCollisions`); arms and leg-vs-leg pass through on purpose, and the user confirmed leg-vs-leg on 2026-10-05 |
 | A few small policies per skill family, switched by a director | **One unified brain per fighter** for walk + fight, told apart by the task-flag observation. Get-up is a flag inside `Mode.Walk`, not a separate policy |
 | No character reuses another's brain; each trains from scratch | **Directly contradicted by the 12 placeholder fighters added today** (`Agent_CharacterDefinition.borrowedBrainFrom`), each running a trained donor's `.onnx`. They are recorded as placeholders to be promoted by training, which is the path back into compliance |
-| Graduation gate: 100 straight episodes at target | Not implemented. Fight runs are accepted on ELO-curve shape (§4.5); no gate checks a streak or NaN gradients before deploy |
-| Log progress to `/DOCS/<YYYYMMDD>/`; tag checkpoints with interface + physics versions; hourly updates; time estimate at startup | None of this exists yet. The closest are config header comments and `Training/README.md` |
+| Graduation gate: 100 straight episodes at target | **Built 2026-11-10** (`Tools/graduation_gate.py`, enforced by `DeployBrain`). Streak counted from the `Gate/*` stats an env built after that date records; `--school walk` is reachable, `--school sumo` is near-impossible against self-play, so ELO shape stays the fight's signal |
+| Log progress to `/DOCS/<YYYYMMDD>/`; tag checkpoints with interface + physics versions; hourly updates; time estimate at startup | Version tagging **built 2026-11-10**: `Tools/preflight.py` stamps `Training/stamps/<run>.json`, the gate copies it into the run as `STAMP.json`. `/DOCS/<date>/` logs exist per pass. Hourly updates and the time estimate still do not |
 | "Before any change: list touched policies, log in `/DOCS`" | New process with no precedent here; start it with the next change that touches a body, rule or skill |
 
 ---

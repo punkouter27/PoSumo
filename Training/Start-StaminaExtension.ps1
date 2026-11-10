@@ -81,7 +81,7 @@ param(
     # the lineage is Rebuild01 -> Sumo01 -> Lunge01 -> Intent01 (Training/README.md).
     # Stamina01, Gait01, Obs01, Assist01, Rebuild02 and Buffer01 were removed
     # 2026-11-10 with their configs.
-    [ValidateSet('Rebuild01', 'Sumo01', 'Lunge01', 'Intent01')]
+    [ValidateSet('Rebuild01', 'Sumo01', 'Lunge01', 'Intent01', 'Real01')]
     [string]$Phase = 'Intent01',
 
     # Source run for --initialize-from, e.g. 'stamina01'. Resolves BY BEHAVIOR NAME
@@ -93,7 +93,12 @@ param(
     # See the identical guard in Start-Training.ps1. Every -Phase this script
     # accepts EXCEPT Rebuild01 is superseded, so without this the default
     # invocation launches a config whose own first line says not to.
-    [switch]$AllowSuperseded
+    [switch]$AllowSuperseded,
+
+    # The -InitializeFromPhase trunk was widened with Tools/onnx_warmstart.py
+    # --new-obs, so its input width is expected to differ from the deployed brain.
+    # Passed through to Tools/preflight.py as --widened.
+    [switch]$WidenedTrunk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -217,6 +222,15 @@ foreach ($fighter in $Fighters) {
         $learnArgs += '--resume'
         Write-Host "$runId : resuming from $reached toward $maxSteps"
     }
+    # PREFLIGHT (2026-11-10): refuse a run whose vector, env build or physics
+    # settings disagree, and stamp the interface/physics versions it trains on.
+    $preArgs = @((Join-Path $repoRoot 'Tools/preflight.py'), $config, "--run-id=$runId",
+                 "--env=$envExe")
+    if ($InitializeFromPhase) { $preArgs += "--initialize-from=$source" }
+    if ($WidenedTrunk) { $preArgs += '--widened' }
+    & $venvPython @preArgs
+    if ($LASTEXITCODE -ne 0) { throw "preflight refused $runId - see the PREFLIGHT lines above." }
+
     $proc = Start-Process -FilePath $learnExe -PassThru -ArgumentList $learnArgs -WorkingDirectory $repoRoot
     Write-Host "  trainer pid $($proc.Id) on ports $port..$($port + $NumEnvs - 1)"
 

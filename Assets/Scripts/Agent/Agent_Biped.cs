@@ -42,6 +42,8 @@ namespace PoSumo
         public bool staminaObservation = false;
         [Tooltip("Adds 2 observations, appended LAST: the opponent's lunge intent (-1..1, the 14th action he last sent) and how much of his lunge cooldown remains (0 ready .. 1 just lunged). Lets a fighter read a lunge coming. Changes the vector length — only with a retrain.")]
         public bool intentObservations = false;
+        [Tooltip("Adds 2 observations, appended LAST (after intent): centre of mass and capture point, each relative to the middle of the feet. Changes the vector length — only with a retrain. Forced on in a training env by -posumoBalanceObs.")]
+        public bool balanceObservations = false;
         [Tooltip("ML-Agents DecisionRequester period. Legacy brains trained at 5; the extended Matt brain at 3.")]
         public int decisionPeriod = 5;
 
@@ -142,6 +144,11 @@ namespace PoSumo
         /// part, so re-fetching this every episode only allocated a fresh array.
         private Sensor_BodyPartContact[] _contactSensors;
         private readonly float[] _prevActions = new float[MotorCount];
+        /// The command two steps back, for the second-difference (Jerk2) cost.
+        private readonly float[] _prevActions2 = new float[MotorCount];
+        /// Steps since the episode began, capped at 2: the second difference is
+        /// meaningless until two real commands exist.
+        private int _actionHistory;
         private float _pendingImpact;
         private float _lastTorsoY;
 
@@ -169,9 +176,13 @@ namespace PoSumo
                 contactObservations = character.contactObservations;
                 staminaObservation = character.staminaObservation;
                 intentObservations = character.intentObservations;
+                balanceObservations = character.balanceObservations;
                 decisionPeriod = character.decisionPeriod;
                 if (inferenceModel == null) inferenceModel = character.inferenceModel;
             }
+
+            // Training env asked for the wider vector (see Systems_TrainingFlags).
+            if (Systems_TrainingFlags.ForceBalanceObservations) balanceObservations = true;
 
             // Both are configured unconditionally, including when `character` is
             // null: Configure no-ops on null and leaves the provider on the
@@ -212,7 +223,8 @@ namespace PoSumo
         /// The vector length this fighter's flags actually produce.
         public int ResolvedObservationCount =>
             ObservationCount + (contactObservations ? 4 : 0) + (staminaObservation ? 1 : 0)
-            + (extendedObservations ? 3 : 0) + (intentObservations ? 2 : 0);
+            + (extendedObservations ? 3 : 0) + (intentObservations ? 2 : 0)
+            + (balanceObservations ? 2 : 0);
 
         /// First observation size seen for each behavior name this session, and the
         /// GameObject that established it.
@@ -258,7 +270,7 @@ namespace PoSumo
                         $"{vectorSize}. One behavior name is one policy, so one of them is " +
                         $"receiving garbage. Flags on '{name}': extended={extendedObservations} " +
                         $"contact={contactObservations} stamina={staminaObservation} " +
-                        $"intent={intentObservations} " +
+                        $"intent={intentObservations} balance={balanceObservations} " +
                         $"(character='{(character != null ? character.name : "none")}').", this);
                 }
                 return;
@@ -271,7 +283,8 @@ namespace PoSumo
                 $"(base {ObservationCount}{(contactObservations ? " +4 contact" : "")}" +
                 $"{(staminaObservation ? " +1 stamina" : "")}" +
                 $"{(extendedObservations ? " +3 extended" : "")}" +
-                $"{(intentObservations ? " +2 intent" : "")}), " +
+                $"{(intentObservations ? " +2 intent" : "")}" +
+                $"{(balanceObservations ? " +2 balance" : "")}), " +
                 $"{ActionCount} actions, decision period {decisionPeriod}.");
         }
 
@@ -399,7 +412,14 @@ namespace PoSumo
             _pendingImpact = 0f;
             _lastTorsoY = _b.Torso.position.y;
             _cadence.Reset();
-            for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++) _prevActions[actionIndex] = 0f;
+            for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
+            {
+                _prevActions[actionIndex] = 0f;
+                _prevActions2[actionIndex] = 0f;
+            }
+            _actionHistory = 0;
+            FlushEpisodeStats();
+            BeginTrainingEpisode();
 
             _nextLungeTime = 0f;   // the tachiai charge is available at once
             // GET-UP TRAINING. A share of walk-lane episodes open flat on the
@@ -542,12 +562,52 @@ namespace PoSumo
         private bool[] _rangeWarned;
         private int _guardSlot;
 
-        /// The ONE place a value enters the vector. Adds exactly what it is
+        /// The ONE place a value enters the vector. Buffers exactly what it is
         /// given, in the order it is called — the guard after it only reads.
+        /// `EmitObservations` hands the buffer (or a delayed copy) to the sensor.
         private void Observe(VectorSensor sensor, float value)
         {
-            sensor.AddObservation(value);
+            if (_obsCount < OBS_CAPACITY) _obsNow[_obsCount++] = value;
             GuardObservationRange(value);
+        }
+
+        // ---- Sensor delay (training only, 2026-11-10) --------------------------
+        //
+        // A real nervous system acts on what it sensed tens of milliseconds ago.
+        // The obs_delay_max environment parameter (default 0, which the game never
+        // sets) makes each training episode draw a delay of 0..max DECISIONS
+        // (60 ms each at decision period 3) and feed the policy that stale vector.
+        // Same width, same order: only WHEN a value arrives changes, so it can be
+        // turned on and off on one brain freely.
+        private const int OBS_CAPACITY = 64;
+        private const int OBS_DELAY_RING = 3;
+        private readonly float[] _obsNow = new float[OBS_CAPACITY];
+        private readonly float[][] _obsRing =
+        {
+            new float[OBS_CAPACITY], new float[OBS_CAPACITY], new float[OBS_CAPACITY],
+        };
+        private int _obsCount;
+        private int _obsDelay;
+        private int _obsRingHead;
+        private int _obsRingFilled;
+
+        private void EmitObservations(VectorSensor sensor)
+        {
+            float[] source = _obsNow;
+            if (_obsDelay > 0)
+            {
+                System.Array.Copy(_obsNow, _obsRing[_obsRingHead], _obsCount);
+                _obsRingHead = (_obsRingHead + 1) % OBS_DELAY_RING;
+                if (_obsRingFilled < OBS_DELAY_RING) _obsRingFilled++;
+                // Until enough history exists, the oldest vector held is the best
+                // available stand-in — the start of an episode is a static pose.
+                int delay = Mathf.Min(_obsDelay, _obsRingFilled - 1);
+                source = _obsRing[(_obsRingHead - 1 - delay + 2 * OBS_DELAY_RING) % OBS_DELAY_RING];
+            }
+            for (int slotIndex = 0; slotIndex < _obsCount; slotIndex++)
+            {
+                sensor.AddObservation(source[slotIndex]);
+            }
         }
 
         // DEBUG, not DEVELOPMENT_BUILD: this Unity version's analyzer (UAC0009)
@@ -594,6 +654,7 @@ namespace PoSumo
         public override void CollectObservations(VectorSensor sensor)
         {
             BeginObservationGuard();
+            _obsCount = 0;
             Vector2 tp = Torso.position;
             Vector2 tv = Torso.linearVelocity;
 
@@ -777,6 +838,42 @@ namespace PoSumo
                     Observe(sensor,1f);
                 }
             }
+
+            if (balanceObservations)                                              // +2
+            {
+                // APPENDED LAST (2026-11-10), after intent, for the same reason
+                // intent went last: every trained column keeps its meaning and a
+                // warm start only adds two zero-weighted inputs.
+                //
+                // Where the body's weight is relative to what holds it up. Both are
+                // measured from the MIDDLE OF THE TWO FEET, facing-mirrored, in
+                // metres / 0.5:
+                //   1. the centre of mass (static balance), and
+                //   2. the capture point x + v / w0, w0 = sqrt(g / CoM height)
+                //      (Hof's extrapolated CoM: where the body WILL be over its
+                //      feet given how fast it is moving — the dynamic version).
+                // Nothing in the vector said either; the policy had to infer them
+                // from 13 joint angles and a torso velocity.
+                Observe(sensor, San(BalanceOffset(false)));
+                Observe(sensor, San(BalanceOffset(true)));
+            }
+
+            EmitObservations(sensor);
+        }
+
+        /// CoM (or capture point) relative to the middle of the feet, facing-local,
+        /// scaled by 0.5 m. Public for the debug panel and the realism stats.
+        public float BalanceOffset(bool capturePoint)
+        {
+            Vector2 com = _b.CenterOfMass;
+            float x = com.x;
+            if (capturePoint)
+            {
+                float height = Mathf.Max(0.3f, com.y - arenaGroundY);
+                x += _b.CenterOfMassVelocity.x / Mathf.Sqrt(9.81f / height);
+            }
+            float mid = (_b.FootNear.position.x + _b.FootFar.position.x) * 0.5f;
+            return (x - mid) * Fs / 0.5f;
         }
 
         /// Share of the lunge cooldown still to run: 0 = a lunge is available,
@@ -806,7 +903,7 @@ namespace PoSumo
                 return;
             }
             var a = actions.ContinuousActions;
-            float energy = 0f, jerk = 0f, effort = 0f;
+            float energy = 0f, jerk = 0f, effort = 0f, jerk2 = 0f;
             for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
             {
                 _b.ApplyMotor(actionIndex, a[actionIndex] * actionScale);
@@ -815,8 +912,17 @@ namespace PoSumo
                 energy += Mathf.Abs(clamped);
                 effort += clamped * clamped;
                 jerk += Mathf.Abs(clamped - _prevActions[actionIndex]);
+                // Second difference: a(t) - 2a(t-1) + a(t-2). Large for a command
+                // that flips back and forth, ~0 for one ramping smoothly.
+                if (_actionHistory >= 2)
+                {
+                    jerk2 += Mathf.Abs(clamped - 2f * _prevActions[actionIndex] + _prevActions2[actionIndex]);
+                }
+                _prevActions2[actionIndex] = _prevActions[actionIndex];
                 _prevActions[actionIndex] = clamped;
             }
+            if (_actionHistory < 2) _actionHistory++;
+            jerk2 /= MotorCount;
             energy /= MotorCount;
             // QUADRATIC, unlike `energy`. An L1 cost has a constant gradient, so it
             // shifts every action down uniformly and a policy can pay it off by
@@ -851,6 +957,10 @@ namespace PoSumo
                 return;
             }
 
+            float slip = Reward_FootSlip.Measure(_b);
+            SampleRealismStats(slip);
+            if (mode == Mode.Walk) ApplyStandAssist();
+
             float upright = Mathf.Clamp01(Vector2.Dot(_b.Chest.transform.up, Vector2.up));
             float torsoY = San(Torso.position.y);
             float xLocal = (Torso.position.x - arenaCenterX) * Fs;
@@ -868,7 +978,8 @@ namespace PoSumo
             var ctx = new Reward_Context(
                 Fs, arenaGroundY, Torso.position, Torso.linearVelocity, _lastTorsoY,
                 upright, KneeBendFactor(), energy, effort, jerk, _pendingImpact,
-                IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f, edgeBehind);
+                IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f, edgeBehind,
+                jerk2, slip);
 
             if (mode == Mode.Walk && _gettingUp)
             {
@@ -904,7 +1015,7 @@ namespace PoSumo
                 // what was earned on the way down — so the order of these two lines
                 // against the Evaluate above is load-bearing.
                 if (IsDown) { SetReward(-WALK_FALL_PENALTY); EndEpisode(); return; }
-                if (xLocal > -0.3f) { AddReward(3f); EndEpisode(); }
+                if (xLocal > -0.3f) { NoteEpisodeOutcome(true); AddReward(3f); EndEpisode(); }
             }
             else // Sumo
             {
@@ -917,6 +1028,160 @@ namespace PoSumo
             }
 
             _lastTorsoY = torsoY;
+        }
+
+        // ---- Per-episode training settings (2026-11-10) -------------------------
+        //
+        // Every one of these is read from an ML-Agents ENVIRONMENT PARAMETER with a
+        // default that reproduces the old behaviour exactly: the sheet's own
+        // coefficient for the two smoothness costs, 0 for everything else. The
+        // game never connects a trainer, so it gets the defaults and is untouched.
+        // That is what lets one config stage these (Real01) without editing 16
+        // character sheets or invalidating a single shipped brain.
+
+        /// Walk-lane standing aid strength, fraction of body weight (0..1).
+        private float _standAssist;
+        /// Torso height above the clay at which the standing aid stops pushing,
+        /// and the band below it over which it ramps to full strength. 1.0 sits
+        /// just under the 1.06 m standing pose; at the measured crawl height of
+        /// ~0.6 m the aid is at 80% of its strength.
+        private const float STAND_ASSIST_HEIGHT = 1.0f;
+        private const float STAND_ASSIST_BAND = 0.5f;
+        /// Chest uprightness below which the aid lets go: it holds a body UP, it
+        /// does not right one that is going over.
+        private const float STAND_ASSIST_MIN_UPRIGHT = 0.5f;
+
+        private Systems_WalkObstacles _obstacles;
+
+        private void BeginTrainingEpisode()
+        {
+            _obsDelay = 0;
+            _obsRingHead = 0;
+            _obsRingFilled = 0;
+            _standAssist = 0f;
+            if (!Academy.IsInitialized) return;
+            var ep = Academy.Instance.EnvironmentParameters;
+
+            _sumoObjective.OverrideSmoothness(
+                ep.GetWithDefault("slip_penalty", _sumoObjective.SheetSlipPenalty),
+                ep.GetWithDefault("jerk2_penalty", _sumoObjective.SheetJerk2Penalty));
+            _walkObjective.OverrideSmoothness(
+                ep.GetWithDefault("walk_slip_penalty", _walkObjective.SheetSlipPenalty),
+                ep.GetWithDefault("walk_jerk2_penalty", _walkObjective.SheetJerk2Penalty));
+
+            int maxDelay = Mathf.Clamp(Mathf.RoundToInt(ep.GetWithDefault("obs_delay_max", 0f)),
+                                       0, OBS_DELAY_RING - 1);
+            _obsDelay = maxDelay > 0 ? Random.Range(0, maxDelay + 1) : 0;
+
+            _b.RandomizePhysique(ep.GetWithDefault("mass_jitter", 0f),
+                                 ep.GetWithDefault("damping_jitter", 0f));
+
+            if (mode != Mode.Walk || suppressEpisodeControl) return;
+
+            // TRAINING WHEELS, NOT A REFLEX. Unlike the always-on postural torque in
+            // Agent_BipedBody (which the game also runs), this is an upward FORCE
+            // and so is anti-gravity. That is exactly why it is walk-lane only,
+            // training only, and meant to be scheduled down to 0 by a curriculum
+            // (Real01: 0.5 -> 0.25 -> 0). It lets a policy discover a tall gait
+            // while falling from it is still rare, then hands the weight back.
+            _standAssist = Mathf.Clamp01(ep.GetWithDefault("stand_assist", 0f));
+
+            float barHeight = ep.GetWithDefault("walk_obstacle_height", 0f);
+            if (barHeight > 0f || _obstacles != null)
+            {
+                if (_obstacles == null) _obstacles = new Systems_WalkObstacles();
+                int count = Mathf.RoundToInt(ep.GetWithDefault("walk_obstacle_count", 2f));
+                _obstacles.Place(Torso.position.x, arenaCenterX, arenaGroundY,
+                                 barHeight, count, Torso.gameObject.layer);
+            }
+        }
+
+        /// Upward support on the pelvis while the walker carries itself low.
+        /// Called every physics step in Mode.Walk; a no-op unless stand_assist > 0.
+        private void ApplyStandAssist()
+        {
+            if (_standAssist <= 0f || _gettingUp || IsDown) return;
+            if (_b.Chest.transform.up.y < STAND_ASSIST_MIN_UPRIGHT) return;
+            float height = Torso.position.y - arenaGroundY;
+            float deficit = Mathf.Clamp01((STAND_ASSIST_HEIGHT - height) / STAND_ASSIST_BAND);
+            if (deficit <= 0f) return;
+            Torso.AddForce(Vector2.up * (_standAssist * deficit * _b.TotalMass * 9.81f));
+        }
+
+        // ---- Realism and graduation-gate stats ---------------------------------
+        //
+        // Pushed to TensorBoard through StatsRecorder once per EPISODE, and only
+        // while a trainer is connected: with no communicator the side channel is
+        // never drained, so a game session would queue these forever.
+        //
+        //   Realism/HighFreqShare  share of joint motion above ~5 Hz (0 smooth, 1 buzz)
+        //   Realism/FootSlip       mean loaded-foot slip, m/s (Reward_FootSlip)
+        //   Gate/<School>Episodes  episodes finished (summed per summary window)
+        //   Gate/<School>Failures  of those, how many did not succeed (summed)
+        //
+        // Success is the school's own terminal: a walker graduating, a wrestler
+        // winning the round (Systems_SumoMatchManager calls NoteEpisodeOutcome). A
+        // timeout, a draw or a fall is a failure. Tools/graduation_gate.py reads
+        // the two Gate series and passes a run only when the trailing windows hold
+        // at least 100 episodes with zero failures: the 100-straight-episodes rule.
+        private const string STAT_HIGH_FREQ = "Realism/HighFreqShare";
+        private const string STAT_SLIP = "Realism/FootSlip";
+        private const string STAT_WALK_EPISODES = "Gate/WalkEpisodes";
+        private const string STAT_WALK_FAILURES = "Gate/WalkFailures";
+        private const string STAT_SUMO_EPISODES = "Gate/SumoEpisodes";
+        private const string STAT_SUMO_FAILURES = "Gate/SumoFailures";
+
+        /// One-pole low-pass at ~5 Hz on a 50 Hz step: alpha = dt / (RC + dt),
+        /// RC = 1 / (2 pi 5). Whatever the joint does beyond this is buzz.
+        private const float HIGH_FREQ_ALPHA = 0.386f;
+
+        private readonly float[] _jointSpeedLow = new float[MotorCount];
+        private int _epSteps;
+        private float _epHighFreq;
+        private float _epSlip;
+        private bool _epSuccess;
+        private bool _epWasWalk;
+
+        /// Marks the episode about to end as a success (walk graduation, round
+        /// won). Anything not marked counts as a failure for the gate.
+        public void NoteEpisodeOutcome(bool success)
+        {
+            _epSuccess = success;
+        }
+
+        private void SampleRealismStats(float slip)
+        {
+            float highFreq = 0f, total = 0f;
+            for (int jointIndex = 0; jointIndex < MotorCount; jointIndex++)
+            {
+                float speed = _b.JointSpeedNorm(jointIndex);
+                _jointSpeedLow[jointIndex] += HIGH_FREQ_ALPHA * (speed - _jointSpeedLow[jointIndex]);
+                highFreq += Mathf.Abs(speed - _jointSpeedLow[jointIndex]);
+                total += Mathf.Abs(speed);
+            }
+            _epHighFreq += total > 0.01f ? highFreq / total : 0f;
+            _epSlip += slip;
+            _epSteps++;
+            _epWasWalk = mode == Mode.Walk;
+        }
+
+        private void FlushEpisodeStats()
+        {
+            if (_epSteps > 0 && Academy.IsInitialized && Academy.Instance.IsCommunicatorOn)
+            {
+                StatsRecorder stats = Academy.Instance.StatsRecorder;
+                stats.Add(STAT_HIGH_FREQ, _epHighFreq / _epSteps);
+                stats.Add(STAT_SLIP, _epSlip / _epSteps);
+                stats.Add(_epWasWalk ? STAT_WALK_EPISODES : STAT_SUMO_EPISODES, 1f,
+                          StatAggregationMethod.Sum);
+                stats.Add(_epWasWalk ? STAT_WALK_FAILURES : STAT_SUMO_FAILURES,
+                          _epSuccess ? 0f : 1f, StatAggregationMethod.Sum);
+            }
+            _epSteps = 0;
+            _epHighFreq = 0f;
+            _epSlip = 0f;
+            _epSuccess = false;
+            System.Array.Clear(_jointSpeedLow, 0, _jointSpeedLow.Length);
         }
 
         /// A limp ragdoll: every motor command zero. This is what a fighter with

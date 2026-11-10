@@ -65,6 +65,8 @@ namespace PoSumo
         public bool staminaObservation = false;
         [Tooltip("Adds 2 observations, appended last: the opponent's lunge intent and remaining lunge cooldown. Changes the vector length (51 -> 53) — must match the model. A placeholder must carry its donor's value.")]
         public bool intentObservations = false;
+        [Tooltip("Adds 2 observations, appended LAST (after intent): the body's centre of mass and its capture point (Hof's extrapolated CoM), each relative to the middle of the two feet, facing-mirrored, in metres / 0.5. Changes the vector length (53 -> 55) — must match the model. A placeholder must carry its donor's value. Training envs can force it on with -posumoBalanceObs (Systems_TrainingFlags), so the sheet stays off until the retrained brain is deployed.")]
+        public bool balanceObservations = false;
         [Tooltip("Trained model for inference playback.")]
         public Unity.InferenceEngine.ModelAsset inferenceModel;
 
@@ -94,6 +96,10 @@ namespace PoSumo
         public float edgeBraceReward = 0f;
         public float energyPenalty = 0.0004f;
         public float jerkPenalty = 0.0003f;
+        [Tooltip("Per-step cost of a LOADED foot sliding: sum over feet of (share of body weight on that foot) x |foot speed along the mat|, m/s. A swing foot carries no load and is free; a planted foot skating under the body is charged. 0 = off (every brain before 2026-11-10). A training run can override it with the slip_penalty environment parameter.")]
+        public float slipPenalty = 0f;
+        [Tooltip("Per-step cost of the SECOND difference of the motor commands, mean |a(t) - 2a(t-1) + a(t-2)|. jerkPenalty charges how much a command changes; this charges how much the change changes, which is what a buzzing, alternating command looks like. 0 = off. Override: jerk2_penalty environment parameter.")]
+        public float jerk2Penalty = 0f;
         [Range(0f, 1f)]
         [Tooltip("Fraction of movement rewards earned with straight legs; deep stance earns 100%.")]
         public float straightLegEarnFraction = 0.3f;
@@ -119,5 +125,9 @@ namespace PoSumo
         public float walkEnergyPenalty = 0.0003f;
         [Tooltip("Per-step penalty for standing still — stops the walker farming upright rewards as a statue.")]
         public float walkStallPenalty = 0.0008f;
+        [Tooltip("Walk-school copy of slipPenalty: charges a loaded foot that slides. 0 = off. Override: walk_slip_penalty environment parameter.")]
+        public float walkSlipPenalty = 0f;
+        [Tooltip("Walk-school copy of jerk2Penalty. 0 = off. Override: walk_jerk2_penalty environment parameter.")]
+        public float walkJerk2Penalty = 0f;
     }
 }

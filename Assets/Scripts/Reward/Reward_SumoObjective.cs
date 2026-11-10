@@ -38,6 +38,7 @@ namespace PoSumo
         private float _pEffort = 0.0015f, _rStance = 0.0009f;
         private float _rDrive = 0f;
         private float _rEdgeBrace = 0f;
+        private float _pSlip = 0f, _pJerk2 = 0f;
 
         /// Edge-brace window: within this many metres of the rim behind, metres.
         /// Checked against the quantity's range — it runs 2.275 -> 0 on every bout
@@ -68,7 +69,24 @@ namespace PoSumo
             _rDrive = character.driveReward;
             _rEdgeBrace = character.edgeBraceReward;
             _bendFloor = character.straightLegEarnFraction;
+            _pSlip = character.slipPenalty;
+            _pJerk2 = character.jerk2Penalty;
+            SheetSlipPenalty = _pSlip;
+            SheetJerk2Penalty = _pJerk2;
         }
+
+        /// Training-run overrides for the two smoothness costs, read per episode
+        /// by Agent_Biped from the slip_penalty / jerk2_penalty environment
+        /// parameters. The character sheet value is the default, so a config that
+        /// does not name them trains exactly what it always did.
+        public void OverrideSmoothness(float slipPenalty, float jerk2Penalty)
+        {
+            _pSlip = slipPenalty;
+            _pJerk2 = jerk2Penalty;
+        }
+
+        public float SheetSlipPenalty { get; private set; }
+        public float SheetJerk2Penalty { get; private set; }
 
         /// Torso-to-torso distance inside which a fighter is wrestling, metres.
         private const float ENGAGE_RANGE = 0.7f;
@@ -201,6 +219,13 @@ namespace PoSumo
             // EDGE BRACE (2026-11-10). Appended LAST so no existing term's
             // accumulation order moves. 0 on every sheet that does not set it.
             total += EdgeBraceFactor(body, in ctx) * _rEdgeBrace;
+
+            // SMOOTHNESS (2026-11-10), appended after everything else for the same
+            // reason: 0 on every sheet, so no existing term's accumulation moves.
+            // Slip charges a loaded foot that skates; Jerk2 charges the command's
+            // second difference (a buzzing, alternating command).
+            total += -ctx.Slip * _pSlip;
+            total += -ctx.Jerk2 * _pJerk2;
 
             return total;
         }

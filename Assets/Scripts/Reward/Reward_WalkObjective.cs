@@ -46,6 +46,9 @@ namespace PoSumo
         /// Defaults to 0 so an untouched character sheet trains exactly the gait it
         /// always did — the shaping change is carried by the ASSETS, not by this.
         private float _wHeight;
+        private float _pSlip, _pJerk2;
+        public float SheetSlipPenalty { get; private set; }
+        public float SheetJerk2Penalty { get; private set; }
 
         public void Configure(Agent_CharacterDefinition character)
         {
@@ -58,6 +61,15 @@ namespace PoSumo
             _wEnergy = character.walkEnergyPenalty;
             _wStall = character.walkStallPenalty;
             _wHeight = character.walkHeightReward;
+            _pSlip = SheetSlipPenalty = character.walkSlipPenalty;
+            _pJerk2 = SheetJerk2Penalty = character.walkJerk2Penalty;
+        }
+
+        /// Per-episode training override, same contract as the sumo provider's.
+        public void OverrideSmoothness(float slipPenalty, float jerk2Penalty)
+        {
+            _pSlip = slipPenalty;
+            _pJerk2 = jerk2Penalty;
         }
 
         /// How tall this walker is carrying itself, 0..1 — 1 at standing height,
@@ -136,6 +148,9 @@ namespace PoSumo
             {
                 total += -_wStall;   // no statue farming
             }
+            // Appended last; 0 on every sheet. See Reward_FootSlip.
+            total += -ctx.Slip * _pSlip;
+            total += -ctx.Jerk2 * _pJerk2;
 
             return total;
         }

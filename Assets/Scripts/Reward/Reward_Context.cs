@@ -50,13 +50,23 @@ namespace PoSumo
         /// float.MaxValue when there is no opponent and so no "behind".
         public readonly float EdgeBehind;
 
+        /// Mean |a(t) - 2a(t-1) + a(t-2)| over the 13 motors: the second
+        /// difference of the command. 0 on the first two steps of an episode.
+        public readonly float Jerk2;
+        /// Loaded foot slip this step, sum over both feet of load share x |vx|
+        /// (m/s). See Reward_FootSlip.
+        public readonly float Slip;
+
         public Reward_Context(float facingSign, float arenaGroundY, Vector2 torsoPosition,
                               Vector2 torsoVelocity, float lastTorsoY, float upright,
                               float kneeBend, float energy, float effort, float jerk,
                               float pendingImpact, bool isDown, bool hasOpponent,
-                              float opponentX, float edgeBehind = float.MaxValue)
+                              float opponentX, float edgeBehind = float.MaxValue,
+                              float jerk2 = 0f, float slip = 0f)
         {
             EdgeBehind = edgeBehind;
+            Jerk2 = jerk2;
+            Slip = slip;
             FacingSign = facingSign;
             ArenaGroundY = arenaGroundY;
             TorsoPosition = torsoPosition;

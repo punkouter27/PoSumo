@@ -2065,6 +2065,90 @@ namespace PoSumo
         private static bool IsTorsoPart(string name) =>
             name == "Pelvis" || name == "LowerBack" || name == "UpperBack" || name == "Chest";
 
+        /// Whole-body centre of mass, world space, from the live rigidbodies.
+        /// Read by the balance observations; a plain loop, no allocation.
+        public Vector2 CenterOfMass
+        {
+            get
+            {
+                Vector2 sum = Vector2.zero;
+                float mass = 0f;
+                for (int partIndex = 0; partIndex < Parts.Length; partIndex++)
+                {
+                    Rigidbody2D part = Parts[partIndex];
+                    if (part == null || !part.simulated) continue;
+                    sum += part.worldCenterOfMass * part.mass;
+                    mass += part.mass;
+                }
+                return mass > 0f ? sum / mass : (Vector2)transform.position;
+            }
+        }
+
+        /// Mass-weighted mean linear velocity of every part: the velocity of the
+        /// centre of mass.
+        public Vector2 CenterOfMassVelocity
+        {
+            get
+            {
+                Vector2 sum = Vector2.zero;
+                float mass = 0f;
+                for (int partIndex = 0; partIndex < Parts.Length; partIndex++)
+                {
+                    Rigidbody2D part = Parts[partIndex];
+                    if (part == null || !part.simulated) continue;
+                    sum += part.linearVelocity * part.mass;
+                    mass += part.mass;
+                }
+                return mass > 0f ? sum / mass : Vector2.zero;
+            }
+        }
+
+        // ---- Training-only physique randomisation (2026-11-10) ----------------
+        //
+        // Set by Agent_Biped from the mass_jitter / damping_jitter environment
+        // parameters at the start of an episode. Both default to 0, and at 0 this
+        // writes NOTHING — so the game, which never sets them, runs the exact body
+        // it always did. A brain fitted to one exact mass table is fitted to a
+        // body no player's phone is guaranteed to reproduce frame for frame; a
+        // few percent of spread makes it fitted to a neighbourhood instead.
+        private float[] _baseMass;
+        private float[] _baseDamping;
+        private bool _physiqueRandomised;
+
+        /// Re-draws every part's mass within +/-massJitter and every joint's passive
+        /// damping within +/-dampingJitter (fractions, e.g. 0.05 = 5%), always
+        /// from the BUILT values so draws never compound across episodes. Both 0
+        /// restores the built values once and then does nothing at all.
+        public void RandomizePhysique(float massJitter, float dampingJitter)
+        {
+            if (Parts == null || _passiveDamping == null) return;
+            massJitter = Mathf.Clamp(massJitter, 0f, 0.3f);
+            dampingJitter = Mathf.Clamp(dampingJitter, 0f, 0.9f);
+            if (massJitter <= 0f && dampingJitter <= 0f && !_physiqueRandomised) return;
+
+            if (_baseMass == null)
+            {
+                _baseMass = new float[Parts.Length];
+                for (int partIndex = 0; partIndex < Parts.Length; partIndex++)
+                {
+                    _baseMass[partIndex] = Parts[partIndex] != null ? Parts[partIndex].mass : 0f;
+                }
+                _baseDamping = (float[])_passiveDamping.Clone();
+            }
+
+            for (int partIndex = 0; partIndex < Parts.Length; partIndex++)
+            {
+                if (Parts[partIndex] == null) continue;
+                Parts[partIndex].mass = _baseMass[partIndex] * (1f + Random.Range(-massJitter, massJitter));
+            }
+            for (int jointIndex = 0; jointIndex < _passiveDamping.Length; jointIndex++)
+            {
+                _passiveDamping[jointIndex] = _baseDamping[jointIndex]
+                                              * (1f + Random.Range(-dampingJitter, dampingJitter));
+            }
+            _physiqueRandomised = massJitter > 0f || dampingJitter > 0f;
+        }
+
         /// Actual total, summed from the built bodies rather than assumed.
         ///
         /// Was `69.6f * massScale`, which stopped being true the moment mass became

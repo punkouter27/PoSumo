@@ -2701,3 +2701,29 @@ character sheets carry the flag, so the placeholders still match their donors.
   `Run-GaitCampaign`). `Start-StaminaExtension.ps1 -Phase` now offers only
   Rebuild01 / Sumo01 / Lunge01 / Intent01 and defaults to Intent01. Launch it
   with `pwsh` 7: Windows PowerShell 5.1 misreads its BOM-less em dashes.
+
+## Session of 2026-11-10 (night) — Real01 realism pass
+
+Detail and the per-policy log: `DOCS/20261110/real01.md`. **No shipped brain or game
+behaviour changed**: every addition is off by default (sheet flag off, or an ML-Agents
+environment parameter only `*Real01.yaml` sets).
+
+- **Optional balance observations, +2 at the end (53 → 55):** centre of mass and capture point, measured
+  from the middle of the two feet (`balanceObservations`). The sheets stay OFF. A training
+  env turns it on with `-posumoBalanceObs` (`Systems_TrainingFlags`, set via
+  `env_settings.env_args`), and `DeployBrain` flips the sheet, and every borrower's,
+  from the new model's input width.
+- **Reward, 0 on every sheet:** `slipPenalty` (a loaded foot sliding, `Reward_FootSlip`)
+  and `jerk2Penalty` (second difference of the command), plus walk copies. Env params
+  `slip_penalty`, `jerk2_penalty`, `walk_*` override per episode.
+- **Training-only env params, all default 0:** `obs_delay_max`, `mass_jitter`,
+  `damping_jitter`, `stand_assist` (an upward pelvis FORCE in the walk lane, scheduled to
+  0), `walk_obstacle_height` / `walk_obstacle_count` (`Systems_WalkObstacles`).
+- **TensorBoard:** `Realism/HighFreqShare`, `Realism/FootSlip`, `Gate/{Walk,Sumo}{Episodes,Failures}`
+  (only while a trainer is connected).
+- **`Tools/preflight.py`** runs inside both wrappers and refuses a run on a vector, env-age
+  or physics mismatch; it stamps `Training/stamps/<run>.json` with interface and physics
+  versions. **`Tools/graduation_gate.py`** writes `GATE.json`; **`DeployBrain` refuses a
+  run without a passing gate** unless *PoSumo → Allow Ungated Brain Deploy* is ticked.
+- A muscle power cap was NOT added: the Hill curve already caps joint power at ~17% of
+  F0·v0 (hip ~230 W vs a human ~1000 W), so it could never bind.

@@ -57,7 +57,10 @@ param(
     # Escape hatch for the superseded-config guard below. Deliberately NOT $Force:
     # that one already means "mlagents --force", i.e. discard the run directory, and
     # overloading it would make one switch mean two unrelated destructive things.
-    [switch]$AllowSuperseded
+    [switch]$AllowSuperseded,
+
+    # The -InitializeFrom trunk was widened with Tools/onnx_warmstart.py --new-obs.
+    [switch]$WidenedTrunk
 )
 
 $ErrorActionPreference = 'Stop'
@@ -155,6 +158,15 @@ if ($InitializeFrom) {
     }
     $learnArgs += "--initialize-from=$InitializeFrom"
 }
+
+# PREFLIGHT (2026-11-10): see Tools/preflight.py. Refuses on a hard mismatch and
+# writes Training/stamps/<run>.json with the interface and physics versions.
+$preArgs = @((Join-Path $repoRoot 'Tools/preflight.py'), $Config, "--run-id=$RunId",
+             "--env=Builds/$EnvName/$EnvName.exe")
+if ($InitializeFrom) { $preArgs += "--initialize-from=$InitializeFrom" }
+if ($WidenedTrunk) { $preArgs += '--widened' }
+& $venvPython @preArgs
+if ($LASTEXITCODE -ne 0) { throw "preflight refused $RunId - see the PREFLIGHT lines above." }
 
 Write-Host "Starting trainer: $RunId"
 Write-Host "  envs $NumEnvs on ports $BasePort..$($BasePort + $NumEnvs - 1)"
