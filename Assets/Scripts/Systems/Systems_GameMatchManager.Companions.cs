@@ -207,7 +207,14 @@ namespace PoSumo
 
             Systems_ScreenChrome chrome = Systems_ScreenChrome.Attach(
                 transform, chromeLayer, TogglePause,
-                debug != null ? (System.Action)debug.Toggle : null);
+                debug != null ? (System.Action)debug.Toggle : null,
+                AppendFighterTelemetry);
+
+            // The Dock becomes the bottom sheet that carries the chrome's bottom
+            // corners and the MENU > TACHIAI > FIGHT > RESULT strip. Same flag as
+            // the chrome, because it exists to frame it.
+            Systems_HudSheet.Attach(transform, _hud, this);
+            _settings.AddDisplayInfo("BUILD", "v" + Application.version + "  ·  " + Systems_BuildStamp.Date);
 
             _agentDebug = debug;
             if (debug != null)
@@ -238,6 +245,47 @@ namespace PoSumo
             // band is one touch target tall at each end, plus its own inset.
             _hud.ReserveChrome(Systems_UiKit.TOUCH_MIN + Systems_UiKit.SPACE_2,
                                Systems_UiKit.TOUCH_MIN + Systems_UiKit.SPACE_2);
+        }
+
+        /// The bottom-left telemetry stream in the arena: per fighter, name,
+        /// stamina and metres of mat behind him on the LIVE rim, e.g.
+        /// "MATT 82% 1.4m · JOSH 64% 0.9m". Called once a second by the chrome
+        /// into its reused builder.
+        private void AppendFighterTelemetry(System.Text.StringBuilder sb)
+        {
+            AppendFighter(sb, wrestlerA);
+            if (wrestlerA != null && wrestlerB != null)
+            {
+                sb.Append("  ·  ");
+            }
+            AppendFighter(sb, wrestlerB);
+        }
+
+        private void AppendFighter(System.Text.StringBuilder sb, Agent_Biped fighter)
+        {
+            if (fighter == null)
+            {
+                return;
+            }
+            string name = string.IsNullOrEmpty(fighter.displayNameOverride)
+                ? fighter.behaviorName
+                : fighter.displayNameOverride;
+            sb.Append(name.ToUpperInvariant());
+
+            var body = fighter.GetComponent<Agent_BipedBody>();
+            if (body != null)
+            {
+                sb.Append(' ').Append(Mathf.RoundToInt(body.Stamina * 100f)).Append('%');
+            }
+
+            // Mat left between the fighter and the nearer rim — the quantity
+            // the ring-out is decided on.
+            float fromCentre = Mathf.Abs(fighter.TorsoX - fighter.arenaCenterX);
+            float matLeft = Mathf.Max(0f, CurrentRingHalfWidth - fromCentre);
+            // Tenths by integer arithmetic: float.ToString would allocate a
+            // string per fighter per second for no reason.
+            int tenths = Mathf.RoundToInt(matLeft * 10f);
+            sb.Append(' ').Append(tenths / 10).Append('.').Append(tenths % 10).Append('m');
         }
 
         /// Spawns one companion as a child of the manager, if its GameTuning flag is

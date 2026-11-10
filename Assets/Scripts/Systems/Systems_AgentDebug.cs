@@ -338,7 +338,7 @@ namespace PoSumo
                 content.Add(engine);
             }
 
-            Label hint = Systems_UiKit.Text("DBG or the TAB key closes this panel.",
+            Label hint = Systems_UiKit.Text("Tap the green telemetry line or press TAB to close.",
                                             Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow);
             content.Add(hint);
 

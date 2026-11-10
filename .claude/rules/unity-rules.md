@@ -32,9 +32,9 @@ Principal Unity ML-Agents Architect: modular, production-ready C# for active-rag
   inset belongs on that layer.
 - Portrait 9:16, 60 FPS (`vSyncCount = 0` or `targetFrameRate` is ignored).
 - Five fixed corners on every screen, owned by `Systems_ScreenChrome`: title top-left,
-  frame rate top-centre (shown only while DBG is open), menu top-right, DBG bottom-left, `Application.version`
-  bottom-right. Inset layer, outside any ScrollView. (This line said version top-left
-  until 2026-10-04; the chrome and the user's anchor standard both say bottom-right.)
+  frame rate top-centre (always; step count added while debug is open), menu top-right,
+  agent telemetry line bottom-left (tap = debug panel), build date `YYMMDD` bottom-right.
+  Inset layer, outside any ScrollView. (Version moved to Settings on 2026-11-10.)
 - The panel scales on width — size against a live capture.
 
 ## 4. MLOps

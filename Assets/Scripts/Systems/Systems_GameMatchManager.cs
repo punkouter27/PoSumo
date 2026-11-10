@@ -363,6 +363,12 @@ namespace PoSumo
         /// about the centre line and the sample counts for neither of them.
         public bool ScoringLive => _phase == Phase.Fighting && _countdownLeft <= 0f;
 
+        /// True while a decided round or match is on screen (RoundEnded or
+        /// MatchOver). Read by Systems_HudSheet's stage strip: with ScoringLive it
+        /// splits every moment into TACHIAI / FIGHT / RESULT without exposing the
+        /// private Phase enum or adding a fifth match event.
+        public bool ResultShowing => _phase == Phase.RoundEnded || _phase == Phase.MatchOver;
+
         /// How the most recent round ended. Exposed so a companion can read it in
         /// its `RoundEnded` handler without a fifth match event — four events are
         /// the entire coupling surface between this referee and ~15 companions, and

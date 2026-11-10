@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUD sheet pass</title>
+<style>
+:root{--bg:#101216;--card:#1b1e24;--ink:#f2efe8;--mid:#b9b4ab;--gold:#e8a33d;--green:#7fd39b;--line:#2c3038}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{margin:0 0 4px;font-size:28px}h2{margin:40px 0 8px;font-size:20px}
+p,li{color:var(--mid)}b{color:var(--ink)}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media(max-width:640px){.pair{grid-template-columns:1fr}}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+figure img{width:100%;height:auto;border-radius:8px;display:block}
+figcaption{font-size:13px;color:var(--mid);margin-top:8px}
+.tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.08em;padding:2px 8px;border-radius:6px;background:#2a2e36;color:var(--mid)}
+.tag.after{background:#3a2a12;color:var(--gold)}
+ol li::marker{color:var(--gold);font-weight:700}
+code{color:var(--green)}
+</style>
+</head>
+<body>
+<main>
+<h1>HUD sheet pass — 2026-11-10</h1>
+<p>Layout option 01 (bottom-sheet) and the state-flow boards from the HUD options canvas, built into the game. 1080×2400 captures from <code>Tools/portrait_check.py</code>; overflow audit <b>0 findings</b> on bracket, arena, pause and notch-sim; console <b>0 errors</b>. Presentation only, so no brain is affected.</p>
+
+<h2>What changed</h2>
+<ol>
+<li><b>Bottom-right:</b> <code>v1.0.4</code> → build date <code>YYMMDD</code>. Written into the player by <code>WriteBuildStamp</code> before every build; the Editor shows today. The version moved to Settings › DISPLAY › BUILD.</li>
+<li><b>Bottom-left:</b> the <code>DBG</code> chip → a live agent telemetry line (arena: name, stamina, mat left per fighter; bracket: brains own/borrowed, bout n/15). Tapping it opens the debug panel, so phones keep a way in; it turns gold while open.</li>
+<li><b>Top-centre:</b> frame rate is always shown; the physics step count is appended while TAB debug is open.</li>
+<li><b>Arena dock → bottom sheet</b> (<code>Systems_HudSheet</code>): raised surface, grabber, and a <b>MENU › TACHIAI › FIGHT › RESULT</b> strip polled from the referee. The bracket footer carries the same strip with MENU lit.</li>
+</ol>
+
+<h2>Bracket (Menu)</h2>
+<div class="pair">
+<figure><span class="tag">BEFORE</span><img src="before/bracket_1080x2400.png" alt="Bracket before: DBG chip bottom-left, v1.0.4 bottom-right"><figcaption>DBG chip, version stamp, no frame rate.</figcaption></figure>
+<figure><span class="tag after">AFTER</span><img src="after/bracket_1080x2400.png" alt="Bracket after: stage strip with MENU lit, brain telemetry line, 261110 date"><figcaption>Stage strip (MENU), brain telemetry line, build date, frame rate.</figcaption></figure>
+</div>
+
+<h2>Arena (Fight)</h2>
+<div class="pair">
+<figure><span class="tag">BEFORE</span><img src="before/arena_1080x2400.png" alt="Arena before: floating stamina card, DBG chip, version"><figcaption>Stamina card floating over the crowd; DBG and version in the corners.</figcaption></figure>
+<figure><span class="tag after">AFTER</span><img src="after/arena_1080x2400.png" alt="Arena after: bottom sheet with FIGHT lit, fighter telemetry, build date"><figcaption>One sheet: grabber, FIGHT lit, stamina strip, telemetry line and date as its footer.</figcaption></figure>
+</div>
+
+<h2>TAB debug open</h2>
+<div class="pair">
+<figure><span class="tag after">AFTER</span><img src="after/debug_1080x2400.png" alt="Debug panel open: FPS with step count, gold telemetry line"><figcaption>Top-centre gains <code>step 1236</code>; the stream turns gold and closes the panel when tapped.</figcaption></figure>
+<figure><span class="tag after">AFTER</span><img src="after/notch_1080x2400.png" alt="Arena with simulated 32pt notch and gesture bar"><figcaption>Notch sim (32 pt top and bottom): corners stay inside the safe area.</figcaption></figure>
+</div>
+</main>
+</body>
+</html>

@@ -126,6 +126,17 @@ namespace PoSumo
             row.Add(Systems_UiKit.ChipButton(buttonText, onClick, 96));
         }
 
+        /// A read-only label/value row on the DISPLAY tab. Carries the build
+        /// version since the bottom-right corner switched to the YYMMDD build
+        /// date (2026-11-10 HUD-sheet pass) — the version is still worth having,
+        /// just not in a corner on every frame.
+        public void AddDisplayInfo(string label, string value)
+        {
+            VisualElement row = LabelledRow(_tabBodies[TAB_DISPLAY], label);
+            Label text = Systems_UiKit.Text(value, Systems_UiKit.FONT_SMALL, Systems_UiKit.TextLow);
+            row.Add(text.NoPick());
+        }
+
         /// An ON/OFF row on the GAMEPLAY tab (the bracket's auto-play).
         public void AddGameplayToggle(string label, System.Func<bool> read, System.Action toggle)
         {

@@ -1182,6 +1182,16 @@ Every screen carries the same five corner items, and one component owns all of
 them on BOTH screens: **title top-left, frame rate top-centre, menu top-right,
 DBG bottom-left, build version bottom-right** (`enableScreenChrome`). Since 2026-11-10 the frame rate is `visibility: hidden` until DBG opens (`SetDebugActive`) — hidden, not `display: none`, so `HudOverflowAudit.Corners` still finds its box.
 
+> **SUPERSEDED later on 2026-11-10 (HUD-sheet pass, `DOCS/20261110/hudsheet.md`).** The
+> corners are now: title TL, **frame rate always on** TC (`· step N` appended while
+> debug is open), menu TR, a **live agent telemetry line** BL that is also the debug
+> button (still named `DebugToggle`), and the **build date `YYMMDD`** BR
+> (`Systems_BuildStamp`, written into `Resources/BuildStamp.txt` by
+> `Assets/Editor/WriteBuildStamp.cs` before every build; gitignored). The version moved
+> to Settings › DISPLAY › BUILD. The arena Dock is a bottom sheet (`Systems_HudSheet`,
+> gated on `enableScreenChrome`) carrying a MENU › TACHIAI › FIGHT › RESULT strip polled
+> from `ScoringLive` / `ResultShowing`; the bracket footer draws the same strip.
+
 - It is **absolute on a full-bleed layer**, never a slot in the flow layout. The
   top bar is a three-slot row whose centre carries the scorebug, and the panel
   scales on WIDTH — a frame-rate readout docked in `TopBarCentre` competes with

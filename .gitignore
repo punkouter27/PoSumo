@@ -98,3 +98,8 @@ Training/*.log
 # stays tracked so the directory itself survives a clone.
 .claude/state/*
 !.claude/state/.gitkeep
+
+# Written by Assets/Editor/WriteBuildStamp.cs before every player build (the
+# YYMMDD in the bottom-right corner). Changes per build; git already knows the date.
+/Assets/Resources/BuildStamp.txt
+/Assets/Resources/BuildStamp.txt.meta

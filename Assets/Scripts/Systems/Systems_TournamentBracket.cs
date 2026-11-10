@@ -136,8 +136,10 @@ namespace PoSumo
         private Systems_SettingsSheet _settings;
         private VisualElement _settingsScrim, _settingsLayer;
         private bool _settingsOpen;
-        /// The fighter debug panel behind the DBG chip; held so TAB can toggle it.
+        /// The fighter debug panel behind the telemetry stream; held so TAB can toggle it.
         private Systems_AgentDebug _agentDebug;
+        /// The footer's MENU > TACHIAI > FIGHT > RESULT strip (MENU lit here).
+        private readonly Label[] _stageCells = new Label[4];
         /// Promotion banner. Shown once, on the first Refresh after returning from
         /// a match that moved somebody up or down the banzuke. Lives on the
         /// BRACKET pane — that is where the player lands coming back from a bout.
@@ -326,7 +328,8 @@ namespace PoSumo
                 // the bracket had no settings at all. Resolved on press: the
                 // sheet is built at the end of this method.
                 ToggleSettings,
-                bracketDebug != null ? (System.Action)bracketDebug.Toggle : null);
+                bracketDebug != null ? (System.Action)bracketDebug.Toggle : null,
+                AppendBrainTelemetry);
             if (bracketDebug != null)
             {
                 bracketDebug.BindChrome(bracketChrome);
@@ -435,6 +438,12 @@ namespace PoSumo
             footer.style.paddingBottom = Systems_UiKit.SPACE_3
                                        + Systems_UiKit.TOUCH_MIN + Systems_UiKit.SPACE_2;
             footer.style.flexShrink = 0;
+
+            // The state flow, MENU lit: the same strip the arena's bottom sheet
+            // carries (Systems_HudSheet), so MENU > TACHIAI > FIGHT > RESULT reads
+            // as one path across both screens.
+            footer.Add(Systems_HudSheet.BuildStrip(_stageCells));
+            Systems_HudSheet.Paint(_stageCells, Systems_HudSheet.STAGE_MENU);
 
             _statusLabel = Systems_UiKit.Text("", Systems_UiKit.FONT_LEAD, Systems_UiKit.Gold);
             _statusLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -577,6 +586,7 @@ namespace PoSumo
             {
                 _settings.AddDisplayAction("FIGHTER DEBUG (TAB KEY)", "OPEN", OpenDebugFromSettings);
             }
+            _settings.AddDisplayInfo("BUILD", "v" + Application.version + "  ·  " + Systems_BuildStamp.Date);
             _settings.AddFooterButton(Systems_UiKit.PrimaryButton("CLOSE", ToggleSettings));
             gutter.Add(_settings.Card);
 
@@ -605,6 +615,46 @@ namespace PoSumo
 
         /// The debug panel sits UNDER the settings layer on this screen, so the
         /// sheet has to get out of its way.
+        /// The bottom-left telemetry stream on the bracket: what is driving the
+        /// roster and how far the draw has got, e.g.
+        /// "16 brains · 4 own · 12 borrowed · bout 3/15". A fighter with no model
+        /// is counted as missing — the silent-heuristic failure CLAUDE.md warns of.
+        private void AppendBrainTelemetry(System.Text.StringBuilder sb)
+        {
+            if (_roster == null)
+            {
+                return;
+            }
+            int loaded = 0;
+            int borrowed = 0;
+            for (int rosterIndex = 0; rosterIndex < _roster.Length; rosterIndex++)
+            {
+                Agent_CharacterDefinition fighter = _roster[rosterIndex];
+                if (fighter == null || fighter.inferenceModel == null)
+                {
+                    continue;
+                }
+                loaded++;
+                if (!string.IsNullOrEmpty(fighter.borrowedBrainFrom))
+                {
+                    borrowed++;
+                }
+            }
+            sb.Append(loaded).Append(" brains  ·  ")
+              .Append(loaded - borrowed).Append(" own  ·  ")
+              .Append(borrowed).Append(" borrowed");
+            int missing = _roster.Length - loaded;
+            if (missing > 0)
+            {
+                sb.Append("  ·  ").Append(missing).Append(" MISSING");
+            }
+            if (Systems_TournamentState.Active)
+            {
+                sb.Append("  ·  bout ").Append(Systems_TournamentState.BoutsPlayed + 1)
+                  .Append('/').Append(Systems_TournamentState.BoutCount);
+            }
+        }
+
         private void OpenDebugFromSettings()
         {
             if (_settingsOpen)

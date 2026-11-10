@@ -7,10 +7,16 @@ namespace PoSumo
     /// The five fixed corners of every screen in the game, in one place.
     ///
     ///     top-left ...... the game's title
-    ///     top-centre .... live frame rate (only while the DBG panel is open)
-    ///     top-right ..... the menu button
-    ///     bottom-left ... the debug button (agent / brain telemetry)
-    ///     bottom-right .. the build version
+    ///     top-centre .... live frame rate; + physics step count while TAB debug is open
+    ///     top-right ..... the menu button (settings sheet)
+    ///     bottom-left ... the agent telemetry stream: one live line, tap = debug panel
+    ///     bottom-right .. the build date, YYMMDD (Systems_BuildStamp)
+    ///
+    /// 2026-11-10 HUD-sheet pass: BL was a "DBG" chip and BR was "v1.0.4". The
+    /// UU_AGENT rules put a build DATE bottom-right and agent telemetry
+    /// bottom-left, so the version moved into the settings sheet (DISPLAY tab)
+    /// and the chip became the stream itself. It is still the button that opens
+    /// the panel, so the debug door a phone has no TAB key for is not lost.
     ///
     /// Why a layer of its own rather than five additions to the existing HUD.
     /// Systems_HudRoot lays the match screen out as three FLOW bands whose heights
@@ -66,7 +72,19 @@ namespace PoSumo
 
         private Label _fps;
         private Button _debugButton;
+        private Label _streamLabel;
         private System.Action _onDebug;
+
+        /// Fills the bottom-left stream once per readout. Writes into a reused
+        /// builder rather than returning a string, so the caller's formatting
+        /// allocates nothing; the one string per second is the label's own.
+        private System.Action<StringBuilder> _telemetry;
+        private readonly StringBuilder _streamSb = new StringBuilder(96);
+
+        /// Physics steps since this screen was built: the "step" half of the
+        /// top-centre readout, shown only while the debug panel is open.
+        private int _fixedSteps;
+        private bool _debugActive;
 
         /// One reused builder, the same discipline Systems_PerfHud and
         /// Systems_Telemetry follow. This refreshes four times a second for the
@@ -88,7 +106,8 @@ namespace PoSumo
         /// control that does nothing when pressed: a dead affordance is worse than
         /// an absent one, because it reads as a bug in the game.
         public static Systems_ScreenChrome Attach(Transform owner, VisualElement layer,
-                                                  System.Action onMenu, System.Action onDebug)
+                                                  System.Action onMenu, System.Action onDebug,
+                                                  System.Action<StringBuilder> telemetry = null)
         {
             if (layer == null)
             {
@@ -100,7 +119,9 @@ namespace PoSumo
                 go.transform.SetParent(owner, false);
             }
             Systems_ScreenChrome chrome = go.AddComponent<Systems_ScreenChrome>();
+            chrome._telemetry = telemetry;
             chrome.Build(layer, onMenu, onDebug);
+            chrome.RefreshStream();
             return chrome;
         }
 
@@ -150,13 +171,11 @@ namespace PoSumo
             _fps.style.top = Systems_UiKit.SPACE_2;
             _fps.style.height = Systems_UiKit.TOUCH_MIN;
             _fps.style.unityTextAlign = TextAnchor.MiddleCenter;
-            // Telemetry, so it shows only while the DBG panel is open (2026-11-10
-            // clean pass) — a frame rate is a question about the build, not about
-            // the bout. VISIBILITY, not display: a display:none label has no
-            // layout box, and HudOverflowAudit.Corners still asserts this corner
-            // is occupied. Measuring continues while hidden, so the number is
-            // already valid the moment the panel opens.
-            _fps.style.visibility = Visibility.Hidden;
+            // Always on since the HUD-sheet pass: the UU_AGENT grid names TC as
+            // "FPS counter / step telemetry". It was hidden behind the DBG panel
+            // in the morning's clean pass; the compromise is that the default
+            // readout is the bare rate, and the physics step count is appended
+            // only while TAB debug is open.
             layer.Add(_fps.NoPick());
 
             // TOP-RIGHT — the menu.
@@ -167,34 +186,43 @@ namespace PoSumo
                 Corner(menu, layer, false, true);
             }
 
-            // BOTTOM-LEFT — the debug button.
+            // BOTTOM-LEFT — the agent telemetry stream.
             //
-            // This corner used to belong to Systems_PerfHud, which built its own
-            // chip here and is spawned only in a development build — so a release
-            // APK had no debug affordance at all. The button lives here now and the
-            // panel it opens ships, because the agent readout is a thing to consult
-            // ON the phone during a bout, not only in the Editor.
+            // One live line about the fighters (arena) or the loaded brains
+            // (bracket), refreshed with the frame rate. When a debug panel exists
+            // the line IS its button: a phone has no TAB key, and the old "DBG"
+            // chip was the only on-screen way in. Still named DebugToggle, because
+            // HudOverflowAudit.Corners asserts the five names.
             if (onDebug != null)
             {
-                _debugButton = Systems_UiKit.ChipButton("DBG", InvokeDebug, Systems_UiKit.TOUCH_MIN);
+                _debugButton = Systems_UiKit.StreamButton(InvokeDebug);
                 _debugButton.name = "DebugToggle";
-                _debugButton.style.fontSize = Systems_UiKit.FONT_MICRO;
-                _debugButton.style.opacity = 0.85f;
+                _debugButton.style.maxWidth = Length.Percent(70);
                 Corner(_debugButton, layer, true, false);
             }
+            else
+            {
+                _streamLabel = Systems_UiKit.Text("", Systems_UiKit.FONT_MICRO, Systems_UiKit.Good);
+                _streamLabel.name = "DebugToggle";
+                _streamLabel.style.textShadow = Systems_UiKit.Outline;
+                _streamLabel.style.height = Systems_UiKit.TOUCH_MIN;
+                _streamLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+                _streamLabel.style.maxWidth = Length.Percent(70);
+                Corner(_streamLabel, layer, true, false);
+            }
 
-            // BOTTOM-RIGHT — the build stamp.
+            // BOTTOM-RIGHT — the build date, YYMMDD.
             //
-            // Application.version IS PlayerSettings.bundleVersion, so this is the
-            // number that shipped rather than one that can drift from it. The game
-            // reaches a phone by sideload and two installs an hour apart are
-            // otherwise indistinguishable, with adb shell dumpsys package not
-            // available to whoever is holding the device.
-            Label version = Systems_UiKit.Text("v" + Application.version,
+            // Written into the player at build time (Systems_BuildStamp), so two
+            // sideloaded installs from different days are told apart at a
+            // glance. The version string moved to the settings sheet.
+            Label version = Systems_UiKit.Text(Systems_BuildStamp.Date,
                                                Systems_UiKit.FONT_MICRO,
                                                Systems_UiKit.TextLow);
             version.name = "ChromeVersion";
             version.style.textShadow = Systems_UiKit.Outline;
+            version.style.height = Systems_UiKit.TOUCH_MIN;
+            version.style.unityTextAlign = TextAnchor.MiddleRight;
             Corner(version, layer, false, false);
         }
 
@@ -238,19 +266,46 @@ namespace PoSumo
             _onDebug();
         }
 
-        /// Tints the debug chip while its panel is open, so the button reports the
-        /// state it controls. Called by whoever owns the panel.
+        /// Called by whoever owns the debug panel. Open: the top-centre readout
+        /// gains the step count and the stream turns gold, so the corner reports
+        /// the state it controls.
         public void SetDebugActive(bool active)
         {
-            if (_fps != null)
+            _debugActive = active;
+            _shownFps = -1;
+            if (_debugButton != null)
             {
-                _fps.style.visibility = active ? Visibility.Visible : Visibility.Hidden;
+                _debugButton.style.color = active ? Systems_UiKit.Gold : Systems_UiKit.Good;
             }
-            if (_debugButton == null)
+        }
+
+        private void FixedUpdate()
+        {
+            _fixedSteps++;
+        }
+
+        /// Rebuilds the bottom-left line from the host's provider. A host with
+        /// no provider gets a fixed caption, so the corner is never blank.
+        private void RefreshStream()
+        {
+            _streamSb.Clear();
+            if (_telemetry != null)
             {
-                return;
+                _telemetry(_streamSb);
             }
-            _debugButton.style.color = active ? Systems_UiKit.Gold : Systems_UiKit.TextHi;
+            if (_streamSb.Length == 0)
+            {
+                _streamSb.Append("agents · no data");
+            }
+            string line = _streamSb.ToString();
+            if (_debugButton != null)
+            {
+                _debugButton.text = line;
+            }
+            if (_streamLabel != null)
+            {
+                _streamLabel.text = line;
+            }
         }
 
         private void Update()
@@ -286,11 +341,17 @@ namespace PoSumo
                 // The digits only change when the rounded rate does, which at a
                 // steady 60 is almost never — so the label is not rewritten, and
                 // no string is built, on most samples.
-                if (fps != _shownFps)
+                // While debug is open the step count changes every sample, so
+                // the label is rewritten each second then, and only then.
+                if (fps != _shownFps || _debugActive)
                 {
                     _shownFps = fps;
                     _sb.Clear();
                     _sb.Append(fps).Append(" FPS");
+                    if (_debugActive)
+                    {
+                        _sb.Append("  ·  step ").Append(_fixedSteps);
+                    }
                     _fps.text = _sb.ToString();
                 }
                 // Coloured on the AVERAGE frame, with a small tolerance: at a
@@ -302,6 +363,8 @@ namespace PoSumo
                                  : avgMs > MS_GOOD + MS_TOLERANCE || _stalledThisWindow ? Systems_UiKit.Warn
                                  : Systems_UiKit.Good;
             }
+
+            RefreshStream();
 
             _framesSinceSample = 0;
             _timeSinceSample = 0f;

@@ -590,6 +590,27 @@ namespace PoSumo
             return button;
         }
 
+        /// A one-line live readout that is also a door: the bottom-left agent
+        /// telemetry stream, which opens the fighter debug panel when pressed.
+        /// Content-width (no fixed width — the line grows with the data) and
+        /// left-aligned, on the same dark chip and press feedback as every other
+        /// control, so it reads as tappable rather than as stray debug text.
+        public static Button StreamButton(System.Action onClick)
+        {
+            var button = new Button(onClick);
+            StyleButton(button, Chip, Good, TOUCH_MIN, FONT_MICRO);
+            button.style.unityFontStyleAndWeight = FontStyle.Normal;
+            button.style.unityTextAlign = TextAnchor.MiddleLeft;
+            button.style.paddingLeft = SPACE_2;
+            button.style.paddingRight = SPACE_2;
+            button.style.marginLeft = 0;
+            button.style.marginRight = 0;
+            button.style.whiteSpace = WhiteSpace.NoWrap;
+            button.style.overflow = Overflow.Hidden;
+            button.style.textOverflow = TextOverflow.Ellipsis;
+            return button;
+        }
+
         private static VisualElement MenuBar()
         {
             var bar = new VisualElement().NoPick();

@@ -24,7 +24,8 @@ namespace PoSumo.EditorTools
     /// harness additionally asserts ZERO visible ScrollViews (see its Audit).
     ///
     /// The CORNER findings enforce checklist #4 — TL Title | TC FPS | TR Menu |
-    /// BL Debug | BR Version — as a PASS/FAIL check rather than a convention:
+    /// BL agent telemetry (DebugToggle) | BR build date YYMMDD (ChromeVersion) —
+    /// as a PASS/FAIL check rather than a convention:
     /// Systems_ScreenChrome names its layer and its five children, and this
     /// asserts they exist together, are exactly five (nothing else may draw into
     /// a corner), and sit in the right quadrants of the layer. A screen with no
