@@ -40,6 +40,8 @@ namespace PoSumo
         public bool contactObservations = false;
         [Tooltip("Adds 1 observation: whole-body stamina (1 fresh, 0 spent). OFF for every shipped brain — it changes the vector length, so it can only be switched on together with a retrain. Turn it on for the next run so the policy can perceive the fatigue that Agent_BipedBody now applies to it.")]
         public bool staminaObservation = false;
+        [Tooltip("Adds 2 observations, appended LAST: the opponent's lunge intent (-1..1, the 14th action he last sent) and how much of his lunge cooldown remains (0 ready .. 1 just lunged). Lets a fighter read a lunge coming. Changes the vector length — only with a retrain.")]
+        public bool intentObservations = false;
         [Tooltip("ML-Agents DecisionRequester period. Legacy brains trained at 5; the extended Matt brain at 3.")]
         public int decisionPeriod = 5;
 
@@ -164,6 +166,7 @@ namespace PoSumo
                 extendedObservations = character.extendedObservations;
                 contactObservations = character.contactObservations;
                 staminaObservation = character.staminaObservation;
+                intentObservations = character.intentObservations;
                 decisionPeriod = character.decisionPeriod;
                 if (inferenceModel == null) inferenceModel = character.inferenceModel;
             }
@@ -207,7 +210,7 @@ namespace PoSumo
         /// The vector length this fighter's flags actually produce.
         public int ResolvedObservationCount =>
             ObservationCount + (contactObservations ? 4 : 0) + (staminaObservation ? 1 : 0)
-            + (extendedObservations ? 3 : 0);
+            + (extendedObservations ? 3 : 0) + (intentObservations ? 2 : 0);
 
         /// First observation size seen for each behavior name this session, and the
         /// GameObject that established it.
@@ -253,6 +256,7 @@ namespace PoSumo
                         $"{vectorSize}. One behavior name is one policy, so one of them is " +
                         $"receiving garbage. Flags on '{name}': extended={extendedObservations} " +
                         $"contact={contactObservations} stamina={staminaObservation} " +
+                        $"intent={intentObservations} " +
                         $"(character='{(character != null ? character.name : "none")}').", this);
                 }
                 return;
@@ -264,7 +268,8 @@ namespace PoSumo
                 $"[OBS] {behaviorName}: {vectorSize} slots " +
                 $"(base {ObservationCount}{(contactObservations ? " +4 contact" : "")}" +
                 $"{(staminaObservation ? " +1 stamina" : "")}" +
-                $"{(extendedObservations ? " +3 extended" : "")}), " +
+                $"{(extendedObservations ? " +3 extended" : "")}" +
+                $"{(intentObservations ? " +2 intent" : "")}), " +
                 $"{ActionCount} actions, decision period {decisionPeriod}.");
         }
 
@@ -750,7 +755,32 @@ namespace PoSumo
                     Observe(sensor,1f);
                 }
             }
+
+            if (intentObservations)                                               // +2
+            {
+                // APPENDED LAST (2026-11-10), after every block a shipped brain
+                // already reads, so the 51 trained input columns keep their meaning
+                // and the warm start only has to add two zero-weighted columns.
+                // Reads the opponent's PREVIOUS decision: his intent for this step is
+                // not chosen yet, and reading it would be a race on execution order.
+                if (fighting)
+                {
+                    Observe(sensor,San(opponent.LastLungeIntent));
+                    Observe(sensor,San(opponent.LungeCooldown01));
+                }
+                else
+                {
+                    // No opponent: "no threat" — intent fully off, lunge unavailable.
+                    Observe(sensor,-1f);
+                    Observe(sensor,1f);
+                }
+            }
         }
+
+        /// Share of the lunge cooldown still to run: 0 = a lunge is available,
+        /// 1 = this fighter lunged this very step.
+        public float LungeCooldown01 =>
+            Mathf.Clamp01((_nextLungeTime - Time.fixedTime) / LUNGE_COOLDOWN);
 
         /// Mean knee flexion mapped to 0..1 (1 = both knees bent 60°+).
         private float KneeBendFactor()
@@ -823,11 +853,20 @@ namespace PoSumo
             float torsoY = San(Torso.position.y);
             float xLocal = (Torso.position.x - arenaCenterX) * Fs;
             bool hasOpponent = opponent != null;
+            // Rim behind = the one on the side away from the opponent. With the
+            // opponent to the right (toward +1) it sits at centre - R, so the gap is
+            // R + (x - centre); mirrored by `toward` for the other side.
+            float edgeBehind = float.MaxValue;
+            if (hasOpponent)
+            {
+                float toward = Mathf.Sign(opponent.TorsoX - Torso.position.x);
+                edgeBehind = San(ringHalfWidth + (Torso.position.x - arenaCenterX) * toward);
+            }
 
             var ctx = new Reward_Context(
                 Fs, arenaGroundY, Torso.position, Torso.linearVelocity, _lastTorsoY,
                 upright, KneeBendFactor(), energy, effort, jerk, _pendingImpact,
-                IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f);
+                IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f, edgeBehind);
 
             if (mode == Mode.Walk && _gettingUp)
             {

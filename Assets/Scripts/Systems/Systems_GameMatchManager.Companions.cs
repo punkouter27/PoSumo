@@ -92,6 +92,12 @@ namespace PoSumo
             // The directed middle tier between ImpactFx's flash and the shockwave
             // ring — same static event, tighter gate, and aimed along the blow.
             SpawnCompanion<Systems_HitSmear>(enableHitSmear, "HitSmear");
+            SpawnCompanion<Systems_FighterOutline>(enableFighterOutline, "FighterOutline");
+            // Held by reference: StartCountdown starts it, TickCountdown defers to
+            // it. Spawned before the opening countdown in Start, so the first bout
+            // gets it too.
+            SpawnCompanion<Systems_TachiaiCeremony>(enableTachiaiCeremony, "TachiaiCeremony");
+            _ceremony = FindAnyObjectByType<Systems_TachiaiCeremony>();
             SpawnCompanion<Systems_RingSqueezeCue>(enableRingSqueezeCue, "RingSqueezeCue");
             // ---- Spectator layer. All read-only w.r.t. the fight except the
             // mutators (game-only, like StrikeImpulse). Spawn ORDER matters

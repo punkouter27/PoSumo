@@ -1811,7 +1811,7 @@ After any change to the walk lane, assert every walker spawns at `xLocal < -0.3`
 >     powershell -Command "@(Get-Process mlagents-learn -EA SilentlyContinue).Count"
 >     # then compare the newest numbered .pt against itself 5 minutes later
 
-**Three wrappers, and which to use.** All three enforce an explicit `--base-port` (the
+**Two wrappers, and which to use.** Both enforce an explicit `--base-port` (the
 trainer takes `--num-envs` consecutive ports, so two runs on the default 5005 collide and
 the second hangs on a handshake the first already answered) and start TensorBoard exactly
 once (a second bind on 6006 fails quietly enough that you notice an hour later with no
@@ -1821,7 +1821,6 @@ graphs).
 |---|---|
 | `Start-Training.ps1` | ONE run, foreground. The original; still correct for a single fighter |
 | `Start-StaminaExtension.ps1` | 2+ concurrent runs. `-Phase` picks the config generation, `-InitializeFromPhase` warm-starts a NEW run id from an existing trunk, `-Minutes` arms a graceful auto-stop |
-| `Run-GaitCampaign.ps1` | Unattended multi-hour work. Runs the roster in sequential batches, because the limit is MEMORY not cores — 4 fighters x 4 envs is ~17 GB against ~8-10 GB typically free, so 2 at a time is what fits |
 
 `Start-StaminaExtension.ps1` carries two guards that each cost a wasted launch to learn:
 a `--resume` into a config whose `max_steps` equals the checkpoint's step count **exits
@@ -2644,3 +2643,34 @@ Sad_1-3" statement above. `Assets/Agents/ROSTER.md` has the roster table.
 - `Tools/naming_audit.py` enforces both new naming schemes.
 - No observation, action, mass of a trained fighter or collider changed: **no brain is
   invalidated.**
+
+## Session of 2026-11-10 (later) — outline pass, Timeline tachiai, intent sensing, edge brace
+
+Supersedes the "51 slots" statements above: **the vector is 53** (`intentObservations`,
++2 appended LAST: opponent's lunge intent and his remaining lunge cooldown). All 16
+character sheets carry the flag, so the placeholders still match their donors.
+`DOCS/20261110/intent01.md` lists the policies touched and the run.
+
+- **#3 Fighter outline.** `Systems_FighterOutlineFeature` is a URP renderer feature on
+  `Assets/Settings/Renderer2D.asset` (installed by *PoSumo → Install Fighter Outline
+  Feature*; the first `ScriptableRendererFeature` in the project). Two render-graph
+  passes: fighters' sprites, filtered by rendering-layer bits 1 (A) / 2 (B) that
+  `Systems_FighterOutline` sets, into a half-res mask; then an edge blit over the camera
+  colour. Records nothing unless a bout is live (`Systems_FighterOutline.Active`).
+  `Systems_BlobShadow` sprites are excluded — tagged, they drew rings on the clay.
+- **#7 Tachiai on Timeline.** `Systems_TachiaiCeremony` builds a `TimelineAsset` in code
+  (no `.playable` files) with one `Systems_CeremonyTrack` of four beats (face A, face B,
+  gaze lock with a tale-of-the-tape card, release wide) sized to `countdownSeconds`, then
+  logs and shows `[TACHIAI] <A> N ms, <B> M ms` / "X FIRST OFF THE LINE". The referee
+  holds it in `_ceremony` and its countdown skips its own camera beats while
+  `OwnsCamera`. `PoSumo.Runtime` now references `Unity.Timeline`.
+- **#10 Edge brace.** `edgeBraceReward` on the character sheet (0 = off; Matt/Grandma
+  0.0006, Kim 0.0008, Nick 0.0004). Pays only within 0.4 m of the rim behind, opponent in
+  range, both feet planted and not sliding, torso not retreating. `Reward_Context.EdgeBehind`.
+- **Warm start from an ONNX.** `Tools/onnx_warmstart.py` rebuilds an ML-Agents checkpoint
+  from a shipped `.onnx` (parameter names survive the export), optionally widening the
+  input with zero columns, and asserts the result reproduces the shipped actions. The
+  critic, optimiser and normaliser step count are not in an ONNX and start fresh.
+- **`execute_code` has a 30 s SERVER-side timeout** and `EditorApplication.delayCall`
+  does not fire while the Editor is unfocused. A blocking build returns a timeout error
+  while still running — poll for `BUILD RESULT:`. Unity deletes `Temp/` on exit.

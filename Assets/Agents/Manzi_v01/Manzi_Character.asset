@@ -36,7 +36,8 @@ MonoBehaviour:
   decisionPeriod: 3
   contactObservations: 1
   staminaObservation: 1
-  inferenceModel: {fileID: 5022602860645237092, guid: d40789c9a1a3bdc4891f8fa0702ded5e, type: 3}
+  intentObservations: 1
+  inferenceModel: {fileID: 5022602860645237092, guid: ecafb38b767d1a947bd0122db2010bbe, type: 3}
   uprightReward: 0.002
   closingReward: 0.0019999999
   lungeBonus: 0.0023999999
@@ -50,6 +51,7 @@ MonoBehaviour:
   effortPenalty: 0.0015
   stanceReward: 0.0009
   driveReward: 0.006
+  edgeBraceReward: 0
   energyPenalty: 0.0006
   jerkPenalty: 0.0005
   straightLegEarnFraction: 0.15

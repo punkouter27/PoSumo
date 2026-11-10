@@ -19,7 +19,7 @@ MonoBehaviour:
   faceArtName: 
   voicePitchHz: 100
   voiceTract: 1.03
-  borrowedBrainFrom: Grandma
+  borrowedBrainFrom: Matt
   clothing:
     legs: 2
     legsColor: {r: 0.55, g: 0.56, b: 0.58, a: 1}
@@ -36,7 +36,8 @@ MonoBehaviour:
   decisionPeriod: 3
   contactObservations: 1
   staminaObservation: 1
-  inferenceModel: {fileID: 5022602860645237092, guid: 8f76568562941a345ae69c088f1518bf, type: 3}
+  intentObservations: 1
+  inferenceModel: {fileID: 5022602860645237092, guid: 648b4830194982a4da4c6d9c48f026d3, type: 3}
   uprightReward: 0.002
   closingReward: 0.003
   lungeBonus: 0.003
@@ -50,6 +51,7 @@ MonoBehaviour:
   effortPenalty: 0.0015
   stanceReward: 0.0009
   driveReward: 0.004
+  edgeBraceReward: 0
   energyPenalty: 0.0004
   jerkPenalty: 0.0003
   straightLegEarnFraction: 0.3

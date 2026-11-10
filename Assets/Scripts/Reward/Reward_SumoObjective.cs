@@ -37,6 +37,17 @@ namespace PoSumo
         private float _bendFloor = 0.3f;
         private float _pEffort = 0.0015f, _rStance = 0.0009f;
         private float _rDrive = 0f;
+        private float _rEdgeBrace = 0f;
+
+        /// Edge-brace window: within this many metres of the rim behind, metres.
+        /// Checked against the quantity's range — it runs 2.275 -> 0 on every bout
+        /// that reaches the rim, so the ramp is occupied by every ring-out finish
+        /// (shaping trap 1: a term saturated outside the observed range is absent).
+        private const float EDGE_BRACE_RANGE = 0.4f;
+        /// Foot slide, m/s, at which a planted foot stops counting as braced.
+        private const float EDGE_SLIP_LIMIT = 0.2f;
+        /// Backward torso speed, m/s, above which the fighter is yielding, not bracing.
+        private const float EDGE_YIELD_SPEED = 0.05f;
 
         public void Configure(Agent_CharacterDefinition character)
         {
@@ -55,6 +66,7 @@ namespace PoSumo
             _pEffort = character.effortPenalty;
             _rStance = character.stanceReward;
             _rDrive = character.driveReward;
+            _rEdgeBrace = character.edgeBraceReward;
             _bendFloor = character.straightLegEarnFraction;
         }
 
@@ -186,7 +198,36 @@ namespace PoSumo
             // still uses it, ungated, where there is no second term to overlap with.
             total += -ctx.Effort * _pEffort;
 
+            // EDGE BRACE (2026-11-10). Appended LAST so no existing term's
+            // accumulation order moves. 0 on every sheet that does not set it.
+            total += EdgeBraceFactor(body, in ctx) * _rEdgeBrace;
+
             return total;
+        }
+
+        /// 0..1: how well this fighter is holding his ground at the rim while being
+        /// wrestled there. Rising toward the rim, but ONLY while (a) the opponent is
+        /// in wrestling range, (b) both feet are planted and not sliding, and
+        /// (c) the torso is not giving ground. Without (c) backing to the rim in a
+        /// clinch would farm it; with it, the only way to earn it is to stop moving
+        /// backwards — the bale stand real rikishi make. Bounded well under the
+        /// ring-out terminal: at a 0.0006 coefficient a full 10 s stand is 0.3.
+        private static float EdgeBraceFactor(Agent_BipedBody body, in Reward_Context ctx)
+        {
+            if (!ctx.HasOpponent || ctx.IsDown || ctx.EdgeBehind >= EDGE_BRACE_RANGE) return 0f;
+            if (!body.FootDownNear || !body.FootDownFar) return 0f;
+            float gap = Mathf.Abs(ctx.OpponentX - ctx.TorsoPosition.x);
+            if (gap >= ENGAGE_RANGE) return 0f;
+
+            float toward = Mathf.Sign(ctx.OpponentX - ctx.TorsoPosition.x);
+            float backward = -Reward_Context.San(ctx.TorsoVelocity.x) * toward;
+            if (backward > EDGE_YIELD_SPEED) return 0f;
+
+            float slip = Mathf.Max(Mathf.Abs(Reward_Context.San(body.FootNear.linearVelocity.x)),
+                                   Mathf.Abs(Reward_Context.San(body.FootFar.linearVelocity.x)));
+            float still = Mathf.Clamp01(1f - slip / EDGE_SLIP_LIMIT);
+            float nearRim = Mathf.Clamp01(1f - Mathf.Max(0f, ctx.EdgeBehind) / EDGE_BRACE_RANGE);
+            return nearRim * still;
         }
 
         /// ARENA-RELATIVE, matching the planted-feet terms below.

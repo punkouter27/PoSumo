@@ -4,7 +4,9 @@
     "references": [
         "PoSumo.Runtime",
         "Unity.ML-Agents",
-        "Unity.InferenceEngine"
+        "Unity.InferenceEngine",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [
         "Editor"

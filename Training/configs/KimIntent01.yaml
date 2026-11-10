@@ -1,0 +1,96 @@
+# Kim INTENT 01 - created 2026-11-10. Warm corrective pass for two changes at once:
+#
+#  1. OPPONENT-INTENT SENSING (#9). Two observations appended LAST: the opponent's
+#     lunge intent (his 14th action, -1..1) and his remaining lunge cooldown (0..1).
+#     Vector 51 -> 53. Flag: intentObservations on the character sheet (all 16 sheets,
+#     so the placeholders that borrow this brain build the same vector).
+#  2. EDGE BRACE REWARD (#10). Reward_SumoObjective pays edgeBraceReward per step for
+#     holding ground within 0.4 m of the rim behind, opponent in range, both feet
+#     planted and not sliding, torso not retreating. Set on the sheet (Matt/Grandma
+#     0.0006, Kim 0.0008, Nick 0.0004). Confounded with change 1 on purpose: the user
+#     time-boxed this to one 60-minute run.
+#
+# WARM START FROM THE SHIPPED .ONNX, not a checkpoint (Training/results was absent):
+# Tools/onnx_warmstart.py rebuilt the actor from Kim.onnx with the two new input
+# columns ZERO-weighted (verified: identical actions to the shipped brain, max error
+# ~2e-6). The ONNX carries no critic, no optimiser state and no normaliser step count:
+# expect "Failed to load for module Optimizer:..." and a fresh value function, which
+# is why the learning rate is 1e-4 constant rather than 3e-4. Staged at
+# Training/results/kim_intentinit.
+#
+# --num-envs 2. Judge on ELO SHAPE from 1200 (not comparable to Lunge01's ELO).
+#
+# Launch: Training/Start-StaminaExtension.ps1 -Fighters Kim -Phase Intent01 -InitializeFromPhase Intentinit -NumEnvs 2 -Minutes 60
+
+behaviors:
+  Kim:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 2048
+      buffer_size: 20480
+      learning_rate: 1.0e-4
+      beta: 5.0e-3
+      epsilon: 0.2
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: constant
+    network_settings:
+      normalize: true
+      hidden_units: 512
+      num_layers: 3
+      vis_encode_type: simple
+    reward_signals:
+      extrinsic:
+        gamma: 0.997
+        strength: 1.0
+    keep_checkpoints: 5
+    checkpoint_interval: 250000
+    max_steps: 3000000
+    time_horizon: 1000
+    summary_freq: 30000
+    threaded: false   # self-play: ML-Agents recommends false. Changed 2026-10-04; shipped Rebuild01 brains trained with true.
+    self_play:
+      window: 25
+      play_against_latest_model_ratio: 0.25
+      save_steps: 50000
+      swap_steps: 50000
+      team_change: 250000
+
+# Ring-width curriculum. Systems_SumoMatchManager randomises each round's platform
+# half-width within startHalfRange (1.7 .. 2.275); platform_difficulty controls how far
+# toward the narrow end it may go.
+#
+# THIS LESSON ONLY STARTS WORKING WITH THIS RUN. Its purpose is to teach edge
+# distance across SCALES rather than let the policy memorise one mat width - and
+# until change 1 above, the width it varied was not in the observation vector at
+# all, so every lesson looked identical from inside the policy. Expect it to bite
+# for the first time here, and expect the wide -> mixed -> full progression to
+# actually cost something.
+environment_parameters:
+  platform_difficulty:
+    curriculum:
+      - name: wide
+        completion_criteria:
+          measure: progress
+          behavior: Kim
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.3
+        value: 0.0
+      - name: mixed
+        completion_criteria:
+          measure: progress
+          behavior: Kim
+          signal_smoothing: true
+          min_lesson_length: 100
+          threshold: 0.6
+        value: 0.5
+      - name: full
+        value: 1.0
+
+  # GET-UP TRAINING (new in Sumo01). Share of WALK-LANE episodes that open flat on
+  # the clay, face up or face down at random. Until the fighter is back on its
+  # feet (torso >= 0.85 m, upright) a fall is not terminal and only rising pays;
+  # standing is +1, then the ordinary walk rules apply. Read by Agent_Biped in
+  # OnEpisodeBegin. Sumo bouts are unaffected: down is still a loss there.
+  get_up_chance: 0.3

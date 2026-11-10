@@ -19,7 +19,7 @@ MonoBehaviour:
   faceArtName: 
   voicePitchHz: 112
   voiceTract: 1
-  borrowedBrainFrom: Kim
+  borrowedBrainFrom: Matt
   clothing:
     legs: 4
     legsColor: {r: 0.4, g: 0.18, b: 0.42, a: 1}
@@ -36,7 +36,8 @@ MonoBehaviour:
   decisionPeriod: 3
   contactObservations: 1
   staminaObservation: 1
-  inferenceModel: {fileID: 5022602860645237092, guid: d40789c9a1a3bdc4891f8fa0702ded5e, type: 3}
+  intentObservations: 1
+  inferenceModel: {fileID: 5022602860645237092, guid: 0883d5668ae57ad489dc05fb877b2b94, type: 3}
   uprightReward: 0.002
   closingReward: 0.0019999999
   lungeBonus: 0.0023999999
@@ -50,6 +51,7 @@ MonoBehaviour:
   effortPenalty: 0.0015
   stanceReward: 0.0009
   driveReward: 0.006
+  edgeBraceReward: 0
   energyPenalty: 0.0006
   jerkPenalty: 0.0005
   straightLegEarnFraction: 0.15

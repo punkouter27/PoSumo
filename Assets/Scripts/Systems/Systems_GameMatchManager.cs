@@ -150,6 +150,8 @@ namespace PoSumo
         private bool enablePostFx = true;
         private bool enableLanterns = true;
         private bool enableHitSmear = true;
+        private bool enableTachiaiCeremony = true;
+        private bool enableFighterOutline = true;
         [Tooltip("Round-opening countdown length; physics and brains are held until it finishes.")]
         public int countdownSeconds = 3;
         [Tooltip("Half the gap between the fighters' neutral stand-off positions during the countdown.")]
@@ -393,6 +395,9 @@ namespace PoSumo
         /// The fighter debug panel, when the chrome layer built one. Held so TAB
         /// can toggle it; see SpawnScreenChrome.
         private Systems_AgentDebug _agentDebug;
+        /// Owned directly, not merely spawned: it and the countdown both steer the
+        /// camera, so the countdown asks it before issuing a beat of its own.
+        private Systems_TachiaiCeremony _ceremony;
         private bool _paused;
         private bool _bracketBout;
         // Announce reveals still in flight, so a rematch can drop them — see
@@ -463,6 +468,8 @@ namespace PoSumo
                 enablePostFx = tuning.enablePostFx;
                 enableLanterns = tuning.enableLanterns;
                 enableHitSmear = tuning.enableHitSmear;
+                enableTachiaiCeremony = tuning.enableTachiaiCeremony;
+                enableFighterOutline = tuning.enableFighterOutline;
                 // Pure-logic config, not a companion: the storylines class has no
                 // lifecycle, so the switch is delivered to the type itself.
                 Systems_Storylines.Enabled = tuning.enableStorylines;
@@ -1350,6 +1357,10 @@ namespace PoSumo
             {
                 _camFollow.BeginEstablishingShot();
             }
+            if (_ceremony != null)
+            {
+                _ceremony.Begin(countdownSeconds);
+            }
         }
 
         /// 3-2-1 over the walk-in: the camera punches in on one fighter's head
@@ -1386,6 +1397,8 @@ namespace PoSumo
             // fighters half off the screen edges under the "1". An explicit wide
             // shot on the final digit is what the intro does and what reads.
             if (_camFollow == null) return;
+            // The Timeline ceremony, when on, owns these beats.
+            if (_ceremony != null && _ceremony.OwnsCamera) return;
             if (digit == 1)
             {
                 _camFollow.PullBackWide(CAMERA_BEAT_SECONDS, CEREMONY_BLEND);

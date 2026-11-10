@@ -190,6 +190,10 @@ namespace PoSumo
         public bool enableImpactFx = true;
         [Tooltip("A one-quad radial STREAK burst at solid-strike contact points, aimed along the blow — the directed middle tier between ImpactFx's particle flash and ShockwaveFx's slam ring. Presentation only; subscribes to the impact static like the other two.")]
         public bool enableHitSmear = true;
+        [Tooltip("The tachiai face-off as a Timeline: face A, face B, a tight two-shot with a tale-of-the-tape card, then the release wide, over the round countdown — followed by a 'first off the line' reaction readout. Presentation only; off restores the referee's per-digit camera.")]
+        public bool enableTachiaiCeremony = true;
+        [Tooltip("A team-colour outline around each fighter, drawn by the PoSumo fighter-outline renderer feature, so two bodies in a clinch stay readable. Width grows as stamina drops; it brightens in a sustained clinch. Presentation only.")]
+        public bool enableFighterOutline = true;
         [Tooltip("Backdrop parallax, haze tinting, crowd sway, light shafts.")]
         public bool enableAtmosphere = true;
         [Tooltip("Adaptive layered score.")]

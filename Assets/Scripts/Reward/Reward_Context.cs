@@ -45,13 +45,18 @@ namespace PoSumo
 
         public readonly bool HasOpponent;
         public readonly float OpponentX;
+        /// Metres from the torso to the rim BEHIND it (the side away from the
+        /// opponent), against the live mat. 0 or less = over the edge.
+        /// float.MaxValue when there is no opponent and so no "behind".
+        public readonly float EdgeBehind;
 
         public Reward_Context(float facingSign, float arenaGroundY, Vector2 torsoPosition,
                               Vector2 torsoVelocity, float lastTorsoY, float upright,
                               float kneeBend, float energy, float effort, float jerk,
                               float pendingImpact, bool isDown, bool hasOpponent,
-                              float opponentX)
+                              float opponentX, float edgeBehind = float.MaxValue)
         {
+            EdgeBehind = edgeBehind;
             FacingSign = facingSign;
             ArenaGroundY = arenaGroundY;
             TorsoPosition = torsoPosition;

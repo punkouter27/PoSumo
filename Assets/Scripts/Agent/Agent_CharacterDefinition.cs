@@ -63,6 +63,8 @@ namespace PoSumo
         public bool contactObservations = false;
         [Tooltip("Adds 1 observation: whole-body stamina, 1 = fresh down to 0 = fully fatigued.\n\nOFF for every shipped brain for the same reason contactObservations is — it lengthens the observation vector, so an existing .onnx cannot be fed it.\n\nTurn it on for the NEXT run, together with the corrective pass the fatigue model requires anyway. Joint torque now decays with accumulated work whether or not this is on; leaving it off means the policy is fighting a body that is silently getting weaker with no way to perceive it, so it cannot learn to pace itself or to time a push against a tiring opponent.")]
         public bool staminaObservation = false;
+        [Tooltip("Adds 2 observations, appended last: the opponent's lunge intent and remaining lunge cooldown. Changes the vector length (51 -> 53) — must match the model. A placeholder must carry its donor's value.")]
+        public bool intentObservations = false;
         [Tooltip("Trained model for inference playback.")]
         public Unity.InferenceEngine.ModelAsset inferenceModel;
 
@@ -88,6 +90,8 @@ namespace PoSumo
         public float stanceReward = 0.0009f;
         [Tooltip("Per-step reward for driving the opponent back while BOTH feet carry load, scaled by the weaker foot's share of body weight. Requires contactObservations to be meaningful.\n\n0 by default because every shipped brain trained without it. Sumo is won by sustained push, but every other term here pays for a collision, so policies learned to strike rather than drive. Try 0.004-0.008 on the next run.")]
         public float driveReward = 0f;
+        [Tooltip("Per-step reward for holding ground at the rim while wrestled there: within 0.4 m of the edge behind, opponent in range, both feet planted and not sliding, torso not retreating. 0 = off (every brain before 2026-11-10). Keep it small: 0.0006 pays 0.3 for a full 10 s stand against a -1 ring-out.")]
+        public float edgeBraceReward = 0f;
         public float energyPenalty = 0.0004f;
         public float jerkPenalty = 0.0003f;
         [Range(0f, 1f)]
