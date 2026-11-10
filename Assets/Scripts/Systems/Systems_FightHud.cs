@@ -121,6 +121,8 @@ namespace PoSumo
         // Live strip
         private VisualElement _liveCard;
         private Label _footer;
+        private VisualElement _matBlock;
+        private int _shownVisibility = -1;
         private Label _matCaption;
         private VisualElement _matTrack;
         private VisualElement _matFill;
@@ -393,7 +395,52 @@ namespace PoSumo
             // nothing on screen said so, so a round read as two fighters milling
             // about until one inexplicably fell off. Telling the player how much
             // clay is left turns that into visible, rising pressure.
+            //
+            // SHOWN only while the mat can actually close (2026-11-10 clean pass).
+            // Under the real-sumo rules shrinkStartSeconds is 0, the ring never
+            // moves, and the meter read a constant "MAT 4.6m" all bout — a full
+            // bar that answered no question. Built always and toggled in
+            // UpdateLiveStrip, NOT decided here: this component's Start is not
+            // ordered against the manager's, which is where GameTuning is copied
+            // in, so at build time the manager can still hold its code defaults.
             VisualElement centre = Systems_UiKit.Column(Align.Center).NoPick();
+            _matBlock = Systems_UiKit.Column(Align.Center).NoPick();
+            _matBlock.style.alignSelf = Align.Stretch;
+            centre.Add(_matBlock);
+            BuildMatMeter(_matBlock);
+            // The win-probability row (Systems_TensionEngine) mounts here — the
+            // second dock card merged into the strip. Empty when the companion's
+            // flag is off; costs one empty element.
+            // Stretched across the column. The anchor is itself a centred column,
+            // so in a centred parent it shrank to the width of its "WIN CHANCE"
+            // caption and the win bar inside it — a flexGrow track — was left
+            // ~40pt wide between the two numbers.
+            TensionAnchor.style.alignSelf = Align.Stretch;
+            centre.Add(TensionAnchor);
+
+            _liveCard.Add(Systems_UiKit.Triplet(left, centre, right));
+
+            // One footer for the whole strip, in plain words: "ROUND 2 · FIRST TO
+            // 2". It was compacted to "R2 · FT2" once to save width, and that is
+            // a code only the person who wrote it can read — the footer has the
+            // whole card's width to itself, so there was nothing to save.
+            //
+            // Hidden in a one-point match (2026-11-10): "ROUND 1 · FIRST TO 1"
+            // can only ever say one thing, so it was a line of noise under every
+            // bout once pointsToWin went to 1. Toggled in UpdateLiveStrip for the
+            // same Start-order reason as the MAT block above.
+            _footer = Systems_UiKit.Caption("", Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow).Tight();
+            _footer.style.marginTop = Systems_UiKit.SPACE_2;
+            _footer.style.marginBottom = Systems_UiKit.SPACE_1;
+            _liveCard.Add(_footer);
+
+            _liveCard.NoPickTree();
+            _hud.Dock.Add(_liveCard);
+        }
+
+        /// The MAT caption and its centred, both-ends-shrinking bar.
+        private void BuildMatMeter(VisualElement centre)
+        {
             _matCaption = Systems_UiKit.Caption("MAT", Systems_UiKit.FONT_MICRO,
                                                 Systems_UiKit.TextLow).Tight();
             // Level with the STAMINA captions either side, which sit under a
@@ -418,29 +465,6 @@ namespace PoSumo
             _matFill.Round(3);
             _matTrack.Add(_matFill);
             centre.Add(_matTrack);
-            // The win-probability row (Systems_TensionEngine) mounts here — the
-            // second dock card merged into the strip. Empty when the companion's
-            // flag is off; costs one empty element.
-            // Stretched across the column. The anchor is itself a centred column,
-            // so in a centred parent it shrank to the width of its "WIN CHANCE"
-            // caption and the win bar inside it — a flexGrow track — was left
-            // ~40pt wide between the two numbers.
-            TensionAnchor.style.alignSelf = Align.Stretch;
-            centre.Add(TensionAnchor);
-
-            _liveCard.Add(Systems_UiKit.Triplet(left, centre, right));
-
-            // One footer for the whole strip, in plain words: "ROUND 2 · FIRST TO
-            // 2". It was compacted to "R2 · FT2" once to save width, and that is
-            // a code only the person who wrote it can read — the footer has the
-            // whole card's width to itself, so there was nothing to save.
-            _footer = Systems_UiKit.Caption("", Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow).Tight();
-            _footer.style.marginTop = Systems_UiKit.SPACE_2;
-            _footer.style.marginBottom = Systems_UiKit.SPACE_1;
-            _liveCard.Add(_footer);
-
-            _liveCard.NoPickTree();
-            _hud.Dock.Add(_liveCard);
         }
 
         /// The full aggregate table, shown between rounds in the stage band.
@@ -861,6 +885,17 @@ namespace PoSumo
             bool decided = manager.ScoreA >= manager.PointsToWin
                         || manager.ScoreB >= manager.PointsToWin;
             int round = decided ? manager.ScoreA + manager.ScoreB : manager.RoundNumber;
+            // Display written only on a change: this runs every rendered frame,
+            // and an identical style write still dirties the element.
+            int visibility = (manager.shrinkStartSeconds > 0f ? 1 : 0)
+                           | (manager.PointsToWin > 1 ? 2 : 0);
+            if (visibility != _shownVisibility)
+            {
+                _shownVisibility = visibility;
+                _matBlock.style.display = (visibility & 1) != 0 ? DisplayStyle.Flex : DisplayStyle.None;
+                _footer.style.display = (visibility & 2) != 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
             if (round != _shownRound)
             {
                 _shownRound = round;

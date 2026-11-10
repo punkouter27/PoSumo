@@ -497,6 +497,8 @@ namespace PoSumo
 
         private void Awake()
         {
+            // Training-only: `-posumoFighter <Name>` swaps the fighter. Inert in the game.
+            character = Systems_TrainingFighter.Resolve(character);
             if (character != null)
             {
                 teamColor = character.teamColor;
@@ -1034,13 +1036,24 @@ namespace PoSumo
         // The crouch, as facing-normalised jointAngle targets in JOINT_DEFS order
         // (degrees; same sign convention as the limits in that table) plus the
         // pelvis pitch. Chosen so the feet stay FLAT (pitch - hip - knee - ankle = 0)
-        // and the arms hang plumb (chest pitch - shoulder = 0) with the fists
-        // reaching the clay. Verified by screenshot, not by reasoning.
+        // and the arms hang plumb (chest pitch - shoulder = 0). The fists no longer
+        // reach the clay — see the note on the angles. Verified by measurement.
         private const float CROUCH_PELVIS_PITCH = -20f;
         private static readonly float[] CROUCH_ANGLES =
         {
-            -120f, 120f, -20f,   -120f, 120f, -20f,   // hip, knee, ankle x2
-            30f, 30f, 30f,                             // spine
+            // Hip -90 / knee 90 / first spine joint 20, was -120 / 120 / 30
+            // (2026-11-10). At the hip's -120 LIMIT with 90 deg of forward spine
+            // pitch, the FK pose put the near thigh 4 cm into the chest and up to
+            // 10 cm into the lower back, and the referee holds this pose FROZEN for
+            // the whole countdown (Systems_PhysicsAudit SELF OVERLAP TIMING + a
+            // frame probe). Chosen by sweeping hip x spine on a frozen body: this is
+            // the deepest setting that clears every self pair (+1.5 cm on Velez,
+            // the widest sheet at 1.33). The cost is the fists: ~35 cm above the
+            // clay instead of ~6 — a sagittal body cannot fold that low without
+            // the thigh passing through the trunk. Feet stay flat
+            // (pitch - hip - knee - ankle = 0); spine joints are limited to 30.
+            -90f, 90f, -20f,   -90f, 90f, -20f,       // hip, knee, ankle x2
+            20f, 30f, 30f,                             // spine
             -110f, 0f,   -110f, 0f,                    // shoulder, elbow x2
             0f, 0f,                                    // toes
         };

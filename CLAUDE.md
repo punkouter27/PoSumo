@@ -159,8 +159,8 @@ re-run training locally to recreate that directory.
 | Package | com.unity.ai.inference | 2.6.1 | auto-dependency of ML-Agents (`Unity.InferenceEngine.ModelAsset`). Was 2.2.1 |
 | Package | URP | 17.5.0 | project template |
 | MCP | unity-mcp-cli (npm) | **not installed** | `npm ls -g` is empty and there is no global bin. The 85 `.claude/skills/*` folders that invoked it were deleted 2026-10-05 (only `unity-skills` and the category folders remain) — use `Tools/unity.py` instead. The `unity-skill-generate` flow of `com.ivanmurzak.unity.mcp` can regenerate them; do not re-run it without installing the CLI |
-| MCP | com.ivanmurzak.unity.mcp | **0.93.2** (manifest, 2026-10-04; compiles clean with `animation` 1.2.32) — was **0.90.0** | measured live 2026-08-25; was 0.88.0. Ships NuGet `McpPlugin` / `McpPlugin.Common` **8.3.0** under `Assets/Plugins/NuGet/` — those move WITH the package, so `.nuget-installed.json` and the two DLLs are part of the same version decision. Upgrading it reverts the plugin `.meta` platform flags — re-run *PoSumo → Fix Plugin Platforms* |
-| MCP | com.ivanmurzak.unity.mcp.animation | 1.2.28 | add-on, resolved against core 0.90.0 |
+| MCP | com.ivanmurzak.unity.mcp | **REMOVED 2026-11-10** (was 1.10.0, auto-upgraded from 0.93.2 that morning) | At the user's request, after it hung the Editor twice in one day. Both hangs had the same signature in `Editor.log`: `Begin MonoManager ReloadAssembly`, then at once `McpManagerClientHub ... Authorization failed` (its SignalR relay to ai-game.dev, which no headless session can log in to), then nothing. The window title read "Reloading Domain" for 20+ min. Removed with its OpenUPM scoped registry, its `.mcp.json` entry (`ai-game-developer`) and 35 of the 45 DLLs in `Assets/Plugins/NuGet`. **The 10 Roslyn DLLs there were KEPT on purpose:** CoplayDev's `execute_code` (`Tools/unity.py exec`) loads `Microsoft.CodeAnalysis` by reflection and this plugin was the only thing that had installed it. `ExcludeMcpPluginsFromPlayer` / `FixPluginPlatforms` still act on that folder and keep Roslyn out of Android builds |
+| MCP | com.ivanmurzak.unity.mcp.animation | **REMOVED 2026-11-10** with the core package above | add-on; meaningless without the core |
 | MCP | com.ivanmurzak.unity.mcp.particlesystem | **NOT INSTALLED** (measured 2026-08-26) | This row said "1.2.30 — BACK, and compiling" as of 2026-08-25; on 2026-08-26 it is in neither `manifest.json` nor `packages-lock.json` and has no `PackageCache` dir. The history is still worth keeping: removed 2026-08-16 because 1.2.30 did not match core **0.88.0** (referenced a namespace `AIGD` that version did not ship) and **the whole project failed to compile**, which blocks Play mode entirely; under core **0.90.0** the same version was measured resolving clean. The add-on was never the defect; the *pairing* was. Re-check the pair if it is ever added back |
 | MCP | com.ivanmurzak.unity.mcp.cinemachine | **NOT INSTALLED** (measured 2026-08-26) | same story as the row above; absent from manifest and lock |
 | MCP | com.coplaydev.unity-mcp | 10.1.0 | |
@@ -1180,7 +1180,7 @@ aggregate metrics on the detail card.
 
 Every screen carries the same five corner items, and one component owns all of
 them on BOTH screens: **title top-left, frame rate top-centre, menu top-right,
-DBG bottom-left, build version bottom-right** (`enableScreenChrome`).
+DBG bottom-left, build version bottom-right** (`enableScreenChrome`). Since 2026-11-10 the frame rate is `visibility: hidden` until DBG opens (`SetDebugActive`) — hidden, not `display: none`, so `HudOverflowAudit.Corners` still finds its box.
 
 - It is **absolute on a full-bleed layer**, never a slot in the flow layout. The
   top bar is a three-slot row whose centre carries the scorebug, and the panel
@@ -2674,3 +2674,20 @@ character sheets carry the flag, so the placeholders still match their donors.
 - **`execute_code` has a 30 s SERVER-side timeout** and `EditorApplication.delayCall`
   does not fire while the Editor is unfocused. A blocking build returns a timeout error
   while still running — poll for `BUILD RESULT:`. Unity deletes `Temp/` on exit.
+
+## Session of 2026-11-10 (evening) — clean pass
+
+- **HUD declutter, presentation only, no brain touched.** The live strip's MAT meter
+  shows only while `shrinkStartSeconds > 0`, the "ROUND n · FIRST TO n" footer only
+  while `PointsToWin > 1`, and the scorebug reads **VS** instead of `0 : 0` in a
+  one-point match. Both strip items are BUILT always and toggled in
+  `Systems_FightHud.UpdateLiveStrip`: `Systems_FightHud.Start` is not ordered against
+  the manager's `Start`, where `GameTuning` is copied in, and a build-time check
+  measured the code defaults (8 s shrink, 3 points) and kept both. The frame rate
+  appears only while DBG is open. Before/after: `SCREENSHOTS/20261110_clean/`.
+- **Deleted:** `Builds/` (the four Intent01 envs — rebuild before the next run),
+  `*Rebuild02.yaml`, `MattBuffer01.yaml`, and the five dead launchers
+  (`Run-TallSweep`, `Run-Tall04Sweep`, `Run-StaminaPass`, `Extend-StaminaPass`,
+  `Run-GaitCampaign`). `Start-StaminaExtension.ps1 -Phase` now offers only
+  Rebuild01 / Sumo01 / Lunge01 / Intent01 and defaults to Intent01. Launch it
+  with `pwsh` 7: Windows PowerShell 5.1 misreads its BOM-less em dashes.

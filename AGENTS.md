@@ -537,7 +537,6 @@ Prefer the wrappers; they enforce `--base-port` and start TensorBoard exactly on
 |---|---|
 | `Training\Start-Training.ps1` | one run, foreground |
 | `Training\Start-StaminaExtension.ps1` | 2+ concurrent runs; `-InitializeFromPhase` warm-starts a new run id |
-| `Training\Run-GaitCampaign.ps1` | unattended multi-hour work, sequential batches (memory-bound: 4 fighters x 4 envs is ~17 GB) |
 
 By hand:
 

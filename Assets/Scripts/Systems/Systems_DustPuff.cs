@@ -29,6 +29,15 @@ namespace PoSumo
         private static Texture2D _puffTexture;
         private static Material _particleMaterial;
 
+        /// Multiplier on burst counts and particle caps. 1 everywhere except the
+        /// desktop quality tier (Systems_DesktopFx), which raises it — Android's
+        /// particle budget is never touched.
+        private static float _density = 1f;
+        private readonly System.Collections.Generic.List<ParticleSystem> _scaledSystems =
+            new System.Collections.Generic.List<ParticleSystem>();
+        private readonly System.Collections.Generic.List<int> _baseCaps =
+            new System.Collections.Generic.List<int>();
+
         /// Enter Play Mode domain reload is disabled in this project, so a static
         /// instance survives into the next Play session pointing at a destroyed
         /// object. Same treatment as Systems_TournamentState.
@@ -37,6 +46,7 @@ namespace PoSumo
         {
             _instance = null;
             _quitting = false;
+            _density = 1f;
             // The cached material and texture are native objects owned by a dead
             // session. Holding them would hand the next session a destroyed
             // Material, which renders as magenta rather than erroring.
@@ -80,6 +90,33 @@ namespace PoSumo
 
         private void OnApplicationQuit() => _quitting = true;
 
+        /// Raise (never lower below 1) the burst density and particle caps.
+        /// Applies to the live systems at once and to any built later.
+        public static void SetDensity(float scale)
+        {
+            _density = Mathf.Clamp(scale, 1f, 4f);
+            if (_instance != null)
+            {
+                _instance.ApplyDensity();
+            }
+        }
+
+        private void ApplyDensity()
+        {
+            for (int systemIndex = 0; systemIndex < _scaledSystems.Count; systemIndex++)
+            {
+                ParticleSystem system = _scaledSystems[systemIndex];
+                if (system == null)
+                {
+                    continue;
+                }
+                ParticleSystem.MainModule main = system.main;
+                main.maxParticles = Mathf.RoundToInt(_baseCaps[systemIndex] * _density);
+            }
+        }
+
+        private static int Dense(int count) => Mathf.Max(count, Mathf.RoundToInt(count * _density));
+
         private void OnDestroy()
         {
             if (_instance == this)
@@ -99,7 +136,7 @@ namespace PoSumo
             {
                 return;
             }
-            instance._dust.Emit(MakeParams(position, 0.22f), count);
+            instance._dust.Emit(MakeParams(position, 0.22f), Dense(count));
         }
 
         /// Sweat flung off a body that just took a hit. Brighter, faster and much
@@ -115,7 +152,7 @@ namespace PoSumo
             Vector2 unit = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.up;
             emitParams.velocity = new Vector3(unit.x, unit.y + 0.6f, 0f) * Random.Range(1.4f, 2.6f);
             emitParams.applyShapeToPosition = true;
-            instance._sweat.Emit(emitParams, count);
+            instance._sweat.Emit(emitParams, Dense(count));
         }
 
         /// The "that landed" burst: a hot core plus a ring of shards thrown out
@@ -145,7 +182,7 @@ namespace PoSumo
             float weight = Mathf.Clamp01(strength);
             Vector2 unit = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.up;
 
-            int coreCount = Mathf.RoundToInt(Mathf.Lerp(3f, 7f, weight));
+            int coreCount = Dense(Mathf.RoundToInt(Mathf.Lerp(3f, 7f, weight)));
             for (int coreIndex = 0; coreIndex < coreCount; coreIndex++)
             {
                 ParticleSystem.EmitParams emitParams = MakeParams(position, 0.04f);
@@ -156,7 +193,7 @@ namespace PoSumo
                 instance._spark.Emit(emitParams, 1);
             }
 
-            int shardCount = Mathf.RoundToInt(Mathf.Lerp(10f, 26f, weight));
+            int shardCount = Dense(Mathf.RoundToInt(Mathf.Lerp(10f, 26f, weight)));
             float shardSpeed = Mathf.Lerp(3.5f, 9f, weight);
             for (int shardIndex = 0; shardIndex < shardCount; shardIndex++)
             {
@@ -184,7 +221,8 @@ namespace PoSumo
             {
                 return;
             }
-            for (int countIndex = 0; countIndex < count; countIndex++)
+            int dense = Dense(count);
+            for (int countIndex = 0; countIndex < dense; countIndex++)
             {
                 var emitParams = MakeParams(position, 0.05f);
                 emitParams.velocity = new Vector3(
@@ -325,7 +363,9 @@ namespace PoSumo
 
             ParticleSystem.MainModule main = system.main;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = maxParticles;
+            main.maxParticles = Mathf.RoundToInt(maxParticles * _density);
+            _scaledSystems.Add(system);
+            _baseCaps.Add(maxParticles);
             main.playOnAwake = false;
             main.loop = true;
 

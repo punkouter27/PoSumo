@@ -82,8 +82,22 @@ namespace PoSumo
         private readonly Agent_BipedBody[] _bodies = new Agent_BipedBody[FIGHTER_COUNT];
         private readonly float[] _gains = new float[FIGHTER_COUNT];
         private readonly bool[] _sounding = new bool[FIGHTER_COUNT];
+        // Per fighter, because a filter applies to every source on its own
+        // GameObject: each scrape's TONE now follows its own shear speed.
+        private readonly AudioLowPassFilter[] _lowPasses = new AudioLowPassFilter[FIGHTER_COUNT];
+        private readonly Systems_FrictionChatter[] _chatter = new Systems_FrictionChatter[FIGHTER_COUNT];
+        private readonly float[] _slip01 = new float[FIGHTER_COUNT];
+        private readonly float[] _load01 = new float[FIGHTER_COUNT];
 
-        private AudioLowPassFilter _lowPass;
+        [Header("Shear tone")]
+        [Tooltip("Low-pass cutoff (Hz) of a scrape at the slowest audible slide: a slow drag under load is a low grinding rumble.")]
+        public float slowSlideCutoff = 700f;
+        [Tooltip("Cutoff at a full-speed slide: fast shear is bright hiss.")]
+        public float fastSlideCutoff = 7000f;
+        [Tooltip("Stick-slip events per second at the slowest slide, and at full speed. Faster sliding chatters faster until it smears into a continuous hiss.")]
+        public Vector2 chatterRate = new Vector2(9f, 38f);
+        [Tooltip("Stick-slip depth at the slowest, most heavily loaded slide. Falls to zero as the slide becomes continuous.")]
+        [Range(0f, 1f)] public float chatterDepth = 0.75f;
         private Systems_GameMatchManager _manager;
         private float _centreX;
 
@@ -99,12 +113,13 @@ namespace PoSumo
                 return;
             }
 
-            // One bus object: the filters apply to every source on it.
-            var bus = new GameObject("Bus_FootScrape");
-            bus.transform.SetParent(transform, false);
+            // One voice object per fighter: filters apply to every source on their
+            // own GameObject, and each fighter's shear tone is its own.
             for (int fighterIndex = 0; fighterIndex < FIGHTER_COUNT; fighterIndex++)
             {
-                AudioSource source = bus.AddComponent<AudioSource>();
+                var voice = new GameObject("Voice_FootScrape_" + fighterIndex);
+                voice.transform.SetParent(transform, false);
+                AudioSource source = voice.AddComponent<AudioSource>();
                 source.playOnAwake = false;
                 source.loop = true;
                 source.clip = clip;
@@ -116,10 +131,11 @@ namespace PoSumo
                 // same noise twice — identical loops in phase just sum to louder.
                 source.timeSamples = fighterIndex * (clip.samples / FIGHTER_COUNT);
                 _sources[fighterIndex] = source;
+                _chatter[fighterIndex] = voice.AddComponent<Systems_FrictionChatter>();
+                _lowPasses[fighterIndex] = voice.AddComponent<AudioLowPassFilter>();
+                _lowPasses[fighterIndex].cutoffFrequency = LPF_OPEN;
+                Systems_AudioMix.AddArenaReverb(voice);
             }
-            _lowPass = bus.AddComponent<AudioLowPassFilter>();
-            _lowPass.cutoffFrequency = LPF_OPEN;
-            Systems_AudioMix.AddArenaReverb(bus);
         }
 
         private void Start()
@@ -166,7 +182,7 @@ namespace PoSumo
             for (int fighterIndex = 0; fighterIndex < FIGHTER_COUNT; fighterIndex++)
             {
                 Agent_BipedBody body = _bodies[fighterIndex];
-                float target = frozen || body == null ? 0f : Scrape(body) * maxVolume;
+                float target = frozen || body == null ? 0f : Scrape(body, fighterIndex) * maxVolume;
                 float rate = target > _gains[fighterIndex] ? attack : release;
                 float gain = Mathf.MoveTowards(_gains[fighterIndex], target, rate * dt);
                 _gains[fighterIndex] = gain;
@@ -195,11 +211,30 @@ namespace PoSumo
                                * Mathf.Lerp(1f, 0.82f, slow);
             }
 
-            if (_lowPass != null)
+            float slowMoCutoff = Mathf.Lerp(LPF_OPEN, LPF_SLOWMO, slow);
+            for (int fighterIndex = 0; fighterIndex < FIGHTER_COUNT; fighterIndex++)
             {
-                float cutoff = Mathf.Lerp(LPF_OPEN, LPF_SLOWMO, slow);
-                _lowPass.cutoffFrequency =
-                    Mathf.Lerp(_lowPass.cutoffFrequency, cutoff, 1f - Mathf.Exp(-12f * dt));
+                AudioLowPassFilter lowPass = _lowPasses[fighterIndex];
+                if (lowPass == null)
+                {
+                    continue;
+                }
+                // Shear tone: brightness follows sliding speed (log-spaced, as
+                // pitch perception is), capped by the slow-motion darkening.
+                float slip01 = _slip01[fighterIndex];
+                float shearCutoff = slowSlideCutoff * Mathf.Pow(fastSlideCutoff / slowSlideCutoff, slip01);
+                float cutoff = Mathf.Min(shearCutoff, slowMoCutoff);
+                lowPass.cutoffFrequency =
+                    Mathf.Lerp(lowPass.cutoffFrequency, cutoff, 1f - Mathf.Exp(-12f * dt));
+
+                Systems_FrictionChatter chatter = _chatter[fighterIndex];
+                if (chatter != null)
+                {
+                    chatter.Rate = Mathf.Lerp(chatterRate.x, chatterRate.y, slip01);
+                    // Deepest when slow AND heavily loaded: that is when the foot
+                    // sticks hardest between slips.
+                    chatter.Depth = chatterDepth * (1f - slip01) * _load01[fighterIndex];
+                }
             }
         }
 
@@ -218,13 +253,20 @@ namespace PoSumo
             }
         }
 
-        /// 0..1 for one fighter: the louder of its two feet.
-        private float Scrape(Agent_BipedBody body)
+        /// 0..1 for one fighter: the louder of its two feet. Also records that
+        /// foot's slip and load, which drive the shear tone in Update.
+        private float Scrape(Agent_BipedBody body, int fighterIndex)
         {
             float near = body.FootNearAttached && body.FootDownNear
                 ? FootScrape(body.FootNear, body.FootLoadNear) : 0f;
             float far = body.FootFarAttached && body.FootDownFar
                 ? FootScrape(body.FootFar, body.FootLoadFar) : 0f;
+            bool nearWins = near >= far;
+            Rigidbody2D foot = nearWins ? body.FootNear : body.FootFar;
+            float load = nearWins ? body.FootLoadNear : body.FootLoadFar;
+            float slip = foot != null ? Mathf.Abs(foot.linearVelocity.x) : 0f;
+            _slip01[fighterIndex] = Mathf.Clamp01((slip - slipMinSpeed) / Mathf.Max(0.01f, slipFullSpeed - slipMinSpeed));
+            _load01[fighterIndex] = Mathf.Clamp01(load / Mathf.Max(0.01f, loadFull));
             return Mathf.Max(near, far);
         }
 

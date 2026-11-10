@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training Status</title>
+<style>
+:root { --bg:#f6f3ee; --surface:#fcfcfb; --fg:#0b0b0b; --muted:#52514e; --line:#e2ded6; --grid:#ebe7df;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --good:#1baf7a; --bad:#e34948; --accent:#2a78d6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#121110; --surface:#1a1a19; --fg:#f0efec; --muted:#c3c2b7; --line:#34322f; --grid:#2a2826;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --good:#199e70; --bad:#e66767; --accent:#3987e5; } }
+:root[data-theme="dark"] { --bg:#121110; --surface:#1a1a19; --fg:#f0efec; --muted:#c3c2b7; --line:#34322f; --grid:#2a2826;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --good:#199e70; --bad:#e66767; --accent:#3987e5; }
+body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif; }
+main { max-width:860px; margin:0 auto; padding:28px 16px 64px; }
+h1 { font-size:1.7rem; margin:0 0 2px; } h2 { font-size:1.2rem; margin:40px 0 6px; }
+.muted { color:var(--muted); fill:var(--muted); } .small { font-size:12px; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:12px 0; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:18px 0; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+.tile b { display:block; font-size:1.6rem; line-height:1.2; } .tile span { color:var(--muted); font-size:.9rem; }
+.alert { border-left:4px solid var(--s2); }
+svg.chart { width:100%; height:auto; display:block; font-family:inherit; }
+.chart .grid { stroke:var(--grid); } .chart .tick { fill:var(--muted); font-size:11px; } .chart .axis { fill:var(--muted); font-size:12px; }
+.chart .lbl { fill:var(--fg); font-size:13px; } .chart .note { fill:var(--fg); font-size:12.5px; font-style:italic; }
+.chart .callout { stroke:var(--muted); } .chart .marker { fill:var(--fg); } .chart .markertext { fill:var(--surface); font-size:12px; font-weight:700; }
+ol.notes { margin:10px 0 0; padding-left:22px; font-size:.95rem; } ol.notes li { margin-bottom:4px; }
+.chart .ghost { fill:none; stroke:var(--muted); stroke-dasharray:4 3; } .chart .sep { stroke:var(--line); }
+.chart .axisline { stroke:var(--muted); }
+.chart .stage { fill:var(--surface); stroke:var(--muted); } .chart .stage.done { fill:var(--grid); } .chart .stage.next { stroke:var(--s2); stroke-width:2; stroke-dasharray:6 4; }
+.chart .arrow { stroke:var(--muted); stroke-width:1.5; } .chart .arrowhead { fill:var(--muted); }
+.legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.9rem; color:var(--muted); margin:4px 0 8px; }
+.legend i { display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+table { width:100%; border-collapse:collapse; font-size:.92rem; } th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+td.num { font-variant-numeric:tabular-nums; } .scroll { overflow-x:auto; }
+ol li { margin-bottom:8px; } .why { color:var(--muted); font-size:.93rem; }
+</style></head><body><main>
+<h1>Training status</h1>
+<p class="muted">PoSumo · 2026-11-10 15:45 · plain-language summary for deciding what to train next</p>
+
+<div class="card alert"><b>Right now: nothing is training.</b> The last runs (all four trained fighters, about 55 minutes each) finished at 12:55 today.
+The next run, “Unique01”, is set up for all 16 fighters but cannot start while the Unity Editor is open, and the Editor is currently frozen. Close Unity and it can start.</div>
+
+<div class="tiles">
+  <div class="tile"><b>4 of 16</b><span>fighters have a brain of their own</span></div>
+  <div class="tile"><b>12</b><span>have never been trained; they borrow another fighter's brain</span></div>
+  <div class="tile"><b>~70 min</b><span>estimated length of the next run, from the moment it starts</span></div>
+  <div class="tile"><b>79</b><span>bouts played in the game today (used for the in-game ratings)</span></div>
+</div>
+
+<h2>1 · How much training each fighter has</h2>
+<p>Each bar is practice time under the current sumo rules, in millions of steps. A step is one fiftieth of a second of one fighter's practice. Practice happens in parallel, so a million steps takes about 1–1.5 hours.</p>
+<div class="legend"><span><i style="background:var(--s1)"></i>before today (at least)</span><span><i style="background:var(--s3)"></i>today's run</span><span><i style="border:1px dashed var(--muted)"></i>never trained</span></div>
+<div class="card"><svg viewBox="0 0 760 476" role="img" aria-label="Training level per fighter" class="chart">
+<line x1="150.0" x2="150.0" y1="20" y2="446" class="grid"/>
+<text x="150.0" y="464" class="tick" text-anchor="middle">0M</text>
+<line x1="214.6" x2="214.6" y1="20" y2="446" class="grid"/>
+<text x="214.6" y="464" class="tick" text-anchor="middle">1M</text>
+<line x1="279.2" x2="279.2" y1="20" y2="446" class="grid"/>
+<text x="279.2" y="464" class="tick" text-anchor="middle">2M</text>
+<line x1="343.8" x2="343.8" y1="20" y2="446" class="grid"/>
+<text x="343.8" y="464" class="tick" text-anchor="middle">3M</text>
+<line x1="408.5" x2="408.5" y1="20" y2="446" class="grid"/>
+<text x="408.5" y="464" class="tick" text-anchor="middle">4M</text>
+<line x1="473.1" x2="473.1" y1="20" y2="446" class="grid"/>
+<text x="473.1" y="464" class="tick" text-anchor="middle">5M</text>
+<line x1="537.7" x2="537.7" y1="20" y2="446" class="grid"/>
+<text x="537.7" y="464" class="tick" text-anchor="middle">6M</text>
+<text x="140" y="37" class="lbl" text-anchor="end">Matt</text>
+<rect x="150.0" y="24" width="276.8" height="17" rx="3" fill="var(--s1)"><title>Matt: at least 4.3M steps before today</title></rect>
+<rect x="428.8" y="24" width="55.2" height="17" rx="3" fill="var(--s3)"><title>Matt: 0.87M steps today</title></rect>
+<text x="492.1" y="37" class="lbl">≥5.2M <tspan class="muted">trained · own brain</tspan></text>
+<text x="140" y="63" class="lbl" text-anchor="end">Grandma</text>
+<rect x="150.0" y="50" width="121.8" height="17" rx="3" fill="var(--s1)"><title>Grandma: at least 1.9M steps before today</title></rect>
+<rect x="273.8" y="50" width="43.6" height="17" rx="3" fill="var(--s3)"><title>Grandma: 0.69M steps today</title></rect>
+<text x="325.4" y="63" class="lbl">≥2.6M <tspan class="muted">trained · own brain</tspan></text>
+<text x="140" y="89" class="lbl" text-anchor="end">Nick</text>
+<rect x="150.0" y="76" width="154.1" height="17" rx="3" fill="var(--s1)"><title>Nick: at least 2.4M steps before today</title></rect>
+<rect x="306.1" y="76" width="43.6" height="17" rx="3" fill="var(--s3)"><title>Nick: 0.69M steps today</title></rect>
+<text x="357.7" y="89" class="lbl">≥3.1M <tspan class="muted">trained · own brain</tspan></text>
+<text x="140" y="115" class="lbl" text-anchor="end">Kim</text>
+<rect x="150.0" y="102" width="167.0" height="17" rx="3" fill="var(--s1)"><title>Kim: at least 2.6M steps before today</title></rect>
+<rect x="319.0" y="102" width="43.6" height="17" rx="3" fill="var(--s3)"><title>Kim: 0.69M steps today</title></rect>
+<text x="370.6" y="115" class="lbl">≥3.3M <tspan class="muted">trained · own brain</tspan></text>
+<text x="140" y="141" class="lbl" text-anchor="end">Alan</text>
+<rect x="150.0" y="128" width="22.6" height="17" rx="3" class="ghost"><title>Alan: never trained</title></rect>
+<text x="180.6" y="141" class="lbl">0 <tspan class="muted">never trained · borrows Matt's brain</tspan></text>
+<text x="140" y="167" class="lbl" text-anchor="end">Dupee</text>
+<rect x="150.0" y="154" width="22.6" height="17" rx="3" class="ghost"><title>Dupee: never trained</title></rect>
+<text x="180.6" y="167" class="lbl">0 <tspan class="muted">never trained · borrows Matt's brain</tspan></text>
+<text x="140" y="193" class="lbl" text-anchor="end">Porto</text>
+<rect x="150.0" y="180" width="22.6" height="17" rx="3" class="ghost"><title>Porto: never trained</title></rect>
+<text x="180.6" y="193" class="lbl">0 <tspan class="muted">never trained · borrows Matt's brain</tspan></text>
+<text x="140" y="219" class="lbl" text-anchor="end">Tong</text>
+<rect x="150.0" y="206" width="22.6" height="17" rx="3" class="ghost"><title>Tong: never trained</title></rect>
+<text x="180.6" y="219" class="lbl">0 <tspan class="muted">never trained · borrows Matt's brain</tspan></text>
+<text x="140" y="245" class="lbl" text-anchor="end">Brendan</text>
+<rect x="150.0" y="232" width="22.6" height="17" rx="3" class="ghost"><title>Brendan: never trained</title></rect>
+<text x="180.6" y="245" class="lbl">0 <tspan class="muted">never trained · borrows Grandma's brain</tspan></text>
+<text x="140" y="271" class="lbl" text-anchor="end">Maya</text>
+<rect x="150.0" y="258" width="22.6" height="17" rx="3" class="ghost"><title>Maya: never trained</title></rect>
+<text x="180.6" y="271" class="lbl">0 <tspan class="muted">never trained · borrows Grandma's brain</tspan></text>
+<text x="140" y="297" class="lbl" text-anchor="end">Velez</text>
+<rect x="150.0" y="284" width="22.6" height="17" rx="3" class="ghost"><title>Velez: never trained</title></rect>
+<text x="180.6" y="297" class="lbl">0 <tspan class="muted">never trained · borrows Grandma's brain</tspan></text>
+<text x="140" y="323" class="lbl" text-anchor="end">Baily</text>
+<rect x="150.0" y="310" width="22.6" height="17" rx="3" class="ghost"><title>Baily: never trained</title></rect>
+<text x="180.6" y="323" class="lbl">0 <tspan class="muted">never trained · borrows Nick's brain</tspan></text>
+<text x="140" y="349" class="lbl" text-anchor="end">Josh</text>
+<rect x="150.0" y="336" width="22.6" height="17" rx="3" class="ghost"><title>Josh: never trained</title></rect>
+<text x="180.6" y="349" class="lbl">0 <tspan class="muted">never trained · borrows Nick's brain</tspan></text>
+<text x="140" y="375" class="lbl" text-anchor="end">Decoy</text>
+<rect x="150.0" y="362" width="22.6" height="17" rx="3" class="ghost"><title>Decoy: never trained</title></rect>
+<text x="180.6" y="375" class="lbl">0 <tspan class="muted">never trained · borrows Kim's brain</tspan></text>
+<text x="140" y="401" class="lbl" text-anchor="end">Manzi</text>
+<rect x="150.0" y="388" width="22.6" height="17" rx="3" class="ghost"><title>Manzi: never trained</title></rect>
+<text x="180.6" y="401" class="lbl">0 <tspan class="muted">never trained · borrows Kim's brain</tspan></text>
+<text x="140" y="427" class="lbl" text-anchor="end">Sokol</text>
+<rect x="150.0" y="414" width="22.6" height="17" rx="3" class="ghost"><title>Sokol: never trained</title></rect>
+<text x="180.6" y="427" class="lbl">0 <tspan class="muted">never trained · borrows Kim's brain</tspan></text>
+<line x1="20" x2="740" y1="123" y2="123" class="sep"/>
+</svg></div>
+<p class="why">“At least”: the earlier counts come from the 5 October report, written while that run was still going, so the real totals are a little higher.</p>
+
+<h2>2 · The three numbers that matter most</h2>
+<p>From today's run of the four trained fighters. These three come from the training dashboard (TensorBoard), which records these numbers while the fighters practise.</p>
+
+<h3>Practice rating (ELO): are they winning more against their own past selves?</h3>
+<p>This is the main score. Each fighter practises against older copies of itself, and the rating goes up when it beats them. Every run starts at 1200. <b>Up is good.</b></p>
+<div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="Practice rating (ELO)" class="chart">
+<line x1="64" x2="555" y1="254.0" y2="254.0" class="grid"/>
+<text x="56" y="258.0" class="tick" text-anchor="end">1153</text>
+<line x1="64" x2="555" y1="199.0" y2="199.0" class="grid"/>
+<text x="56" y="203.0" class="tick" text-anchor="end">1224</text>
+<line x1="64" x2="555" y1="144.0" y2="144.0" class="grid"/>
+<text x="56" y="148.0" class="tick" text-anchor="end">1295</text>
+<line x1="64" x2="555" y1="89.0" y2="89.0" class="grid"/>
+<text x="56" y="93.0" class="tick" text-anchor="end">1366</text>
+<line x1="64" x2="555" y1="34.0" y2="34.0" class="grid"/>
+<text x="56" y="38.0" class="tick" text-anchor="end">1437</text>
+<text x="64.0" y="272" class="tick" text-anchor="middle">0k</text>
+<text x="176.9" y="272" class="tick" text-anchor="middle">200k</text>
+<text x="289.7" y="272" class="tick" text-anchor="middle">400k</text>
+<text x="402.6" y="272" class="tick" text-anchor="middle">600k</text>
+<text x="515.5" y="272" class="tick" text-anchor="middle">800k</text>
+<text x="309.5" y="292" class="axis" text-anchor="middle">training steps in the latest run (thousands)</text>
+<text x="14" y="144.0" class="axis" text-anchor="middle" transform="rotate(-90 14 144.0)">practice rating</text>
+<path d="M80.9,216.9 L97.9,214.0 L114.8,212.7 L131.7,207.4 L148.7,199.2 L165.6,186.1 L182.5,177.0 L199.4,175.5 L216.4,174.8 L233.3,173.1 L250.2,170.3 L267.2,169.0 L284.1,167.3 L301.0,163.0 L318.0,161.0 L334.9,158.5 L351.8,156.8 L368.8,142.5 L385.7,126.5 L402.6,113.4 L419.6,101.9 L436.5,89.6 L453.4,81.6 L470.3,72.8 L487.3,58.1 L504.2,55.3 L521.1,59.1 L538.1,62.7 L555.0,68.7" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"><title>Matt</title></path>
+<circle cx="555.0" cy="68.7" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,218.3 L97.9,215.9 L114.8,217.9 L131.7,214.3 L148.7,214.8 L165.6,213.5 L182.5,212.4 L199.4,212.2 L216.4,211.9 L233.3,209.9 L250.2,206.1 L267.2,202.4 L284.1,197.7 L301.0,192.2 L318.0,185.0 L334.9,173.4 L351.8,161.7 L368.8,159.5 L385.7,160.9 L402.6,160.4 L419.6,161.0 L436.5,161.3 L453.4,157.3" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"><title>Grandma</title></path>
+<circle cx="453.4" cy="157.3" r="4" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,217.0 L97.9,216.9 L114.8,215.1 L131.7,213.3 L148.7,206.3 L165.6,203.9 L182.5,203.4 L199.4,198.1 L216.4,196.9 L233.3,196.9 L250.2,196.9 L267.2,196.9 L284.1,196.9 L301.0,196.9 L318.0,196.9 L334.9,193.0 L351.8,184.8 L368.8,179.7 L385.7,177.3 L402.6,172.7 L419.6,170.7 L436.5,171.2 L453.4,171.1" fill="none" stroke="var(--s3)" stroke-width="2" stroke-linejoin="round"><title>Nick</title></path>
+<circle cx="453.4" cy="171.1" r="4" fill="var(--s3)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,223.2 L97.9,230.5 L114.8,230.8 L131.7,232.7 L148.7,230.3 L165.6,227.2 L182.5,225.0 L199.4,222.9 L216.4,220.5 L233.3,220.1 L250.2,220.1 L267.2,220.1 L284.1,220.1 L301.0,220.1 L318.0,220.1 L334.9,215.7 L351.8,200.8 L368.8,198.3 L385.7,198.4 L402.6,197.0 L419.6,199.8 L436.5,202.4 L453.4,202.5" fill="none" stroke="var(--s4)" stroke-width="2" stroke-linejoin="round"><title>Kim</title></path>
+<circle cx="453.4" cy="202.5" r="4" fill="var(--s4)" stroke="var(--surface)" stroke-width="2"/>
+<text x="565" y="72.7" class="lbl">Matt 1392 <tspan class="muted">(+192)</tspan></text>
+<text x="565" y="161.3" class="lbl">Grandma 1278 <tspan class="muted">(+79)</tspan></text>
+<text x="565" y="176.3" class="lbl">Nick 1260 <tspan class="muted">(+59)</tspan></text>
+<text x="565" y="206.5" class="lbl">Kim 1219 <tspan class="muted">(+27)</tspan></text>
+<line x1="504.2" y1="55.3" x2="504.2" y2="35.3" class="callout"/>
+<circle cx="504.2" cy="35.3" r="10" class="marker"/>
+<text x="504.2" y="39.3" class="markertext" text-anchor="middle">1</text>
+<line x1="267.2" y1="220.1" x2="267.2" y2="240.1" class="callout"/>
+<circle cx="267.2" cy="240.1" r="10" class="marker"/>
+<text x="267.2" y="244.1" class="markertext" text-anchor="middle">2</text>
+</svg><ol class="notes"><li>Matt climbed the most: +209 at his peak, then eased off slightly to 1392 as the run ended. The best return on practice time of the four.</li><li>Kim stayed almost flat (+27). He gained the least per hour of practice. That is not a verdict on his skill: the rating only compares him with his own past selves.</li></ol></div>
+
+<h3>Bout length: are practice bouts being finished?</h3>
+<p>The average length of a practice bout. Practice bouts stop at 20 seconds, so a number near 20 means the two fighters mostly waited each other out.</p>
+<div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="Bout length in practice" class="chart">
+<line x1="64" x2="555" y1="254.0" y2="254.0" class="grid"/>
+<text x="56" y="258.0" class="tick" text-anchor="end">10.5</text>
+<line x1="64" x2="555" y1="199.0" y2="199.0" class="grid"/>
+<text x="56" y="203.0" class="tick" text-anchor="end">12.4</text>
+<line x1="64" x2="555" y1="144.0" y2="144.0" class="grid"/>
+<text x="56" y="148.0" class="tick" text-anchor="end">14.3</text>
+<line x1="64" x2="555" y1="89.0" y2="89.0" class="grid"/>
+<text x="56" y="93.0" class="tick" text-anchor="end">16.2</text>
+<line x1="64" x2="555" y1="34.0" y2="34.0" class="grid"/>
+<text x="56" y="38.0" class="tick" text-anchor="end">18.1</text>
+<text x="64.0" y="272" class="tick" text-anchor="middle">0k</text>
+<text x="176.9" y="272" class="tick" text-anchor="middle">200k</text>
+<text x="289.7" y="272" class="tick" text-anchor="middle">400k</text>
+<text x="402.6" y="272" class="tick" text-anchor="middle">600k</text>
+<text x="515.5" y="272" class="tick" text-anchor="middle">800k</text>
+<text x="309.5" y="292" class="axis" text-anchor="middle">training steps in the latest run (thousands)</text>
+<text x="14" y="144.0" class="axis" text-anchor="middle" transform="rotate(-90 14 144.0)">seconds per bout</text>
+<path d="M80.9,135.0 L97.9,158.6 L114.8,146.7 L131.7,155.2 L148.7,151.2 L165.6,150.7 L182.5,67.6 L199.4,157.3 L216.4,145.9 L233.3,138.0 L250.2,111.5 L267.2,131.5 L284.1,117.7 L301.0,124.1 L318.0,98.8 L334.9,118.1 L351.8,97.9 L368.8,94.0 L385.7,95.3 L402.6,151.1 L419.6,91.2 L436.5,91.8 L453.4,118.2 L470.3,82.3 L487.3,79.2 L504.2,73.7 L521.1,96.4 L538.1,104.1 L555.0,55.3" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"><title>Matt</title></path>
+<circle cx="555.0" cy="55.3" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,147.4 L97.9,122.8 L114.8,135.4 L131.7,115.3 L148.7,129.8 L165.6,138.5 L182.5,110.6 L199.4,122.2 L216.4,101.5 L233.3,169.5 L250.2,123.1 L267.2,132.0 L284.1,116.4 L301.0,94.4 L318.0,121.8 L334.9,109.3 L351.8,98.7 L368.8,66.1 L385.7,92.3 L402.6,88.1 L419.6,112.8 L436.5,98.9 L453.4,101.5" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"><title>Grandma</title></path>
+<circle cx="453.4" cy="101.5" r="4" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,140.7 L97.9,150.8 L114.8,174.1 L131.7,149.3 L148.7,154.9 L165.6,176.8 L182.5,178.1 L199.4,145.3 L216.4,162.7 L233.3,166.7 L250.2,128.2 L267.2,128.8 L284.1,131.6 L301.0,148.0 L318.0,181.5 L334.9,124.3 L351.8,154.6 L368.8,136.7 L385.7,144.6 L402.6,134.9 L419.6,149.4 L436.5,87.1 L453.4,95.0" fill="none" stroke="var(--s3)" stroke-width="2" stroke-linejoin="round"><title>Nick</title></path>
+<circle cx="453.4" cy="95.0" r="4" fill="var(--s3)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,232.7 L97.9,218.0 L114.8,159.1 L131.7,191.7 L148.7,180.5 L165.6,150.2 L182.5,173.9 L199.4,152.6 L216.4,133.2 L233.3,155.0 L250.2,83.0 L267.2,189.8 L284.1,109.8 L301.0,107.6 L318.0,115.4 L334.9,209.7 L351.8,144.3 L368.8,168.3 L385.7,158.3 L402.6,161.9 L419.6,126.1 L436.5,120.4 L453.4,105.7" fill="none" stroke="var(--s4)" stroke-width="2" stroke-linejoin="round"><title>Kim</title></path>
+<circle cx="453.4" cy="105.7" r="4" fill="var(--s4)" stroke="var(--surface)" stroke-width="2"/>
+<text x="565" y="59.3" class="lbl">Matt 17.4 <tspan class="muted">(+2.7)</tspan></text>
+<text x="565" y="99.0" class="lbl">Nick 16.0 <tspan class="muted">(+1.6)</tspan></text>
+<text x="565" y="114.0" class="lbl">Grandma 15.8 <tspan class="muted">(+1.6)</tspan></text>
+<text x="565" y="129.0" class="lbl">Kim 15.6 <tspan class="muted">(+4.4)</tspan></text>
+<line x1="80.9" y1="232.7" x2="80.9" y2="252.7" class="callout"/>
+<circle cx="80.9" cy="252.7" r="10" class="marker"/>
+<text x="80.9" y="256.7" class="markertext" text-anchor="middle">1</text>
+<line x1="555.0" y1="55.3" x2="555.0" y2="35.3" class="callout"/>
+<circle cx="555.0" cy="35.3" r="10" class="marker"/>
+<text x="555.0" y="39.3" class="markertext" text-anchor="middle">2</text>
+</svg><ol class="notes"><li>Kim started with the quickest bouts (11.3 s) and ended with 15.6 s.</li><li>All four ended with LONGER bouts than they started with, so quick finishes became rarer. Matt&#x27;s average (17.4 s) is now closest to the 20-second limit, where a bout ends undecided.</li></ol></div>
+
+<h3>Exploration: are they still trying new things?</h3>
+<p>How varied the moves are. High and flat means a fighter is still experimenting, so more practice should still pay off. A falling line would mean it has settled on a style.</p>
+<div class="card"><svg viewBox="0 0 760 300" role="img" aria-label="Exploration" class="chart">
+<line x1="64" x2="555" y1="254.0" y2="254.0" class="grid"/>
+<text x="56" y="258.0" class="tick" text-anchor="end">1.29</text>
+<line x1="64" x2="555" y1="199.0" y2="199.0" class="grid"/>
+<text x="56" y="203.0" class="tick" text-anchor="end">1.31</text>
+<line x1="64" x2="555" y1="144.0" y2="144.0" class="grid"/>
+<text x="56" y="148.0" class="tick" text-anchor="end">1.33</text>
+<line x1="64" x2="555" y1="89.0" y2="89.0" class="grid"/>
+<text x="56" y="93.0" class="tick" text-anchor="end">1.35</text>
+<line x1="64" x2="555" y1="34.0" y2="34.0" class="grid"/>
+<text x="56" y="38.0" class="tick" text-anchor="end">1.36</text>
+<text x="64.0" y="272" class="tick" text-anchor="middle">0k</text>
+<text x="176.9" y="272" class="tick" text-anchor="middle">200k</text>
+<text x="289.7" y="272" class="tick" text-anchor="middle">400k</text>
+<text x="402.6" y="272" class="tick" text-anchor="middle">600k</text>
+<text x="515.5" y="272" class="tick" text-anchor="middle">800k</text>
+<text x="309.5" y="292" class="axis" text-anchor="middle">training steps in the latest run (thousands)</text>
+<text x="14" y="144.0" class="axis" text-anchor="middle" transform="rotate(-90 14 144.0)">variety of moves</text>
+<path d="M80.9,147.8 L97.9,147.0 L114.8,145.9 L131.7,144.3 L148.7,142.6 L165.6,140.5 L182.5,137.8 L199.4,134.7 L216.4,136.4 L233.3,135.0 L250.2,137.4 L267.2,133.5 L284.1,139.1 L301.0,137.5 L318.0,134.4 L334.9,129.2 L351.8,129.4 L368.8,125.9 L385.7,124.8 L402.6,122.9 L419.6,121.4 L436.5,121.4 L453.4,121.4 L470.3,120.0 L487.3,118.2 L504.2,124.3 L521.1,124.7 L538.1,130.6 L555.0,117.8" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"><title>Matt</title></path>
+<circle cx="555.0" cy="117.8" r="4" fill="var(--s1)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,74.0 L97.9,74.0 L114.8,74.0 L131.7,73.8 L148.7,73.3 L165.6,73.4 L182.5,73.1 L199.4,73.0 L216.4,72.7 L233.3,71.4 L250.2,69.3 L267.2,66.8 L284.1,65.2 L301.0,63.6 L318.0,62.3 L334.9,58.4 L351.8,55.3 L368.8,61.6 L385.7,62.3 L402.6,56.5 L419.6,62.3 L436.5,70.0 L453.4,56.0" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"><title>Grandma</title></path>
+<circle cx="453.4" cy="56.0" r="4" fill="var(--s2)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,142.7 L97.9,142.4 L114.8,141.8 L131.7,141.5 L148.7,141.6 L165.6,139.9 L182.5,139.6 L199.4,139.1 L216.4,136.8 L233.3,136.8 L250.2,135.1 L267.2,132.3 L284.1,130.0 L301.0,128.1 L318.0,126.2 L334.9,125.4 L351.8,129.8 L368.8,132.5 L385.7,126.9 L402.6,124.8 L419.6,126.0 L436.5,117.5 L453.4,119.0" fill="none" stroke="var(--s3)" stroke-width="2" stroke-linejoin="round"><title>Nick</title></path>
+<circle cx="453.4" cy="119.0" r="4" fill="var(--s3)" stroke="var(--surface)" stroke-width="2"/>
+<path d="M80.9,232.7 L97.9,231.5 L114.8,229.6 L131.7,230.0 L148.7,230.0 L165.6,228.4 L182.5,225.1 L199.4,225.4 L216.4,227.1 L233.3,219.7 L250.2,218.0 L267.2,216.4 L284.1,215.0 L301.0,213.7 L318.0,212.0 L334.9,212.7 L351.8,217.1 L368.8,215.2 L385.7,220.7 L402.6,218.4 L419.6,219.7 L436.5,217.4 L453.4,203.4" fill="none" stroke="var(--s4)" stroke-width="2" stroke-linejoin="round"><title>Kim</title></path>
+<circle cx="453.4" cy="203.4" r="4" fill="var(--s4)" stroke="var(--surface)" stroke-width="2"/>
+<text x="565" y="60.0" class="lbl">Grandma 1.36 <tspan class="muted">(+0.01)</tspan></text>
+<text x="565" y="121.8" class="lbl">Matt 1.34 <tspan class="muted">(+0.01)</tspan></text>
+<text x="565" y="136.8" class="lbl">Nick 1.33 <tspan class="muted">(+0.01)</tspan></text>
+<text x="565" y="207.4" class="lbl">Kim 1.31 <tspan class="muted">(+0.01)</tspan></text>
+<line x1="267.2" y1="66.8" x2="267.2" y2="86.8" class="callout"/>
+<circle cx="267.2" cy="86.8" r="10" class="marker"/>
+<text x="267.2" y="90.8" class="markertext" text-anchor="middle">1</text>
+</svg><ol class="notes"><li>Flat for all four: they are still trying lots of different moves. Nobody has settled into a style yet, so there is plenty left to learn.</li></ol></div>
+
+<h2>3 · How they do in the actual game</h2>
+<p>Tournament rating from today's brackets. Everyone starts at 1000. These are small samples (6–14 bouts each), so treat the order as a hint, not a verdict: a single lucky bout moves a fighter several places.</p>
+<div class="legend"><span><i style="background:var(--good)"></i>above the start</span><span><i style="background:var(--bad)"></i>below the start</span></div>
+<div class="card"><svg viewBox="0 0 760 480" role="img" aria-label="In-game tournament Elo" class="chart">
+<line x1="500" x2="500" y1="16" y2="450" class="axisline"/>
+<text x="500" y="468" class="tick" text-anchor="middle">1000 = where every fighter started</text>
+<rect x="500.0" y="22" width="140.1" height="17" rx="3" fill="var(--good)"><title>Tong 1093</title></rect>
+<text x="150" y="35" class="lbl" text-anchor="end">Tong</text>
+<text x="158" y="35" class="muted small">uses Matt&#x27;s brain</text>
+<text x="648.1" y="35" class="lbl">1093 <tspan class="muted">· 10W 3L</tspan></text>
+<rect x="500.0" y="48" width="113.4" height="17" rx="3" fill="var(--good)"><title>Kim 1076</title></rect>
+<text x="150" y="61" class="lbl" text-anchor="end">Kim</text>
+<text x="158" y="61" class="muted small">trained, own brain</text>
+<text x="621.4" y="61" class="lbl">1076 <tspan class="muted">· 8W 3L</tspan></text>
+<rect x="500.0" y="74" width="105.7" height="17" rx="3" fill="var(--good)"><title>Dupee 1070</title></rect>
+<text x="150" y="87" class="lbl" text-anchor="end">Dupee</text>
+<text x="158" y="87" class="muted small">uses Matt&#x27;s brain</text>
+<text x="613.7" y="87" class="lbl">1070 <tspan class="muted">· 9W 3L</tspan></text>
+<rect x="500.0" y="100" width="57.6" height="17" rx="3" fill="var(--good)"><title>Brendan 1038</title></rect>
+<text x="150" y="113" class="lbl" text-anchor="end">Brendan</text>
+<text x="158" y="113" class="muted small">uses Grandma&#x27;s brain</text>
+<text x="565.6" y="113" class="lbl">1038 <tspan class="muted">· 9W 5L</tspan></text>
+<rect x="500.0" y="126" width="46.4" height="17" rx="3" fill="var(--good)"><title>Maya 1031</title></rect>
+<text x="150" y="139" class="lbl" text-anchor="end">Maya</text>
+<text x="158" y="139" class="muted small">uses Grandma&#x27;s brain</text>
+<text x="554.4" y="139" class="lbl">1031 <tspan class="muted">· 5W 3L</tspan></text>
+<rect x="500.0" y="152" width="31.2" height="17" rx="3" fill="var(--good)"><title>Baily 1021</title></rect>
+<text x="150" y="165" class="lbl" text-anchor="end">Baily</text>
+<text x="158" y="165" class="muted small">uses Nick&#x27;s brain</text>
+<text x="539.2" y="165" class="lbl">1021 <tspan class="muted">· 6W 5L</tspan></text>
+<rect x="500.0" y="178" width="16.3" height="17" rx="3" fill="var(--good)"><title>Grandma 1011</title></rect>
+<text x="150" y="191" class="lbl" text-anchor="end">Grandma</text>
+<text x="158" y="191" class="muted small">trained, own brain</text>
+<text x="524.3" y="191" class="lbl">1011 <tspan class="muted">· 5W 4L</tspan></text>
+<rect x="500.0" y="204" width="14.7" height="17" rx="3" fill="var(--good)"><title>Nick 1010</title></rect>
+<text x="150" y="217" class="lbl" text-anchor="end">Nick</text>
+<text x="158" y="217" class="muted small">trained, own brain</text>
+<text x="522.7" y="217" class="lbl">1010 <tspan class="muted">· 6W 5L</tspan></text>
+<rect x="480.2" y="230" width="19.8" height="17" rx="3" fill="var(--bad)"><title>Josh 987</title></rect>
+<text x="150" y="243" class="lbl" text-anchor="end">Josh</text>
+<text x="158" y="243" class="muted small">uses Nick&#x27;s brain</text>
+<text x="508.0" y="243" class="lbl">987 <tspan class="muted">· 4W 6L</tspan></text>
+<rect x="479.5" y="256" width="20.5" height="17" rx="3" fill="var(--bad)"><title>Velez 986</title></rect>
+<text x="150" y="269" class="lbl" text-anchor="end">Velez</text>
+<text x="158" y="269" class="muted small">uses Grandma&#x27;s brain</text>
+<text x="508.0" y="269" class="lbl">986 <tspan class="muted">· 3W 4L</tspan></text>
+<rect x="477.3" y="282" width="22.7" height="17" rx="3" fill="var(--bad)"><title>Manzi 985</title></rect>
+<text x="150" y="295" class="lbl" text-anchor="end">Manzi</text>
+<text x="158" y="295" class="muted small">uses Kim&#x27;s brain</text>
+<text x="508.0" y="295" class="lbl">985 <tspan class="muted">· 3W 4L</tspan></text>
+<rect x="463.5" y="308" width="36.5" height="17" rx="3" fill="var(--bad)"><title>Sokol 976</title></rect>
+<text x="150" y="321" class="lbl" text-anchor="end">Sokol</text>
+<text x="158" y="321" class="muted small">uses Kim&#x27;s brain</text>
+<text x="508.0" y="321" class="lbl">976 <tspan class="muted">· 5W 7L</tspan></text>
+<rect x="419.3" y="334" width="80.7" height="17" rx="3" fill="var(--bad)"><title>Porto 946</title></rect>
+<text x="150" y="347" class="lbl" text-anchor="end">Porto</text>
+<text x="158" y="347" class="muted small">uses Matt&#x27;s brain</text>
+<text x="508.0" y="347" class="lbl">946 <tspan class="muted">· 3W 8L</tspan></text>
+<rect x="410.8" y="360" width="89.2" height="17" rx="3" fill="var(--bad)"><title>Matt 941</title></rect>
+<text x="150" y="373" class="lbl" text-anchor="end">Matt</text>
+<text x="158" y="373" class="muted small">trained, own brain</text>
+<text x="508.0" y="373" class="lbl">941 <tspan class="muted">· 2W 7L</tspan></text>
+<rect x="375.9" y="386" width="124.1" height="17" rx="3" fill="var(--bad)"><title>Alan 917</title></rect>
+<text x="150" y="399" class="lbl" text-anchor="end">Alan</text>
+<text x="158" y="399" class="muted small">uses Matt&#x27;s brain</text>
+<text x="508.0" y="399" class="lbl">917 <tspan class="muted">· 0W 6L</tspan></text>
+<rect x="367.9" y="412" width="132.1" height="17" rx="3" fill="var(--bad)"><title>Decoy 912</title></rect>
+<text x="150" y="425" class="lbl" text-anchor="end">Decoy</text>
+<text x="158" y="425" class="muted small">uses Kim&#x27;s brain</text>
+<text x="508.0" y="425" class="lbl">912 <tspan class="muted">· 0W 6L</tspan></text>
+</svg></div>
+<p class="why">A surprise worth knowing: Tong and Dupee, who use a copy of Matt's brain, are near the top, while Matt is near the bottom. Same brain, different body (each placeholder is up to 4% heavier or lighter), plus luck. It suggests body differences already matter, which is exactly why each fighter needs its own training.</p>
+
+<h2>4 · Where everyone is in the training pipeline</h2>
+<div class="card"><svg viewBox="0 0 760 200" role="img" aria-label="Training stages" class="chart">
+<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" class="arrowhead"/></marker></defs>
+<rect x="12" y="24" width="140" height="92" rx="8" class="stage done"/>
+<text x="82.0" y="48" class="lbl" text-anchor="middle">Old rules</text>
+<text x="82.0" y="68" class="muted small" text-anchor="middle">Rebuild01 · 15M</text>
+<text x="82.0" y="98" class="small" text-anchor="middle">stand and push</text>
+<path d="M154,70 l6,0" class="arrow" marker-end="url(#ah)"/>
+<rect x="162" y="24" width="140" height="92" rx="8" class="stage done"/>
+<text x="232.0" y="48" class="lbl" text-anchor="middle">Real sumo</text>
+<text x="232.0" y="68" class="muted small" text-anchor="middle">Sumo01 · restart</text>
+<text x="232.0" y="98" class="small" text-anchor="middle">rise from a crouch</text>
+<path d="M304,70 l6,0" class="arrow" marker-end="url(#ah)"/>
+<rect x="312" y="24" width="140" height="92" rx="8" class="stage done"/>
+<text x="382.0" y="48" class="lbl" text-anchor="middle">Lunge</text>
+<text x="382.0" y="68" class="muted small" text-anchor="middle">Lunge01 · ~1M</text>
+<text x="382.0" y="98" class="small" text-anchor="middle">choose to charge</text>
+<path d="M454,70 l6,0" class="arrow" marker-end="url(#ah)"/>
+<rect x="462" y="24" width="140" height="92" rx="8" class="stage done"/>
+<text x="532.0" y="48" class="lbl" text-anchor="middle">Read rival</text>
+<text x="532.0" y="68" class="muted small" text-anchor="middle">Intent01 · ~0.7M</text>
+<text x="532.0" y="98" class="small" text-anchor="middle">see a charge coming</text>
+<path d="M604,70 l6,0" class="arrow" marker-end="url(#ah)"/>
+<rect x="612" y="24" width="140" height="92" rx="8" class="stage next"/>
+<text x="682.0" y="48" class="lbl" text-anchor="middle">New crouch</text>
+<text x="682.0" y="68" class="muted small" text-anchor="middle">Unique01 · 5 min</text>
+<text x="682.0" y="98" class="small" text-anchor="middle">own body, own style</text>
+<text x="12" y="146" class="note">Matt, Grandma, Nick, Kim: every grey box done, waiting on the dashed one.</text>
+<text x="12" y="166" class="note">The 12 placeholders: no box done. They fight with a copy of a trained fighter's brain;</text>
+<text x="12" y="184" class="note">the dashed box is their FIRST training under their own name and body.</text>
+</svg></div>
+
+<h2>5 · Suggested priorities</h2>
+<ol>
+  <li><b>Run Unique01 for all 16 (about 70 minutes).</b> The starting crouch was fixed today: before, a thigh sat up to 10 cm inside the body. Every brain was trained on the old pose. This run is also the first time any of the 12 placeholders trains under its own name and body.
+    <div class="why">Needs: Unity closed. Command: <code>pwsh -File Training/Run-Unique01.ps1</code></div></li>
+  <li><b>Then give the four trained fighters a longer run (about 1 hour each).</b> All four were still improving and still exploring when today's run stopped. Grandma has the least total training (about 2.6M steps), so she's first. Matt rose fastest, so he has the most to gain from more time.</li>
+  <li><b>Then the placeholders that lose the most in the game:</b> Decoy and Alan (0 wins in 6 bouts each), then Porto (3–8). Five minutes each in Unique01 is a start, not a finish.</li>
+  <li><b>Not yet:</b> none of the 16 has passed the project's “graduation” check (holding a target score for 100 bouts in a row). That check isn't automated yet, so nobody can be called finished.</li>
+</ol>
+
+<h2>All the numbers</h2>
+<div class="scroll card"><table>
+<tr><th>Fighter</th><th>Brain</th><th>Training (steps)</th><th>Practice rating today</th><th>Practice bout length today</th><th>Game rating (record)</th></tr>
+<tr><td>Matt</td><td>own brain</td><td class='num'>≥5.2M</td><td class='num'>1201 → 1392</td><td class='num'>14.6 → 17.4 s</td><td class='num'>941 (2W 7L)</td></tr><tr><td>Grandma</td><td>own brain</td><td class='num'>≥2.6M</td><td class='num'>1199 → 1278</td><td class='num'>14.2 → 15.8 s</td><td class='num'>1011 (5W 4L)</td></tr><tr><td>Nick</td><td>own brain</td><td class='num'>≥3.1M</td><td class='num'>1201 → 1260</td><td class='num'>14.4 → 16.0 s</td><td class='num'>1010 (6W 5L)</td></tr><tr><td>Kim</td><td>own brain</td><td class='num'>≥3.3M</td><td class='num'>1193 → 1219</td><td class='num'>11.3 → 15.6 s</td><td class='num'>1076 (8W 3L)</td></tr><tr><td>Alan</td><td>borrows Matt</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>917 (0W 6L)</td></tr><tr><td>Dupee</td><td>borrows Matt</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1070 (9W 3L)</td></tr><tr><td>Porto</td><td>borrows Matt</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>946 (3W 8L)</td></tr><tr><td>Tong</td><td>borrows Matt</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1093 (10W 3L)</td></tr><tr><td>Brendan</td><td>borrows Grandma</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1038 (9W 5L)</td></tr><tr><td>Maya</td><td>borrows Grandma</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1031 (5W 3L)</td></tr><tr><td>Velez</td><td>borrows Grandma</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>986 (3W 4L)</td></tr><tr><td>Baily</td><td>borrows Nick</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>1021 (6W 5L)</td></tr><tr><td>Josh</td><td>borrows Nick</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>987 (4W 6L)</td></tr><tr><td>Decoy</td><td>borrows Kim</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>912 (0W 6L)</td></tr><tr><td>Manzi</td><td>borrows Kim</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>985 (3W 4L)</td></tr><tr><td>Sokol</td><td>borrows Kim</td><td class='num'>0</td><td class='num'>–</td><td class='num'>–</td><td class='num'>976 (5W 7L)</td></tr>
+</table></div>
+<p class="muted small">Sources: TensorBoard event files in Training/results/*_intent01, Logs/ActionLogs/bouts_20261110_*.csv, tournament_elo.json, Training/unique01_roster.csv. Built by Tools/make_training_status.py.</p>
+</main></body></html>

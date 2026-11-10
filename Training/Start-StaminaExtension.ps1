@@ -37,8 +37,8 @@
     env runs slower than the last and it reads as a hyperparameter problem.
 
 .PARAMETER Fighters
-    Which fighters to resume. Each maps to Training/configs/<Name>Stamina01.yaml,
-    run id <name>_stamina01, and Builds/<Name>Env/<Name>Env.exe.
+    Which fighters to resume. Each maps to Training/configs/<Name><Phase>.yaml,
+    run id <name>_<phase>, and Builds/<Name>Env/<Name>Env.exe.
 
 .PARAMETER Minutes
     Wall-clock budget. At the deadline Stop-Training.ps1 is called, which closes
@@ -75,24 +75,14 @@ param(
     # a genuine second bind on the SAME port is still avoided.
     [ValidateRange(1024, 65000)][int]$TensorBoardPort = 6006,
 
-    # Campaign selector. 'Stamina01' resumes the 15M extension; 'Gait01' starts the
-    # crawling-gait fine-tune, which is a NEW run id and therefore cannot resume —
-    # it warm-starts from the stamina trunk instead. Adding a campaign here is a
-    # PascalCase config stem plus its lowercase run suffix; nothing else changes.
-    # 'Obs01' is the corrective run for the world-absolute observation 0 fix, and
-    # carries the upright walk/stance shaping raised on 2026-08-25. New run id, so
-    # it warm-starts from the tall04 trunks rather than resuming.
-    # 'Rebuild01' is the live generation as of 2026-09-05. It is COLD by
-    # construction: Training/results/, Training/trunks/ and every *_tall04 trunk
-    # are absent from this machine, so there is nothing for --resume to continue
-    # and nothing for --initialize-from to load. See the cold-start branch below.
-    # 'Rebuild02' (2026-10-04) is Rebuild01 plus the `shrink_start` curriculum; it is
-    # meant to warm-start with -InitializeFromPhase Rebuild01, which needs
-    # Training/results/<name>_rebuild01 on disk, and otherwise starts cold.
-    # 'Buffer01' exists for Matt only (-Fighters Matt): MattRebuild02 with the PPO
-    # buffer and batch doubled, judged on ELO shape against matt_rebuild02.
-    [ValidateSet('Stamina01', 'Gait01', 'Obs01', 'Assist01', 'Rebuild01', 'Rebuild02', 'Buffer01', 'Sumo01', 'Lunge01')]
-    [string]$Phase = 'Stamina01',
+    # Campaign selector: the config generation, as the PascalCase stem in
+    # Training/configs/<Name><Phase>.yaml with the lowercase run suffix
+    # <name>_<phase>. Only generations whose configs are still on disk are listed;
+    # the lineage is Rebuild01 -> Sumo01 -> Lunge01 -> Intent01 (Training/README.md).
+    # Stamina01, Gait01, Obs01, Assist01, Rebuild02 and Buffer01 were removed
+    # 2026-11-10 with their configs.
+    [ValidateSet('Rebuild01', 'Sumo01', 'Lunge01', 'Intent01')]
+    [string]$Phase = 'Intent01',
 
     # Source run for --initialize-from, e.g. 'stamina01'. Resolves BY BEHAVIOR NAME
     # and RELATIVE TO --results-dir, so the source must sit in Training/results and

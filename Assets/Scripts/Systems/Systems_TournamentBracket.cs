@@ -1746,6 +1746,7 @@ namespace PoSumo
             // tournament's blood into the next one — and into exhibition matches.
             Systems_BodyDamage.ClearAll();
             Systems_RingBlood.ClearAll();
+            Systems_ClayWear.ClearAll();
             Systems_TournamentState.AutoSeed(_roster, Time.frameCount);
             Refresh();
         }

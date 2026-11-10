@@ -221,6 +221,18 @@ namespace PoSumo
         [Tooltip("A looping clay-scrape voice per fighter whose gain follows planted-foot slip speed x foot load, so being driven back across the mat is audible. Presentation only: it reads the foot load the body already samples and writes nothing.\n\nPaused outright below its floor, so a fighter standing still makes no sound - this project has removed two always-on noise layers already and this must not become a third.")]
         public bool enableFootScrape = true;
 
+        [Tooltip("Impacts are SYNTHESISED rather than played from WAVs: modal synthesis driven by collision energy (1/2 mu v_n^2), contact stiffness and the material pair (flesh / clay / straw / foot). Rendered once per session into a 48-clip bank (Systems_ImpactSynth). Off = the SFX_Thud* sample layers. Presentation only, no brain affected.")]
+        public bool enableImpactSynth = true;
+
+        [Tooltip("Lasting clay wear: scuff streaks where a loaded foot slides and dents where a body lands, accumulating over a whole tournament like the blood stains (Systems_ClayWear). Presentation only.")]
+        public bool enableClayWear = true;
+
+        [Tooltip("Desktop quality tier (Systems_DesktopFx): stronger bloom, a permanent edge chromatic dispersion, finer film grain and denser particle bursts. Applies ONLY when Application.isMobilePlatform is false — the Android look and its frame budget are untouched.")]
+        public bool enableDesktopFx = true;
+
+        [Tooltip("Development-only physics audit (Systems_PhysicsAudit): measures fighter-vs-fighter and fighter-vs-arena penetration depth every physics step and logs a PHYSICS AUDIT summary at each match end. Read-only; never spawned in a release build.")]
+        public bool enablePhysicsAudit = true;
+
         [Tooltip("Danger bands standing on the LIVE edge of the mat, brightening from amber to red as it closes. Presentation only: it reads the ring width and changes nothing a referee sees, so it is safe in a bracket and needs no retraining.\n\nMeasured over 17 rounds of live bracket play, 16 ran past shrinkStartSeconds and every one ended in a ring-out — the contraction, not a push, is what decides almost every round, and nothing on screen said so. Pairs with the MAT meter in the dock: this is the thing, that is the number.")]
         public bool enableRingSqueezeCue = true;
 

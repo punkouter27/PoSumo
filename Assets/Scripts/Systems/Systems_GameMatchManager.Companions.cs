@@ -78,6 +78,9 @@ namespace PoSumo
             // the player has asked for a silent bout, and a lone scrape loop is
             // not what that means.
             SpawnCompanion<Systems_FootScrape>(enableAudio && enableFootScrape, "FootScrape");
+            // Lasting scuffs and dents on the clay; replays the tournament's wear
+            // onto the freshly loaded arena, like Systems_RingBlood.
+            SpawnCompanion<Systems_ClayWear>(enableClayWear, "ClayWear");
             // Draws into the shared Systems_HudRoot like Systems_FightHud does,
             // so it needs no PanelSettings of its own and cannot fight the HUD
             // for draw order — that was the bug three separate UIDocuments at
@@ -126,6 +129,9 @@ namespace PoSumo
             // turn it ON in a release player.
             bool developmentBuild = Debug.isDebugBuild || Application.isEditor;
             SpawnCompanion<Systems_PerfHud>(enablePerfHud && developmentBuild, "PerfHud");
+            // Measurement, not presentation: ~600 distance queries a step, so the
+            // same build gate as the perf HUD.
+            SpawnCompanion<Systems_PhysicsAudit>(enablePhysicsAudit && developmentBuild, "PhysicsAudit");
             SpawnScreenChrome();
             // Lighting honours a scene-authored instance: drop a tuned
             // Systems_ArenaLighting into an arena scene and the runtime spawn is
@@ -138,6 +144,10 @@ namespace PoSumo
             // Both AFTER the rig: lanterns hang around a built arena, and PostFx
             // reads ArenaLighting.Instance.PostProfile, which its Awake builds.
             SpawnCompanion<Systems_ArenaLanterns>(enableLighting && enableLanterns, "ArenaLanterns");
+            // Between the rig and PostFx: it edits the profile the rig just built,
+            // and PostFx reads its aberration BASELINE on wake. Disables itself on
+            // mobile, so Android is untouched.
+            SpawnCompanion<Systems_DesktopFx>(enableLighting && enableDesktopFx, "DesktopFx");
             SpawnCompanion<Systems_PostFx>(enableLighting && enablePostFx, "PostFx");
             SpawnCompanion<Systems_CareerRecorder>(recordCareerStats, "CareerRecorder");
             SpawnCompanion<Systems_ArenaAtmosphere>(enableAtmosphere, "Atmosphere");

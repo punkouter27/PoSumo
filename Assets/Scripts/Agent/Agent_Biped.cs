@@ -159,6 +159,8 @@ namespace PoSumo
         protected override void Awake()
         {
             _b = GetComponent<Agent_BipedBody>();
+            // Training-only: `-posumoFighter <Name>` swaps the fighter. Inert in the game.
+            character = Systems_TrainingFighter.Resolve(character);
 
             if (character != null)
             {

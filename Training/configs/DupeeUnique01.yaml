@@ -1,0 +1,55 @@
+# Dupee UNIQUE 01 - created 2026-11-10. Style: BULLDOZER.
+#   close opening, wider clip: drive straight through the tachiai
+#
+# Five-minute corrective pass after the shikiri-crouch fix (hip -90 / knee 90 /
+# spine 20,30,30): the old FK pose put the near thigh up to 10 cm inside the trunk
+# for the whole frozen countdown. Every bout in both referees starts from this pose.
+#
+# Trains Dupee under its OWN behavior name on its OWN sheet. Env: Builds/MattEnv
+# (SCN_TRAIN_MATT) launched with `--env-args -posumoFighter Dupee`
+# (Systems_TrainingFighter swaps the character at load).
+# Warm start: matt_intent01 checkpoint, staged as dupee_uniqueinit/Dupee.
+# Vector 53 obs / 14 actions, unchanged. --num-envs 2. Judge on ELO SHAPE from 1200.
+#
+# Launch: Training/Run-Unique01.ps1 (all 16, two at a time, 5 min each).
+
+behaviors:
+  Dupee:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 1024
+      buffer_size: 8192
+      learning_rate: 1.0e-04
+      beta: 3.0e-03
+      epsilon: 0.25
+      lambd: 0.95
+      num_epoch: 3
+      learning_rate_schedule: constant
+    network_settings:
+      normalize: true
+      hidden_units: 512
+      num_layers: 3
+      vis_encode_type: simple
+    reward_signals:
+      extrinsic:
+        gamma: 0.995
+        strength: 1.0
+    keep_checkpoints: 3
+    checkpoint_interval: 25000
+    max_steps: 5000000   # never reached: the run is time-boxed to 5 minutes
+    time_horizon: 1000
+    summary_freq: 10000
+    threaded: false
+    self_play:
+      window: 10
+      play_against_latest_model_ratio: 0.25
+      save_steps: 10000
+      swap_steps: 10000
+      team_change: 40000
+
+environment_parameters:
+  spawn_gap_half: 0.7
+  shove_impulse: 15
+  platform_difficulty: 1.0
+  get_up_chance: 0.2
+  shrink_start: 0.0

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HUD Clean Pass</title>
+<style>
+  :root { --bg:#f6f4ef; --fg:#1d1b18; --muted:#6b655c; --card:#fff; --line:#ddd6ca; --add:#2f7d4f; --del:#b0413e; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141311; --fg:#ece8e1; --muted:#9d968b; --card:#1f1d1a; --line:#36322c; --add:#6cc28f; --del:#e08380; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:28px; }
+  .sub { color:var(--muted); margin:0 0 24px; }
+  .pair { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:640px) { .pair { grid-template-columns:1fr; } }
+  figure { margin:0; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  figcaption { font-weight:600; margin-bottom:8px; }
+  img { width:100%; height:auto; border-radius:6px; display:block; }
+  ol { padding-left:20px; } li { margin:6px 0; }
+  .del { color:var(--del); font-weight:600; } .add { color:var(--add); font-weight:600; }
+  section { margin-top:32px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Arena HUD — clean pass</h1>
+  <p class="sub">2026-11-10 · 1080×2400 portrait · presentation only, no brain touched. The two "before" and "after" captures are different bouts; compare the HUD, not the fighters.</p>
+
+  <div class="pair">
+    <figure><figcaption>Before</figcaption><img src="before/arena_1080x2400.png" alt="Arena HUD before"></figure>
+    <figure><figcaption>After</figcaption><img src="after/arena_1080x2400.png" alt="Arena HUD after"></figure>
+  </div>
+
+  <section>
+    <h2>What changed</h2>
+    <ol>
+      <li><span class="del">Removed</span> “60 FPS” from top-centre during play. <span class="add">Moved</span>: it appears only while the DBG panel is open (below).</li>
+      <li><span class="del">Removed</span> “0 : 0” from the scorebug in a one-point match. <span class="add">Now</span> “BAILY VS PORTO”; the digits return if <code>pointsToWin</code> is ever above 1.</li>
+      <li><span class="del">Removed</span> the MAT 4.6m meter. The ring no longer shrinks, so it was a constant full bar. It returns automatically if <code>shrinkStartSeconds</code> is set above 0.</li>
+      <li><span class="del">Removed</span> “ROUND 1 · FIRST TO 1”. It could only ever say one thing. It returns automatically if <code>pointsToWin</code> is above 1.</li>
+      <li>Result: the bottom panel is one row, two stamina bars mirrored about the centre.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Frame rate, now inside DBG</h2>
+    <div class="pair">
+      <figure><figcaption>DBG open (bracket screen)</figcaption><img src="after/debug_open_1080x2400.png" alt="DBG panel open with frame rate"></figure>
+      <figure><figcaption>Bracket, DBG closed</figcaption><img src="after/bracket_1080x2400.png" alt="Bracket screen without frame rate"></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Checks</h2>
+    <ol>
+      <li>Compiles clean; no new console errors.</li>
+      <li><code>portrait_check.py</code> at 1080×2400: 0 overflow, corner or notch findings.</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

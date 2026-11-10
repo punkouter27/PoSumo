@@ -55,6 +55,7 @@ namespace PoSumo
         private ChromaticAberration _aberration;
 
         private float _baseVignette;
+        private float _baseAberration;
         private float _baseSaturation;
         private bool _hasVignette;
         private bool _hasColour;
@@ -87,6 +88,9 @@ namespace PoSumo
             // holding without this file needing to know them.
             _baseVignette = _hasVignette ? _vignette.intensity.value : 0f;
             _baseSaturation = _hasColour ? _colour.saturation.value : 0f;
+            // Non-zero only under the desktop tier (Systems_DesktopFx), which
+            // authors a permanent edge dispersion before this component wakes.
+            _baseAberration = _hasAberration ? _aberration.intensity.value : 0f;
         }
 
         private void OnEnable()
@@ -133,7 +137,7 @@ namespace PoSumo
             bool slowMo = Time.timeScale < slowMoThreshold;
             float punch = _punch * _punch; // squared: fast attack, quick settle
 
-            float aberration = (slowMo ? 0.18f : 0f) + punch * punchAberration;
+            float aberration = _baseAberration + (slowMo ? 0.18f : 0f) + punch * punchAberration;
             float vignette = _baseVignette
                              + (slowMo ? slowMoVignette : 0f)
                              + punch * punchVignette;
@@ -171,7 +175,7 @@ namespace PoSumo
             }
             if (_hasAberration)
             {
-                _aberration.intensity.Override(0f);
+                _aberration.intensity.Override(_baseAberration);
             }
             if (_hasVignette)
             {

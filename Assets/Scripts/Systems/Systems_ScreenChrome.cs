@@ -7,7 +7,7 @@ namespace PoSumo
     /// The five fixed corners of every screen in the game, in one place.
     ///
     ///     top-left ...... the game's title
-    ///     top-centre .... live frame rate
+    ///     top-centre .... live frame rate (only while the DBG panel is open)
     ///     top-right ..... the menu button
     ///     bottom-left ... the debug button (agent / brain telemetry)
     ///     bottom-right .. the build version
@@ -150,6 +150,13 @@ namespace PoSumo
             _fps.style.top = Systems_UiKit.SPACE_2;
             _fps.style.height = Systems_UiKit.TOUCH_MIN;
             _fps.style.unityTextAlign = TextAnchor.MiddleCenter;
+            // Telemetry, so it shows only while the DBG panel is open (2026-11-10
+            // clean pass) — a frame rate is a question about the build, not about
+            // the bout. VISIBILITY, not display: a display:none label has no
+            // layout box, and HudOverflowAudit.Corners still asserts this corner
+            // is occupied. Measuring continues while hidden, so the number is
+            // already valid the moment the panel opens.
+            _fps.style.visibility = Visibility.Hidden;
             layer.Add(_fps.NoPick());
 
             // TOP-RIGHT — the menu.
@@ -235,6 +242,10 @@ namespace PoSumo
         /// state it controls. Called by whoever owns the panel.
         public void SetDebugActive(bool active)
         {
+            if (_fps != null)
+            {
+                _fps.style.visibility = active ? Visibility.Visible : Visibility.Hidden;
+            }
             if (_debugButton == null)
             {
                 return;

@@ -87,11 +87,10 @@ foreach ($required in @($venvPython, $learnExe, $envExe, $Config)) {
 # dies on an --initialize-from trunk that was pruned long ago, or it runs to
 # completion against the wrong vector and produces a brain that cannot be loaded.
 #
-# Four wrappers in this folder still exist to launch those generations
-# (Run-TallSweep, Run-Tall04Sweep, Run-StaminaPass, Extend-StaminaPass). They are
-# kept for the same reason the configs are: they are the record of what was tried.
-# The guard is what makes keeping them safe, so put the check at the choke point
-# every one of them funnels through rather than banner-ing each script.
+# The per-generation wrappers that launched those configs (Run-TallSweep,
+# Run-Tall04Sweep, Run-StaminaPass, Extend-StaminaPass, Run-GaitCampaign) were
+# deleted 2026-11-10 with the configs they named; git history is their record. The
+# guard stays at this choke point for any superseded config still on disk.
 $configHead = (Get-Content -LiteralPath $Config -TotalCount 40) -join "`n"
 if ($configHead -match 'DO NOT LAUNCH THIS FILE' -and -not $AllowSuperseded) {
     $why = ($configHead -split "`n" | Where-Object { $_ -match 'SUPERSEDED' } | Select-Object -First 1).Trim('# ')

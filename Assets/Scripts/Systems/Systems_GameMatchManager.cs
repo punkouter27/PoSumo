@@ -94,6 +94,10 @@ namespace PoSumo
         /// anything (`_appliedHalfWidth` starts at -1).
         public float CurrentRingHalfWidth => _appliedHalfWidth >= 0f ? _appliedHalfWidth : ringHalfWidth;
 
+        /// GameTuning.enableImpactSynth, resolved. Read by Systems_MatchAudio to
+        /// choose synthesised impacts over the SFX_Thud* samples.
+        public bool ImpactSynthEnabled => enableImpactSynth;
+
         // TAWARA CRUMBLE (Systems_ArenaMutators). A game-only boost to the
         // contraction rate, applied as an accumulated EXTRA closure on top of the
         // normal ShrinkTarget so the curve stays continuous — no jump, no snap —
@@ -133,6 +137,10 @@ namespace PoSumo
         private bool enablePerfHud = true;
         private bool enableFeelFx = true;
         private bool enableFootScrape = true;
+        private bool enableImpactSynth = true;
+        private bool enableClayWear = true;
+        private bool enableDesktopFx = true;
+        private bool enablePhysicsAudit = true;
         private bool enableShockwave = true;
         private bool enableRingSqueezeCue = true;
         private bool enableFighterPanel = true;
@@ -453,6 +461,10 @@ namespace PoSumo
                 enablePerfHud = tuning.enablePerfHud;
                 enableFeelFx = tuning.enableFeelFx;
                 enableFootScrape = tuning.enableFootScrape;
+                enableImpactSynth = tuning.enableImpactSynth;
+                enableClayWear = tuning.enableClayWear;
+                enableDesktopFx = tuning.enableDesktopFx;
+                enablePhysicsAudit = tuning.enablePhysicsAudit;
                 enableShockwave = tuning.enableShockwave;
                 enableRingSqueezeCue = tuning.enableRingSqueezeCue;
                 enableFighterPanel = tuning.enableFighterPanel;
@@ -1089,7 +1101,7 @@ namespace PoSumo
 
             _scoreBug.Add(NamePlate(nameA, colorA));
 
-            _scoreDigits = Systems_UiKit.Text("0 : 0", Systems_UiKit.FONT_TITLE, Systems_UiKit.TextHi, true);
+            _scoreDigits = Systems_UiKit.Text(ScoreText(), Systems_UiKit.FONT_TITLE, Systems_UiKit.TextHi, true);
             _scoreDigits.style.marginLeft = Systems_UiKit.SPACE_3;
             _scoreDigits.style.marginRight = Systems_UiKit.SPACE_3;
             _scoreDigits.style.unityTextAlign = TextAnchor.MiddleCenter;
@@ -1333,7 +1345,7 @@ namespace PoSumo
         private void UpdateScoreboard(bool flash)
         {
             if (_scoreDigits == null) return;
-            _scoreDigits.text = $"{_scoreA} : {_scoreB}";
+            _scoreDigits.text = ScoreText();
             if (flash)
             {
                 // An eased settle rather than "jump to HERO, snap back on a 400ms
@@ -1343,6 +1355,15 @@ namespace PoSumo
                 // rest of the match with nothing to put them back.
                 _scoreDigits.PopFontSize(Systems_UiKit.FONT_HERO, Systems_UiKit.FONT_TITLE, 320);
             }
+        }
+
+        /// "VS" in a one-point match, the running score otherwise. With
+        /// pointsToWin 1 the digits could only ever read 0 : 0 during the bout
+        /// (2026-11-10 clean pass); the result card names the winner. The label
+        /// itself stays, because FixedUpdate uses it as the "UI is built" guard.
+        private string ScoreText()
+        {
+            return pointsToWin <= 1 ? "VS" : $"{_scoreA} : {_scoreB}";
         }
 
         private void StartCountdown()

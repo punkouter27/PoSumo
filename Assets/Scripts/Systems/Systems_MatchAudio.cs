@@ -139,6 +139,10 @@ namespace PoSumo
         private float _duckUntil;
         private float _duckAmount;
         private readonly Dictionary<Agent_BipedBody, float> _nextScuffTime = new Dictionary<Agent_BipedBody, float>();
+        /// Synthesised impacts (Systems_ImpactSynth) instead of the SFX_Thud*
+        /// layers. Same gates and cooldowns either way — only the sound changes.
+        private bool _synth;
+        private int _synthVariant;
 
         private void Awake()
         {
@@ -267,6 +271,13 @@ namespace PoSumo
                 _manager.MatchReset += OnMatchReset;
                 _wrestlerA = _manager.wrestlerA;
                 _wrestlerB = _manager.wrestlerB;
+                _synth = _manager.ImpactSynthEnabled;
+            }
+            if (_synth)
+            {
+                // ~40 ms once per session, on the scene-load frame; the bank is
+                // static and every later bout reuses it.
+                Systems_ImpactSynth.EnsureBank();
             }
 
             if (_murmur != null)
@@ -453,7 +464,14 @@ namespace PoSumo
                     float next;
                     if (_nextScuffTime.TryGetValue(sensor.owner, out next) && now < next) return;
                     _nextScuffTime[sensor.owner] = now + 0.14f;
-                    PlayScuff(Mathf.Lerp(0.04f, 0.15f, speed / scuffMaxSpeed), pan);
+                    if (_synth)
+                    {
+                        PlaySynth(Systems_ImpactSynth.Material.FootOnClay, c, pan, 1f, 0.45f);
+                    }
+                    else
+                    {
+                        PlayScuff(Mathf.Lerp(0.04f, 0.15f, speed / scuffMaxSpeed), pan);
+                    }
                     return;
                 }
                 // Body part slamming the ground: dusty and dull, no flesh slap.
@@ -463,7 +481,14 @@ namespace PoSumo
                 if (speed > 2f && now >= _nextThudTime)
                 {
                     _nextThudTime = now + 0.06f;
-                    if (OnTawara(c.GetContact(0).point.x))
+                    if (_synth)
+                    {
+                        PlaySynth(OnTawara(c.GetContact(0).point.x)
+                                      ? Systems_ImpactSynth.Material.FleshOnStraw
+                                      : Systems_ImpactSynth.Material.FleshOnClay,
+                                  c, pan, 1f, 1f);
+                    }
+                    else if (OnTawara(c.GetContact(0).point.x))
                     {
                         // Higher pitch (smaller resonator), no slap, barely any
                         // dust tail: a knock on straw, not a body on clay.
@@ -489,7 +514,14 @@ namespace PoSumo
             if ((speed < thudMinSpeed && heaviness <= 0f) || now < _nextThudTime) return;
             _nextThudTime = now + 0.06f;
 
-            PlayLayeredThud(speed, 1f, pan, slapScale: 1f, dustScale: 0.7f, heaviness: heaviness);
+            if (_synth)
+            {
+                PlaySynth(Systems_ImpactSynth.Material.FleshOnFlesh, c, pan, 1f, 1f);
+            }
+            else
+            {
+                PlayLayeredThud(speed, 1f, pan, slapScale: 1f, dustScale: 0.7f, heaviness: heaviness);
+            }
             MaybeGrunt(sensor.owner, speed, pan);
 
             // Tension spikes on contact and bleeds off in Update.
@@ -530,6 +562,25 @@ namespace PoSumo
             // Clay dust: the tail. Barely scaled, so even a light contact has one.
             PlayFrom(_thudDust, _thudVariant, Mathf.Lerp(0.15f, 0.5f, t) * dustScale,
                      Random.Range(0.9f, 1.15f), pan);
+        }
+
+        /// One synthesised impact. Loudness from collision ENERGY on a log scale,
+        /// timbre from the material pair, pitch from the struck part's mass. The
+        /// bank is pre-rendered, so this is a lookup and a PlayOneShot — no
+        /// allocation on the collision path.
+        private void PlaySynth(Systems_ImpactSynth.Material material, Collision2D c, float pan,
+                               float pitchScale, float volumeScale)
+        {
+            float energy01 = Systems_ImpactSynth.Energy01(Systems_ImpactSynth.CollisionEnergy(c));
+            _synthVariant++;
+            AudioClip clip = Systems_ImpactSynth.Pick(material, energy01, _synthVariant);
+            if (clip == null)
+            {
+                return;
+            }
+            float partMass = c.otherRigidbody != null ? c.otherRigidbody.mass : 4f;
+            float pitch = Systems_ImpactSynth.PitchForMass(partMass) * pitchScale * Random.Range(0.97f, 1.03f);
+            Play(clip, Mathf.Lerp(0.12f, 1f, energy01) * volumeScale, pitch, pan);
         }
 
         private void PlayScuff(float volume, float pan)

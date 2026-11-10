@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GFX Audio Pass</title>
+<style>
+  :root { --bg:#f6f3ee; --fg:#231d16; --muted:#6c6255; --card:#fff; --line:#e2dbd0; --accent:#b5651d; --good:#2f7d4f; --warn:#a6461f; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#17130f; --fg:#efe8de; --muted:#a99d8c; --card:#221c16; --line:#3a3129; --accent:#e0954f; --good:#6cc08d; --warn:#e78a62; } }
+  :root[data-theme="dark"] { --bg:#17130f; --fg:#efe8de; --muted:#a99d8c; --card:#221c16; --line:#3a3129; --accent:#e0954f; --good:#6cc08d; --warn:#e78a62; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:980px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; } h2 { font-size:1.15rem; margin:36px 0 8px; border-bottom:1px solid var(--line); padding-bottom:4px; }
+  .muted { color:var(--muted); } .pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  figure { margin:0; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px; }
+  figure img { width:100%; height:auto; display:block; border-radius:4px; } figcaption { font-size:.85rem; color:var(--muted); margin-top:6px; }
+  table { border-collapse:collapse; width:100%; font-size:.9rem; } th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .num { font-variant-numeric:tabular-nums; } .good { color:var(--good); font-weight:600; } .warn { color:var(--warn); font-weight:600; }
+  .audio { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; }
+  .audio div { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px; font-size:.85rem; } audio { width:100%; }
+  ol li { margin-bottom:4px; } code { font-size:.88em; }
+  @media (max-width:600px) { .pair { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<main>
+<h1>GFX / audio / physics-audit pass</h1>
+<p class="muted">PoSumo · 2026-11-10 · 1440×3088 portrait Game view · no brain touched (no observation, action, mass, collider or rule changed)</p>
+
+<h2>Verdict</h2>
+<ul>
+  <li><span class="good">Bracket harness PASS</span> with every new feature on: 15 bouts, 16 fighters, champion Kim, 474 s.</li>
+  <li>Console: zero project errors; only the known IvanMurzak relay-authorisation error.</li>
+  <li>Compiles clean in the Editor and through Unity's Roslyn standalone.</li>
+</ul>
+
+<h2>1 · Desktop visual tier</h2>
+<p>Stronger bloom with high-quality filtering, a small permanent lens-edge chromatic dispersion (Systems_PostFx now adds its slow-mo / KO punches on top of it), finer film grain, and particle bursts doubled. Disabled on mobile — the Android look is unchanged.</p>
+<div class="pair">
+  <figure><img src="before/bout1.png" alt="Before: live bout, features off"><figcaption><b>Before</b> — features off, first bout of a bracket.</figcaption></figure>
+  <figure><img src="after/bout1.png" alt="After: live bout, desktop tier on"><figcaption><b>After</b> — desktop tier on: softer bloom on the fighters and lit haze, edge fringing, denser impact sparks.</figcaption></figure>
+</div>
+
+<h2>2 · Clay wear</h2>
+<p>Scuff streaks where a loaded foot slides (same signal the scrape audio hears) and dents where a body lands. Persist across a tournament, cleared with NEW TOURNAMENT. The first sizing hit the 700-mark cap inside 13 bouts and read as a hairline; resized to reach over the mat's front lip: 66 marks after 4 bouts.</p>
+<div class="pair">
+  <figure><img src="before/bout1_mat.png" alt="Before: clean mat lip"><figcaption><b>Before</b> — clean mat lip.</figcaption></figure>
+  <figure><img src="after/wear_mat.png" alt="After: scuffs along the lip"><figcaption><b>After</b> — dark scuffs along the lip under the fighting area (4th bout).</figcaption></figure>
+</div>
+
+<h2>3 · Synthesised impacts</h2>
+<p>Modal synthesis: loudness from collision energy ½·μ·v<sub>n</sub>² (reduced mass, normal closing speed), brightness from contact stiffness (shorter force pulse on harder hits), timbre from the material pair, pitch from the struck part's mass. A 48-clip bank is rendered once per session. Same gates and cooldowns as the samples it replaces. Samples below: one variant per energy bucket E0 (light) → E3 (slam).</p>
+<div class="audio">
+  <div>Flesh on flesh E0<audio controls src="audio/FleshOnFlesh_E0.wav"></audio></div>
+  <div>Flesh on flesh E3<audio controls src="audio/FleshOnFlesh_E3.wav"></audio></div>
+  <div>Flesh on clay E0<audio controls src="audio/FleshOnClay_E0.wav"></audio></div>
+  <div>Flesh on clay E3<audio controls src="audio/FleshOnClay_E3.wav"></audio></div>
+  <div>Flesh on straw E1<audio controls src="audio/FleshOnStraw_E1.wav"></audio></div>
+  <div>Flesh on straw E3<audio controls src="audio/FleshOnStraw_E3.wav"></audio></div>
+  <div>Foot on clay E0<audio controls src="audio/FootOnClay_E0.wav"></audio></div>
+  <div>Foot on clay E3<audio controls src="audio/FootOnClay_E3.wav"></audio></div>
+</div>
+<p class="muted">Friction: the scrape loop already scaled with slide speed × foot load. It now also gets its own low-pass per fighter (700 Hz slow drag → 7 kHz fast slide) and stick-slip chatter on the audio thread (9–38 bursts/s, deepest on a slow, heavily loaded drag).</p>
+
+<h2>4 · Physics audit (15 bouts, 18 307 live steps)</h2>
+<table>
+  <tr><th>Lane</th><th class="num">Pair samples</th><th class="num">&gt; 5 mm</th><th class="num">&gt; 2 cm</th><th class="num">Max</th><th>Worst pair</th></tr>
+  <tr><td>Fighter vs fighter</td><td class="num">5 290 723</td><td class="num">0.23 %</td><td class="num good">3</td><td class="num">36.6 mm</td><td>toe / toe</td></tr>
+  <tr><td>Fighter vs arena</td><td class="num">2 489 752</td><td class="num">2.73 %</td><td class="num good">13</td><td class="num">33.4 mm</td><td>foot / dohyo platform</td></tr>
+  <tr><td>Self (30 leg-vs-trunk pairs)</td><td class="num">1 098 420</td><td class="num">3.46 %</td><td class="num warn">35 359</td><td class="num warn">102 mm</td><td>near thigh / chest, lower back</td></tr>
+</table>
+<p><b>Fighter-to-fighter and fighter-to-arena contact is effectively clean:</b> 16 visible overlaps in 7.8 M samples, all toes and feet. Continuous collision is already on every part. The fastest part moves up to 2.9× the thinnest collider (6 cm) per step, yet no tunnelling shows up as visible overlap. Physics2D.Simulate averages 0.15 ms per step.</p>
+<p class="warn">The one real defect: the near thigh sinks up to 10 cm into the chest and lower back.</p>
+<p>The count is almost identical from bout to bout (≈2 400 deep overlaps each), which points to the crouched start pose, not to fighting. A crouch past the hip range drives the near thigh through the trunk, and the solver then pushes it out. Fixing it changes the pose the brains start every bout from, so it would mean retraining. Recorded, not changed.</p>
+
+<h2>Not done</h2>
+<table>
+  <tr><th>Asked for</th><th>Why not</th></tr>
+  <tr><td>Unreal shaders and lighting</td><td>This is a Unity project</td></tr>
+  <tr><td>SSGI/RTX, SSR, contact shadows, refraction</td><td>Nothing to sample in the URP 2D renderer: sprites write no depth, and the floor is seen edge-on</td></tr>
+  <tr><td>HRTF and geometric reverb</td><td>2D panning is deliberate with a zooming orthographic camera</td></tr>
+  <tr><td>Blender LOD/bake pipeline</td><td>There are no meshes</td></tr>
+  <tr><td>Mass and collider changes</td><td>Would invalidate every brain. The audit shows the contacts don't need them</td></tr>
+</table>
+</main>
+</body>
+</html>

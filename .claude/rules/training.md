@@ -21,7 +21,6 @@ compute whose only readable outcome is the number you must not use.
 |---|---|
 | `Training/Start-Training.ps1` | starts it **before** the trainer, so the run appears as soon as the first summary lands |
 | `Training/Start-StaminaExtension.ps1` | starts it, and skips if something already holds 6006 |
-| `Training/Run-GaitCampaign.ps1` | inherits it — it shells out to `Start-StaminaExtension.ps1` per batch |
 
 **The failure mode this rule exists to prevent is calling `mlagents-learn.exe`
 directly.** That is the one path with no TensorBoard in it, and nothing about the run
