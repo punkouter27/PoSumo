@@ -13,8 +13,7 @@ PluginImporter:
   platformData:
     Any:
       enabled: 0
-      settings:
-        Exclude Android: 1
+      settings: {}
     Editor:
       enabled: 1
       settings:
