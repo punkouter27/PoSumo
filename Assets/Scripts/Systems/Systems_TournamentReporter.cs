@@ -80,7 +80,9 @@ namespace PoSumo
             int decidedMatch = Systems_TournamentState.CurrentMatch;
             Systems_TournamentState.ReportWinner(character);
             Systems_Log.Info($"[TOURNAMENT] match {decidedMatch} winner: " +
-                      $"{(character != null ? character.behaviorName : "unknown")}");
+                      $"{(character != null ? character.behaviorName : "unknown")}" +
+                      $"  tournament ELO +{Systems_TournamentState.EloDelta(decidedMatch):F1}" +
+                      (character != null ? $" -> {Systems_TournamentElo.Get(character.behaviorName):F0}" : ""));
 
             // The result card is itself delayed — while the loser flops on a
             // normal finish, or for longer on a knockout so the KO slow-motion

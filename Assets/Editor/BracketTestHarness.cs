@@ -31,11 +31,12 @@ namespace PoSumo.EditorTools
     {
         /// Wall-clock ceiling for a whole bracket. Measured bouts run 60-110 s
         /// (rounds average ~18 s, best-of-three, plus ceremony and the return).
-        /// Sized for the old eight-slot frame's seven bouts plus slack; the
-        /// four-fighter roster plays three (two semifinals and the final). It
-        /// exists so a hung bout reports a FAILURE rather than leaving the Editor
-        /// spinning with no verdict.
-        private const float TIMEOUT_SECONDS = 1500f;
+        /// PER BOUT, since the frame went to sixteen slots (2026-11-10): a full
+        /// draw plays fifteen bouts, and a fixed 1500 s sized for seven would fail
+        /// a healthy bracket. It exists so a hung bout reports a FAILURE rather
+        /// than leaving the Editor spinning with no verdict.
+        private const float TIMEOUT_PER_BOUT_SECONDS = 200f;
+        private static float TimeoutSeconds => 60f + TIMEOUT_PER_BOUT_SECONDS * Mathf.Max(1, Systems_TournamentState.BoutCount);
         /// A single bout that outruns this is stalled. The longest genuine bout
         /// measured was ~110 s; the historical stall this guards against sat at
         /// 170 s and climbing on a fully shrunk mat.
@@ -194,9 +195,9 @@ namespace PoSumo.EditorTools
                      $"timeScale={Time.timeScale:F2}.");
                 return;
             }
-            if (now - _startedAt > TIMEOUT_SECONDS)
+            if (now - _startedAt > TimeoutSeconds)
             {
-                Fail($"the bracket ran past {TIMEOUT_SECONDS:F0}s with " +
+                Fail($"the bracket ran past {TimeoutSeconds:F0}s with " +
                      $"{Systems_TournamentState.BoutsPlayed} bouts decided.");
             }
         }

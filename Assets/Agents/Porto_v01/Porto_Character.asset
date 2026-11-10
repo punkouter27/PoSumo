@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501a6b866812e4d4a82886b13f0d0814, type: 3}
+  m_Name: Porto_Character
+  m_EditorClassIdentifier: Assembly-CSharp::PoSumo.Agent_CharacterDefinition
+  behaviorName: Porto
+  teamColor: {r: 0.1, g: 0.55, b: 0.55, a: 1}
+  headSprite: {fileID: 21300000, guid: bfc0449a5302a954d819f961969da94b, type: 3}
+  faceArtFacesLeft: 0
+  faceArtName: 
+  voicePitchHz: 100
+  voiceTract: 1.03
+  borrowedBrainFrom: Grandma
+  clothing:
+    legs: 2
+    legsColor: {r: 0.55, g: 0.56, b: 0.58, a: 1}
+    torso: 3
+    torsoColor: {r: 0.8, g: 0.7, b: 0.56, a: 1}
+    arms: 2
+    armsColor: {r: 0.8, g: 0.7, b: 0.56, a: 1}
+    feet: 2
+    feetColor: {r: 0.95, g: 0.93, b: 0.88, a: 1}
+  massScale: 1.04
+  widthScale: 1.03
+  torqueScale: 1
+  extendedObservations: 1
+  decisionPeriod: 3
+  contactObservations: 1
+  staminaObservation: 1
+  inferenceModel: {fileID: 5022602860645237092, guid: 8f76568562941a345ae69c088f1518bf, type: 3}
+  uprightReward: 0.002
+  closingReward: 0.003
+  lungeBonus: 0.003
+  lungeThreshold: 1.5
+  impactReward: 0.0033333332
+  impactCap: 8
+  kneeBendReward: 0.0004
+  hipsLowReward: 0.0003
+  cadenceReward: 0.0015
+  riseReward: 0.02
+  effortPenalty: 0.0015
+  stanceReward: 0.0009
+  driveReward: 0.004
+  energyPenalty: 0.0004
+  jerkPenalty: 0.0003
+  straightLegEarnFraction: 0.3
+  walkForwardReward: 0.004
+  walkStanceFloor: 0.1
+  walkBendReward: 0.0002
+  walkUprightReward: 0.0025
+  walkHeightReward: 0.0035
+  walkCadenceReward: 0.002
+  walkEnergyPenalty: 0.0003
+  walkStallPenalty: 0.0025

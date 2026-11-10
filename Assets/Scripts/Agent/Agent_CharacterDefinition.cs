@@ -23,12 +23,24 @@ namespace PoSumo
         [Header("Face")]
         [Tooltip("Tick when the source art faces LEFT. Rig geometry is right-facing, so the head flip is inverted for this character.")]
         public bool faceArtFacesLeft = false;
-        [Tooltip("Resources name of the neutral face; empty disables the mood ladder for this character.")]
-        public string faceNeutralName = "";
-        [Tooltip("Resources names, mild to extreme (happy1..3).")]
-        public string[] faceHappyNames = new string[0];
-        [Tooltip("Resources names, mild to extreme (sad1..3).")]
-        public string[] faceSadNames = new string[0];
+        [Tooltip("Prefix of this fighter's face art in the FaceAtlas; empty = behaviorName.\n\nFaces resolve by convention: <prefix>_Neutral, then <prefix>_<Happy|Angry|Hurt|Insult>_<1-5>. Any missing level uses the nearest level of the same mood; a missing mood is drawn from Neutral with a procedural tint, squash and head tilt (Systems_FaceMood). Drop a real PNG at the exact name and it wins, one slot at a time.\n\nReplaced faceNeutralName / faceHappyNames / faceSadNames on 2026-11-10.")]
+        public string faceArtName = "";
+
+        [Header("Voice")]
+        [Tooltip("Glottal fundamental (Hz) of this fighter's SYNTHESISED voice lines. 0 = derived from the behavior name. Only used for lines with no recorded WAV.")]
+        public float voicePitchHz = 0f;
+        [Tooltip("Vocal-tract length factor of the synthesised voice: >1 = longer tract = lower formants (a bigger body), <1 = smaller.")]
+        public float voiceTract = 1f;
+
+        [Header("Placeholder")]
+        [Tooltip("Behavior name of the trained fighter whose brain this one BORROWS; empty = its own brain.\n\nA placeholder fighter (added 2026-11-10 to fill the 16-slot bracket) has an identity, face, voice and a slightly altered body, but no training of its own: inferenceModel is the donor's .onnx and every brain-generation field matches the donor's, or the model would be fed a vector it cannot accept. Shown as PLACEHOLDER in the debug panel. Clear it when the fighter gets its own trained brain.")]
+        public string borrowedBrainFrom = "";
+
+        /// The face-art prefix this fighter resolves under.
+        public string FaceArtPrefix => string.IsNullOrEmpty(faceArtName) ? behaviorName : faceArtName;
+
+        /// True while this fighter fights on another fighter's brain.
+        public bool IsPlaceholder => !string.IsNullOrEmpty(borrowedBrainFrom);
 
         [Header("Clothing (visual only)")]
         [Tooltip("What this fighter wears, per body region: garment plus colour. The fabric pattern comes from the garment itself (jeans are denim, sweatpants are fleece) and is generated in code by Agent_Fabric — no texture assets, nothing to import.\n\nVisual only: it changes a part's texture and renderer colour and nothing else — no mass, no collider, no joint, no observation — so it cannot invalidate a trained brain. Coverage is decided in Agent_BipedBody.PartColor; the head is never clothed.")]

@@ -35,6 +35,7 @@ namespace PoSumo
             _atlas = null;
             _atlasLookedUp = false;
             Cache.Clear();
+            NameCache.Clear();
         }
 
         /// A face sprite by bare name (e.g. "Nick_Happy_2"), or null if the atlas
@@ -58,6 +59,69 @@ namespace PoSumo
             Sprite sprite = _atlas != null ? _atlas.GetSprite(name) : null;
             Cache[name] = sprite;   // null cached too: one miss, not one per frame
             return sprite;
+        }
+
+        /// Number of levels per mood. Shared with the voice so face level N and
+        /// voice level N always mean the same intensity.
+        public const int LEVELS = 5;
+
+        /// The art for one expression, as far as it exists.
+        ///
+        /// Resolution order, and why:
+        ///   1. `<prefix>_<Mood>_<level>` — real art for exactly this slot;
+        ///   2. the NEAREST level of the same mood (ties go DOWN, the milder read) —
+        ///      the trained fighters carry real photos at 1, 3 and 5 only;
+        ///   3. `<prefix>_Neutral`, with `exact` false — the caller then draws the
+        ///      mood procedurally on top (tint, squash, tilt).
+        /// `levelOfArt` is the level the returned sprite was drawn AT (0 for the
+        /// neutral), so a caller can draw only the remaining difference.
+        public static Sprite Resolve(string prefix, Systems_FighterMood mood, int level,
+                                     out int levelOfArt)
+        {
+            levelOfArt = 0;
+            if (string.IsNullOrEmpty(prefix)) return null;
+            if (mood != Systems_FighterMood.Neutral)
+            {
+                level = Mathf.Clamp(level, 1, LEVELS);
+                for (int offset = 0; offset < LEVELS; offset++)
+                {
+                    int below = level - offset;
+                    if (below >= 1)
+                    {
+                        Sprite sprite = Load(Name(prefix, mood, below));
+                        if (sprite != null) { levelOfArt = below; return sprite; }
+                    }
+                    int above = level + offset;
+                    if (offset > 0 && above <= LEVELS)
+                    {
+                        Sprite sprite = Load(Name(prefix, mood, above));
+                        if (sprite != null) { levelOfArt = above; return sprite; }
+                    }
+                }
+            }
+            return Load(prefix + "_Neutral");
+        }
+
+        // Names are built once per (prefix, mood, level) and cached: FaceMood asks on
+        // every expression step, and string concatenation per step is garbage.
+        private const int MOOD_COUNT = 5;   // members of Systems_FighterMood
+        private static readonly Dictionary<string, string[]> NameCache = new Dictionary<string, string[]>();
+
+        private static string Name(string prefix, Systems_FighterMood mood, int level)
+        {
+            if (!NameCache.TryGetValue(prefix, out string[] names))
+            {
+                names = new string[MOOD_COUNT * (LEVELS + 1)];
+                NameCache[prefix] = names;
+            }
+            int index = (int)mood * (LEVELS + 1) + level;
+            string name = names[index];
+            if (name == null)
+            {
+                name = $"{prefix}_{mood}_{level}";
+                names[index] = name;
+            }
+            return name;
         }
     }
 }

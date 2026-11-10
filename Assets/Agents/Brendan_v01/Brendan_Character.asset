@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 501a6b866812e4d4a82886b13f0d0814, type: 3}
+  m_Name: Brendan_Character
+  m_EditorClassIdentifier: Assembly-CSharp::PoSumo.Agent_CharacterDefinition
+  behaviorName: Brendan
+  teamColor: {r: 0.45, g: 0.75, b: 0.95, a: 1}
+  headSprite: {fileID: 21300000, guid: e43179fe277c58a4ca72fc43842e79ab, type: 3}
+  faceArtFacesLeft: 0
+  faceArtName: 
+  voicePitchHz: 95
+  voiceTract: 1.06
+  borrowedBrainFrom: Nick
+  clothing:
+    legs: 3
+    legsColor: {r: 0.14, g: 0.24, b: 0.48, a: 1}
+    torso: 2
+    torsoColor: {r: 0.38, g: 0.56, b: 0.88, a: 1}
+    arms: 0
+    armsColor: {r: 1, g: 1, b: 1, a: 1}
+    feet: 1
+    feetColor: {r: 0.16, g: 0.27, b: 0.52, a: 1}
+  massScale: 1.03
+  widthScale: 0.8364
+  torqueScale: 1
+  extendedObservations: 1
+  decisionPeriod: 3
+  contactObservations: 1
+  staminaObservation: 1
+  inferenceModel: {fileID: 5022602860645237092, guid: 1f15b9a7469d7cc4daafd2020713ebc9, type: 3}
+  uprightReward: 0.002
+  closingReward: 0.0055
+  lungeBonus: 0.0072000003
+  lungeThreshold: 1
+  impactReward: 0.0036666666
+  impactCap: 8
+  kneeBendReward: 0.0002
+  hipsLowReward: 0.0001
+  cadenceReward: 0.0032
+  riseReward: 0.025
+  effortPenalty: 0.0015
+  stanceReward: 0.0009
+  driveReward: 0.003
+  energyPenalty: 0.0002
+  jerkPenalty: 0.00015
+  straightLegEarnFraction: 0.75
+  walkForwardReward: 0.004
+  walkStanceFloor: 0.1
+  walkBendReward: 0.0002
+  walkUprightReward: 0.0025
+  walkHeightReward: 0.0035
+  walkCadenceReward: 0.002
+  walkEnergyPenalty: 0.0003
+  walkStallPenalty: 0.0025

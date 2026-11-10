@@ -1952,6 +1952,29 @@ namespace PoSumo
             HeadRenderer.transform.localScale =
                 new Vector3(headDiameter / (shortestSide * _headCellW),
                             headDiameter / (shortestSide * _headCellH), 1f);
+            _headFitScale = HeadRenderer.transform.localScale;
+            HeadRenderer.transform.localRotation = Quaternion.identity;
+        }
+
+        private Vector3 _headFitScale = Vector3.one;
+
+        /// Draws a PROCEDURAL expression over the current face sprite: a colour
+        /// tint, a squash (sx wider, sy taller) and a head tilt in degrees, positive
+        /// = chin UP. Used by Systems_FaceMood for any mood/level that has no real
+        /// art. Call `SetHeadSprite` first; it resets all three.
+        ///
+        /// ART ONLY. The head hitbox is on its own child (see the HeadDecals note in
+        /// Awake), so squashing or tilting the picture cannot change the physics.
+        public void SetHeadExpression(Color tint, float squashX, float squashY, float tiltDegrees)
+        {
+            if (HeadRenderer == null) return;
+            HeadRenderer.color = tint;
+            HeadRenderer.transform.localScale = new Vector3(_headFitScale.x * squashX,
+                                                            _headFitScale.y * squashY, 1f);
+            // Positive tilt lifts the chin. The face points along +x * facingSign,
+            // so lifting it is a counter-clockwise turn on a right-facing fighter
+            // and clockwise on a left-facing one.
+            HeadRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, tiltDegrees * facingSign);
         }
 
 

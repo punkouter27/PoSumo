@@ -16,9 +16,10 @@ MonoBehaviour:
   teamColor: {r: 0.95, g: 0.55, b: 0.12, a: 1}
   headSprite: {fileID: 21300000, guid: 95006877e9fe8ff44b732eaf725260ae, type: 3}
   faceArtFacesLeft: 0
-  faceNeutralName: 
-  faceHappyNames: []
-  faceSadNames: []
+  faceArtName: 
+  voicePitchHz: 98
+  voiceTract: 0.94
+  borrowedBrainFrom: 
   clothing:
     legs: 1
     legsColor: {r: 0.74, g: 0.37, b: 0.08, a: 1}

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bracket 16 Report</title>
+<style>
+:root{--bg:#f6f4ef;--fg:#1c1a17;--mut:#5e5850;--card:#fff;--acc:#d6338f;--line:#e2ddd3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141215;--fg:#eee9e0;--mut:#a59e93;--card:#1e1b20;--line:#332e35}}
+:root[data-theme="dark"]{--bg:#141215;--fg:#eee9e0;--mut:#a59e93;--card:#1e1b20;--line:#332e35}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:.2em 0}h2{font-size:1.15rem;margin:2em 0 .6em}
+p.mut{color:var(--mut)}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+figure img{width:100%;height:auto;border-radius:6px;display:block}
+figcaption{font-size:.9rem;color:var(--mut);margin-top:8px}
+ol li{margin:.3em 0} b.n{color:var(--acc)}
+</style></head><body><main>
+<h1>Tournament bracket: 4 → 16 slots</h1>
+<p class="mut">2026-11-10 · PoSumo · captured live in Play mode at 1440×3088 (portrait) from SCN_TOURNAMENT.</p>
+
+<h2>Before / after</h2>
+<div class="pair">
+<figure><img src="2026-11-10_bracket16/before_bracket_2026-10-04.jpg" alt="Old list-style bracket">
+<figcaption><b>Before</b> — the list-style bracket (captured 2026-10-04, while it still had 8 slots and the heuristic Bot; the 4-slot version that followed kept this layout with only SEMIFINALS and FINAL cards). Each round is a card of rows, with a drag palette above.</figcaption></figure>
+<figure><img src="2026-11-10_bracket16/after_seeding.jpg" alt="New 16-slot tree bracket">
+<figcaption><b>After</b> — 16-slot tree, before START.</figcaption></figure>
+</div>
+
+<h2>After — running and in a bout</h2>
+<div class="pair">
+<figure><img src="2026-11-10_bracket16/after_running.jpg" alt="Bracket mid-tournament"><figcaption>Mid-tournament, between bouts 2 and 3 (autoplay).</figcaption></figure>
+<figure><img src="2026-11-10_bracket16/after_bout.jpg" alt="Live bout with a placeholder fighter"><figcaption>Bout 4: Sokol (placeholder, borrowed Nick brain) v Grandma.</figcaption></figure>
+</div>
+
+<h2>What changed (numbers match the pink marks)</h2>
+<ol>
+<li><b class="n">1–2</b> Eight seeds down each edge; each column one round further in. Columns use <code>SpaceAround</code>, so every winner chip sits exactly between its two feeders.</li>
+<li><b class="n">3</b> The final sits in the centre: left finalist, “v”, right finalist, then the champion in a gold frame.</li>
+<li><b class="n">4</b> Status reads 16 slots / 16 fighters. The drag palette is gone — every fighter is always seeded; drag one seed onto another to swap.</li>
+<li><b class="n">5</b> After each bout: “WINNER def. LOSER · ELO +N (new) / −N (new)” — the separate tournament Elo.</li>
+<li><b class="n">6</b> Every chip shows tournament Elo; a decided bout’s winner chip shows the points it took, in green.</li>
+<li><b class="n">7</b> The two chips of the bout about to be played are outlined in gold.</li>
+<li><b class="n">8</b> START plays the whole bracket unattended (AUTO toggle unchanged).</li>
+<li><b class="n">9</b> Placeholder fighters fight with a fake right-facing profile cut from a front photo; expressions are procedural tint/squash/tilt.</li>
+<li><b class="n">10</b> Round names now cover ROUND OF 16 / QUARTERFINAL / SEMIFINAL / FINAL.</li>
+</ol>
+</main></body></html>

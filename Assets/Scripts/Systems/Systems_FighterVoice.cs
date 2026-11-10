@@ -2,30 +2,39 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// Spoken voice lines for one fighter: happy, sad and insults, each a set of
-    /// five clips where 1 is the mildest read and 5 the strongest.
+    /// One fighter's voice — and the one place that decides WHEN a fighter emotes.
     ///
-    /// Clips live in Resources/Audio/Voice/ and are found by naming convention, so adding
-    /// Nick_Happy_1..5 / Nick_Sad1..5 / Nick_Insult_1..5 gives Nick a voice with
-    /// no code change. A fighter with no clips is silent rather than an error —
-    /// only Matt and Nick are recorded today.
+    /// Four moods (`Systems_FighterMood`: Happy, Angry, Hurt, Insult), five levels
+    /// each (1 = mildest, 5 = strongest), five different lines per level: 100 lines
+    /// per fighter (spec of 2026-11-10).
     ///
-    /// What drives each set:
-    ///   sad     being hit (level from impact force), losing a round (4),
-    ///           losing the match (5)
-    ///   happy   live dominance climbing past thresholds, winning a round (4),
-    ///           winning the match (5)
-    ///   insult  roughly every insultInterval seconds while a round is live
+    /// Every emotional moment is decided here and announced on the static
+    /// `Expressed` event BEFORE any voice gating, so `Systems_FaceMood` shows the
+    /// same mood at the same level even when the voice is still busy with its last
+    /// line. Companions do not reach into each other; they meet on that event, the
+    /// way the audio meets the voice on `LineStarted`.
     ///
-    /// Dominance comes from Systems_FightHud, the same signal Systems_FaceMood
-    /// already uses to pick the expression — so what Matt says and what his face
-    /// does can never disagree.
+    /// What drives each mood:
+    ///   Hurt    a hit received (level from impact speed), a knockdown (4),
+    ///           losing the match by going down (5)
+    ///   Angry   live dominance sinking past thresholds, losing a round (4),
+    ///           losing the match by ring-out (5)
+    ///   Happy   live dominance climbing past thresholds, winning a round (4, or 5
+    ///           on a ring-out streak), winning the match (5)
+    ///   Insult  roughly every insultInterval seconds while a round is live; the
+    ///           fighter ahead taunts harder
+    ///
+    /// Lines resolve by naming convention, recorded first:
+    ///     Resources/Audio/Voice/<Behavior>_<Mood>_L<level>_<variant>.wav
+    /// and any line with no WAV is synthesised on first use by
+    /// `Systems_VoiceSynth` — so every fighter, including the 12 placeholder
+    /// fighters with no recordings at all, has a complete voice, and a real
+    /// recording replaces a placeholder one file at a time. The old recordings
+    /// (Happy / Sad / Insult, one per level) are variant 1; Sad became Hurt.
     ///
     /// Spawned at runtime by Systems_GameMatchManager, one per fighter.
     public sealed class Systems_FighterVoice : MonoBehaviour
     {
-        // Voice clips live in Resources/Audio/Voice/. Kept as one constant so a
-        // future move touches a single line rather than a format string.
         private const string VOICE_PATH = "Audio/Voice/";
 
         [Tooltip("Only used to resolve hand-placed instances — the runtime spawner assigns `fighter` directly.")]
@@ -33,23 +42,23 @@ namespace PoSumo
         [Tooltip("The fighter this voice belongs to. Assigned by Systems_GameMatchManager when it spawns this.")]
         public Agent_Biped fighter;
 
-        [Tooltip("Pitch multiplier. The second of two identical fighters is dropped so a Matt-vs-Matt bout does not sound like one man arguing with himself.")]
+        [Tooltip("Pitch multiplier. The second of two identical fighters is dropped so a mirror bout does not sound like one man arguing with himself.")]
         public float pitchScale = 1f;
         [Range(0f, 1f)] public float volume = 0.9f;
 
-        [Header("Sad (being hit)")]
-        [Tooltip("Impact speed (m/s) that produces the mildest sad line.")]
+        [Header("Hurt (being hit)")]
+        [Tooltip("Impact speed (m/s) that produces the mildest hurt line.")]
         public float hitMinSpeed = 2.6f;
-        [Tooltip("Impact speed (m/s) that produces the strongest sad line.")]
+        [Tooltip("Impact speed (m/s) that produces the strongest hurt line.")]
         public float hitMaxSpeed = 8.5f;
 
-        [Header("Happy (doing well)")]
+        [Header("Happy / Angry (dominance)")]
         [Tooltip("Dominance (0-100) above which he starts gloating.")]
         public float happyDominance = 62f;
         [Tooltip("Dominance at which the strongest in-round happy line fires.")]
         public float happyDominanceMax = 92f;
-        [Tooltip("Dominance must fall back below this before another happy line can fire, so a steady lead does not loop.")]
-        public float happyRearmDominance = 55f;
+        [Tooltip("Dominance must fall back to this distance from even (50) before another happy or angry line can fire, so a steady lead does not loop.")]
+        public float rearmDistance = 5f;
 
         [Header("Insults")]
         public float insultInterval = 8f;
@@ -59,31 +68,27 @@ namespace PoSumo
         [Header("Pacing")]
         [Tooltip("Minimum gap between ANY two lines from this fighter.")]
         public float minGapSeconds = 1.4f;
+        [Tooltip("How long the face holds a flashed expression.")]
+        public float expressionSeconds = 1.5f;
 
-        private const int LEVELS = 5;
+        public const int LEVELS = 5;
+        public const int VARIANTS = 5;
+        private const int MOODS = 5;   // Systems_FighterMood incl. Neutral (unused slot 0)
 
-        // Matches Systems_MatchAudio's SFX bus exactly. 22 kHz is effectively
-        // open; 900 Hz is underwater. Duplicated as constants rather than read
-        // across from that companion, because a companion must not reach into
-        // another companion — they subscribe to the same events instead.
         private const float LPF_OPEN = 22000f;
         private const float LPF_SLOWMO = 900f;
 
-        /// Fired when a voice line ACTUALLY starts playing, carrying the clip
-        /// length. STATIC on purpose: Systems_MatchAudio subscribes and ducks the
-        /// SFX and crowd beds under speech, and neither companion should reach
-        /// into the other — they meet on this shared surface exactly the way the
-        /// three impact watchers meet on Sensor_Impact.AnyImpact. A fighter with
-        /// no clips never fires it, so a silent roster costs the beds nothing.
+        /// Fired when a voice line ACTUALLY starts playing, carrying the clip length.
+        /// Systems_MatchAudio ducks the beds under speech.
         public static event System.Action<float> LineStarted;
 
+        /// Fired at every emotional moment, whether or not a line plays:
+        /// (fighter, mood, level 1-5, hold seconds — +Infinity holds until a rematch).
+        /// Systems_FaceMood draws it.
+        public static event System.Action<Agent_Biped, Systems_FighterMood, int, float> Expressed;
+
         private AudioLowPassFilter _lowPass;
-
         private Systems_VoiceGains _gains;
-        private AudioClip[] _happy;
-        private AudioClip[] _sad;
-        private AudioClip[] _insult;
-
         private AudioSource _source;
         private Systems_GameMatchManager _manager;
         private Systems_FightHud _hud;
@@ -91,14 +96,22 @@ namespace PoSumo
         private Agent_BipedBody _body;
         private bool _fighterIsA;
 
+        private Systems_VoiceSynth.Voice _voice;
+        private string _prefix;
+        // [mood][level-1][variant-1]: null = not looked up yet.
+        private readonly AudioClip[][][] _bank = new AudioClip[MOODS][][];
+        private readonly bool[][][] _synthesised = new bool[MOODS][][];
+        private readonly int[] _lastVariant = new int[MOODS];
+
         private float _nextAllowedTime;
         private float _nextInsultTime;
         private bool _happyArmed = true;
+        private bool _angryArmed = true;
         private bool _matchDecided;
+        private bool _wasDown;
+        private float _downRearmTime;
+        private int _ringOutStreak;
 
-        /// Fallback for an instance placed by hand in a scene rather than spawned
-        /// by the manager. Ambiguous in a mirror match, which is why the spawner
-        /// assigns the instance instead.
         private Agent_Biped ResolveByName()
         {
             if (_manager.wrestlerA != null && _manager.wrestlerA.behaviorName == fighterBehaviorName)
@@ -122,11 +135,7 @@ namespace PoSumo
                 return;
             }
 
-            // Bound by INSTANCE, never by behaviour name — the same fix as
-            // Systems_FaceMood. In a mirror bout both spawned voices matched
-            // wrestlerA, so B was mute all match (OnImpact filters on
-            // sensor.owner != _body) while every one of A's lines played twice,
-            // once at each pitch — the exact chorusing pitchScale exists to stop.
+            // Bound by INSTANCE, never by behaviour name (mirror bouts).
             _fighter = fighter != null ? fighter : ResolveByName();
             if (_fighter == null)
             {
@@ -136,19 +145,23 @@ namespace PoSumo
             _fighterIsA = _fighter == _manager.wrestlerA;
             _body = _fighter.GetComponent<Agent_BipedBody>();
 
-            // Regenerated by PoSumo > Normalize Voice Levels. Absent asset is not
-            // an error — every clip then plays at its recorded level, as before.
-            _gains = Resources.Load<Systems_VoiceGains>("VoiceGains");
-
-            _happy = LoadSet("Happy");
-            _sad = LoadSet("Sad");
-            _insult = LoadSet("Insult");
-            if (_happy == null && _sad == null && _insult == null)
+            Agent_CharacterDefinition character = _body != null ? _body.character : null;
+            _prefix = character != null ? character.behaviorName : fighterBehaviorName;
+            _voice = Systems_VoiceSynth.VoiceFor(character, _prefix);
+            for (int mood = 0; mood < MOODS; mood++)
             {
-                // No recorded voice for this fighter. Silent, not broken.
-                enabled = false;
-                return;
+                _bank[mood] = new AudioClip[LEVELS][];
+                _synthesised[mood] = new bool[LEVELS][];
+                for (int level = 0; level < LEVELS; level++)
+                {
+                    _bank[mood][level] = new AudioClip[VARIANTS];
+                    _synthesised[mood][level] = new bool[VARIANTS];
+                }
             }
+
+            // Regenerated by PoSumo > Normalize Voice Levels. Synthesised lines are
+            // not in it and play at gain 1, which is what they are normalised to.
+            _gains = Resources.Load<Systems_VoiceGains>("VoiceGains");
 
             _source = gameObject.AddComponent<AudioSource>();
             _source.playOnAwake = false;
@@ -156,16 +169,6 @@ namespace PoSumo
             // 2D with manual pan, matching Systems_MatchAudio: true 3D falloff
             // pumps with the follow camera's zoom in an orthographic game.
             _source.spatialBlend = 0f;
-
-            // The voice used to be the ONE sound in the game with no arena send
-            // and no filter. Systems_MatchAudio's two buses carry both, so during
-            // a slow-mo finish the entire mix went dark and wet — and the spoken
-            // line stayed bone-dry and full-bandwidth, sitting in front of the
-            // room instead of inside it. An AudioReverbFilter applies to every
-            // source on its own GameObject, and this source is the only one here,
-            // so the filters go on this GameObject directly rather than needing a
-            // shared bus. The room itself is Systems_AudioMix's, so it cannot
-            // drift from the one the bodies and the crowd are in.
             Systems_AudioMix.AddArenaReverb(gameObject);
             _lowPass = gameObject.AddComponent<AudioLowPassFilter>();
             _lowPass.cutoffFrequency = LPF_OPEN;
@@ -185,8 +188,6 @@ namespace PoSumo
 
         private void OnDisable()
         {
-            // Static event — a missed unsubscribe keeps a dead scene's voice alive
-            // across a scene load.
             Sensor_Impact.AnyImpact -= OnImpact;
             if (_manager != null)
             {
@@ -197,39 +198,23 @@ namespace PoSumo
             }
         }
 
-        /// Loads `<Fighter>_<Kind>_1..5` from Resources. That is the one naming
-        /// convention for voice clips — `Matt_Happy_1.wav`, `Nick_Sad_3.wav`.
-        ///
-        /// This used to try a second, un-underscored spelling as well, because
-        /// Matt's Sad recordings shipped as `Matt_Sad1` while everything else in
-        /// his own set used `Matt_Happy_1`. Those files have been renamed, so the
-        /// fallback is gone: a clip that does not load now means the file is
-        /// misnamed, and silently accepting a second spelling only guaranteed the
-        /// next set would be inconsistent too.
-        private AudioClip[] LoadSet(string kind)
+        private void OnDestroy()
         {
-            var clips = new AudioClip[LEVELS];
-            int found = 0;
-            for (int level = 0; level < LEVELS; level++)
+            // Runtime-created clips are not scene objects; free the ones made here.
+            for (int mood = 0; mood < MOODS; mood++)
             {
-                int n = level + 1;
-                AudioClip clip = Resources.Load<AudioClip>($"{VOICE_PATH}{fighterBehaviorName}_{kind}_{n}");
-                clips[level] = clip;
-                if (clip != null)
+                if (_bank[mood] == null) continue;
+                for (int level = 0; level < LEVELS; level++)
                 {
-                    found++;
+                    for (int variant = 0; variant < VARIANTS; variant++)
+                    {
+                        if (_synthesised[mood][level][variant] && _bank[mood][level][variant] != null)
+                        {
+                            Destroy(_bank[mood][level][variant]);
+                        }
+                    }
                 }
             }
-            if (found == 0)
-            {
-                return null;
-            }
-            if (found < LEVELS)
-            {
-                Debug.LogWarning($"Systems_FighterVoice ({fighterBehaviorName}): only {found}/{LEVELS} " +
-                                 $"{kind} clips found in Resources; missing levels fall back to the nearest one.");
-            }
-            return clips;
         }
 
         // ------------------------------------------------------------- events
@@ -237,45 +222,58 @@ namespace PoSumo
         private void OnRoundStarted()
         {
             _happyArmed = true;
+            _angryArmed = true;
             ScheduleInsult();
         }
 
         private void OnRoundEnded(Agent_Biped winner, Agent_Biped loser)
         {
+            bool ringOut = _manager != null && _manager.LastOutcome == Systems_GameMatchManager.RoundOutcome.RingOut;
+            _ringOutStreak = winner == _fighter && ringOut ? _ringOutStreak + 1 : 0;
             if (_matchDecided)
             {
                 return;   // the match-end line owns that moment
             }
             if (winner == _fighter)
             {
-                Say(_happy, 4);
+                // Two ring-outs running: the top read, held twice as long.
+                if (_ringOutStreak >= 2) Express(Systems_FighterMood.Happy, 5, expressionSeconds * 2f);
+                else Express(Systems_FighterMood.Happy, 4, expressionSeconds);
             }
             else if (loser == _fighter)
             {
-                Say(_sad, 4);
+                Express(Systems_FighterMood.Angry, 4, expressionSeconds);
             }
-            // A draw gets nothing.
         }
 
         private void OnMatchEnded(Agent_Biped winner)
         {
             _matchDecided = true;
-            // Strongest read in the set is reserved for taking or losing the match.
-            Say(winner == _fighter ? _happy : _sad, 5, force: true);
+            // The strongest read in the set is reserved for taking or losing the
+            // match, and the face holds it until a rematch. Going down hurts;
+            // being driven out makes you furious.
+            if (winner == _fighter)
+            {
+                Express(Systems_FighterMood.Happy, 5, float.PositiveInfinity, force: true);
+                return;
+            }
+            bool wentDown = _manager != null && _manager.LastOutcome != Systems_GameMatchManager.RoundOutcome.RingOut;
+            Express(wentDown ? Systems_FighterMood.Hurt : Systems_FighterMood.Angry, 5, float.PositiveInfinity, force: true);
         }
 
         private void OnMatchReset()
         {
             _matchDecided = false;
             _happyArmed = true;
+            _angryArmed = true;
+            _ringOutStreak = 0;
             ScheduleInsult();
         }
 
         private void OnImpact(Sensor_Impact sensor, Collision2D collision)
         {
-            // Only hits this fighter RECEIVES from the opponent. Ground contact and
-            // hits he delivers are somebody else's business.
-            if (_body == null || sensor == null || sensor.owner != _body)
+            // Only hits this fighter RECEIVES from the opponent.
+            if (_body == null || sensor == null || sensor.owner != _body || _matchDecided)
             {
                 return;
             }
@@ -284,24 +282,20 @@ namespace PoSumo
             {
                 return;
             }
-
             float speed = collision.relativeVelocity.magnitude;
             if (speed < hitMinSpeed)
             {
                 return;
             }
-            Say(_sad, LevelFrom(speed, hitMinSpeed, hitMaxSpeed));
+            Express(Systems_FighterMood.Hurt, LevelFrom(speed, hitMinSpeed, hitMaxSpeed), expressionSeconds * 0.7f);
         }
 
         // -------------------------------------------------------------- tick
 
         private void Update()
         {
-            // Deliberately ABOVE the early returns below. Systems_MatchPresentation
-            // owns Time.timeScale and a slow-mo finish is precisely the moment
-            // `_matchDecided` is true, so filtering inside the guarded section
-            // would leave the voice unfiltered for the one sequence the filter
-            // exists for. Same curve as Systems_MatchAudio's SFX bus.
+            // Above the early returns: a slow-mo finish is exactly when
+            // `_matchDecided` is true, and the filter exists for that sequence.
             if (_lowPass != null)
             {
                 float scale = Mathf.Clamp01(Time.timeScale);
@@ -309,38 +303,66 @@ namespace PoSumo
                 _lowPass.cutoffFrequency = Mathf.Lerp(LPF_OPEN, LPF_SLOWMO, slow);
             }
 
-            if (_manager == null || _matchDecided)
+            if (_manager == null || _matchDecided || _fighter == null)
             {
                 return;
             }
 
             bool roundLive = _manager.RoundActive;
 
-            // Insults only while the round is live, so they never talk over the
-            // countdown, the taiko, the gong or the result card.
-            if (roundLive && _insult != null && Time.time >= _nextInsultTime)
+            // Knockdown: debounced, mid-round only.
+            bool down = _fighter.IsDown;
+            if (roundLive && down && !_wasDown && Time.unscaledTime >= _downRearmTime)
             {
-                ScheduleInsult();
-                Say(_insult, Random.Range(1, LEVELS + 1));
+                Express(Systems_FighterMood.Hurt, 4, expressionSeconds * 0.8f);
+                _downRearmTime = Time.unscaledTime + 2f;
             }
+            _wasDown = down;
 
-            if (!roundLive || _hud == null || _happy == null)
+            if (!roundLive)
             {
                 return;
             }
 
-            float dominance = _fighterIsA ? _hud.DominanceA : _hud.DominanceB;
+            float dominance = _hud != null ? (_fighterIsA ? _hud.DominanceA : _hud.DominanceB) : 50f;
 
-            // One line per surge: he has to drop back to the rearm threshold before
-            // gloating again, otherwise a steady lead loops the happy set forever.
+            // Insults only while the round is live, so they never talk over the
+            // countdown, the gong or the result card. The fighter ahead taunts
+            // harder: level leans on dominance, with a random spread.
+            if (Time.time >= _nextInsultTime)
+            {
+                ScheduleInsult();
+                int lean = Mathf.RoundToInt(Mathf.InverseLerp(30f, 80f, dominance) * 2f);  // 0..2
+                Express(Systems_FighterMood.Insult, Mathf.Clamp(Random.Range(1, 4) + lean, 1, LEVELS), expressionSeconds);
+            }
+
+            if (_hud == null)
+            {
+                return;
+            }
+
+            // One line per surge: he has to come back toward even before gloating
+            // (or fuming) again, otherwise a steady lead loops the set forever.
+            float angryDominance = 100f - happyDominance;
             if (_happyArmed && dominance >= happyDominance)
             {
                 _happyArmed = false;
-                Say(_happy, LevelFrom(dominance, happyDominance, happyDominanceMax));
+                Express(Systems_FighterMood.Happy, LevelFrom(dominance, happyDominance, happyDominanceMax), expressionSeconds);
             }
-            else if (!_happyArmed && dominance < happyRearmDominance)
+            else if (!_happyArmed && dominance < happyDominance - rearmDistance)
             {
                 _happyArmed = true;
+            }
+
+            if (_angryArmed && dominance <= angryDominance)
+            {
+                _angryArmed = false;
+                Express(Systems_FighterMood.Angry, LevelFrom(angryDominance - dominance + happyDominance,
+                                                             happyDominance, happyDominanceMax), expressionSeconds);
+            }
+            else if (!_angryArmed && dominance > angryDominance + rearmDistance)
+            {
+                _angryArmed = true;
             }
         }
 
@@ -349,8 +371,6 @@ namespace PoSumo
             _nextInsultTime = Time.time + insultInterval + Random.Range(-insultJitter, insultJitter);
         }
 
-        // ------------------------------------------------------------ playing
-
         /// Map a measured value onto 1..5.
         private static int LevelFrom(float value, float min, float max)
         {
@@ -358,45 +378,29 @@ namespace PoSumo
             return Mathf.Clamp(Mathf.FloorToInt(t * LEVELS) + 1, 1, LEVELS);
         }
 
-        /// Nearest available clip at or below `level`, then above. Lets a partial
-        /// set (say only 1, 3 and 5 recorded) still cover the whole range.
-        private AudioClip Pick(AudioClip[] set, int level)
+        // ------------------------------------------------------------ playing
+
+        /// Announce the moment (always), then try to say it (gated).
+        private void Express(Systems_FighterMood mood, int level, float holdSeconds, bool force = false)
         {
-            if (set == null)
-            {
-                return null;
-            }
-            int index = Mathf.Clamp(level - 1, 0, LEVELS - 1);
-            for (int offset = 0; offset < LEVELS; offset++)
-            {
-                int below = index - offset;
-                if (below >= 0 && set[below] != null)
-                {
-                    return set[below];
-                }
-                int above = index + offset;
-                if (above < LEVELS && set[above] != null)
-                {
-                    return set[above];
-                }
-            }
-            return null;
+            level = Mathf.Clamp(level, 1, LEVELS);
+            Expressed?.Invoke(_fighter, mood, level, holdSeconds);
+            Say(mood, level, force);
         }
 
-        private void Say(AudioClip[] set, int level, bool force = false)
+        private void Say(Systems_FighterMood mood, int level, bool force)
         {
             if (_source == null)
             {
                 return;
             }
             // One voice per fighter: a new line cuts the old one rather than
-            // overlapping it, which is how a person actually talks. `force` is for
-            // the match-decided line, which always wins.
+            // overlapping it. `force` is for the match-decided line, which wins.
             if (!force && (Time.time < _nextAllowedTime || _source.isPlaying))
             {
                 return;
             }
-            AudioClip clip = Pick(set, level);
+            AudioClip clip = Clip(mood, level, PickVariant(mood));
             if (clip == null)
             {
                 return;
@@ -405,20 +409,49 @@ namespace PoSumo
             _source.pitch = pitchScale;
             _source.panStereo = Pan();
             _source.clip = clip;
-            // Per-clip correction from the normalization pass. The raw recordings
-            // sit 20.7 dB apart in RMS and Nick's whole set is ~7 dB under Matt's,
-            // so a flat volume made one fighter mumble and the other shout.
-            // Missing entries return 1, so an unmeasured clip is uncorrected
-            // rather than silent.
             _source.volume = volume * (_gains != null ? _gains.GainFor(clip.name) : 1f)
                            * Systems_AudioMix.VoiceLevel;
             _source.Play();
             LineStarted?.Invoke(clip.length);
         }
 
+        /// A different variant from the last line of the same mood, so the same
+        /// shout does not fire twice running.
+        private int PickVariant(Systems_FighterMood mood)
+        {
+            int last = _lastVariant[(int)mood];
+            int variant = Random.Range(1, VARIANTS + 1);
+            if (variant == last)
+            {
+                variant = variant % VARIANTS + 1;
+            }
+            _lastVariant[(int)mood] = variant;
+            return variant;
+        }
+
+        /// Recorded WAV if there is one, otherwise synthesised — each looked up or
+        /// built once, on first use.
+        private AudioClip Clip(Systems_FighterMood mood, int level, int variant)
+        {
+            AudioClip[] slot = _bank[(int)mood][level - 1];
+            AudioClip clip = slot[variant - 1];
+            if (clip != null)
+            {
+                return clip;
+            }
+            string name = $"{_prefix}_{mood}_L{level}_{variant}";
+            clip = Resources.Load<AudioClip>(VOICE_PATH + name);
+            if (clip == null)
+            {
+                clip = Systems_VoiceSynth.Create(name, _voice, mood, level, variant);
+                _synthesised[(int)mood][level - 1][variant - 1] = true;
+            }
+            slot[variant - 1] = clip;
+            return clip;
+        }
+
         /// Pan by position in the ring, relative to the arena centre rather than
-        /// the camera, so a fighter on the left stays on the left as the follow
-        /// camera tracks across.
+        /// the camera, so a fighter on the left stays on the left.
         private float Pan()
         {
             if (_fighter == null || _manager == null)

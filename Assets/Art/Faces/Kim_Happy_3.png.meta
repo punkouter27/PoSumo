@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 350cc221bff24c446a6b4d724c64f647
+guid: 8c9bb187d47d17a459f0ccf859cd7a84
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 6630131902552642036
-    second: Kim_happy3_0
+      213: -5170130327364443565
+    second: Kim_happy2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,12 +126,12 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Kim_happy3_0
+      name: Kim_happy2_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 483
+        width: 481
         height: 520
       alignment: 0
       pivot: {x: 0, y: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 4f192a166d5f20c50800000000000000
-      internalID: 6630131902552642036
+      spriteID: 352e7fa1cd10048b0800000000000000
+      internalID: -5170130327364443565
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Kim_happy3_0: 6630131902552642036
+      Kim_happy2_0: -5170130327364443565
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

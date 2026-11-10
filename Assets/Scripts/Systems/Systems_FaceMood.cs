@@ -2,81 +2,70 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// Drives Matt's facial expression from the live DOMINANCE stat: winning
-    /// looks increasingly happy (happy1-3), losing increasingly sad (sad1-3),
-    /// neutral in between. The displayed face always walks the expression
-    /// ladder one step at a time (sad3..sad1, neutral, happy1..happy3) so
-    /// changes animate smoothly instead of jumping. Big moments steer the
-    /// target: scoring a round targets happy3, losing one sad3, a knockdown
-    /// sad2; a decided match holds the extreme until rematch. Dominance is
-    /// smoothed (~2 s) so the face doesn't flicker. Sprites load from
-    /// Resources/Faces (Matt_Neutral / Matt_Happy_1-3 / Matt_Sad_1-3). Spawned by
-    /// Systems_GameMatchManager.
+    /// Drives a fighter's face through the four moods — Happy, Angry, Hurt, Insult —
+    /// at five levels each, plus Neutral. The same moods and levels the VOICE uses,
+    /// and driven by the same moments, so what a fighter says and what its face
+    /// does can never disagree.
+    ///
+    /// Two inputs:
+    ///   * a BASELINE from live dominance (smoothed ~2 s): winning drifts toward
+    ///     Happy 1..5, losing toward Angry 1..5, Neutral in between;
+    ///   * FLASHES from `Systems_FighterVoice.Expressed` — a hit taken (Hurt), a
+    ///     taunt (Insult), a round won or lost, a knockdown. A match result is a
+    ///     flash with infinite hold, released by a rematch.
+    ///
+    /// The displayed face walks one LEVEL per step, and changes mood only by
+    /// passing through Neutral, so it animates rather than jumps.
+    ///
+    /// Art (see `Systems_FaceArt.Resolve`): a real `<Name>_<Mood>_<Level>` image
+    /// wins; otherwise the nearest level of that mood; otherwise Neutral with the
+    /// mood drawn procedurally — tint, squash and head tilt — scaled by however
+    /// many levels the art is short. The 12 placeholder fighters (2026-11-10) have
+    /// a Neutral only, so every one of their expressions is procedural.
+    ///
+    /// Spawned by Systems_GameMatchManager, one per fighter.
     public sealed class Systems_FaceMood : MonoBehaviour
     {
         [Tooltip("Behavior name of the fighter whose face reacts. Only used to resolve hand-placed instances — the runtime spawner assigns `fighter` directly.")]
         public string fighterBehaviorName = "Matt";
         [Tooltip("The fighter whose face reacts. Assigned by Systems_GameMatchManager when it spawns this.")]
         public Agent_Biped fighter;
-        public float flashSeconds = 1.5f;
-        public float knockdownFlashSeconds = 1.2f;
-        [Tooltip("Per-second rate the mood chases live dominance.")]
+        [Tooltip("Per-second rate the baseline chases live dominance.")]
         public float smoothingRate = 1.2f;
         [Tooltip("Seconds between single steps along the expression ladder.")]
-        public float stepSeconds = 0.18f;
-        [Tooltip("Idle flourish: after this long with nothing interesting, Matt rides the ladder to 3 and back.")]
+        public float stepSeconds = 0.09f;
+        [Tooltip("Idle flourish: after this long with nothing interesting, the face rides its current mood to 5 and back.")]
         public float idleMinSeconds = 15f;
         public float idleMaxSeconds = 30f;
         [Tooltip("Maximum idle flourishes per match.")]
         public int idleFlourishesPerMatch = 2;
 
-        // Face sprites come from the FaceAtlas via Systems_FaceArt (bare names,
-        // e.g. "Nick_Happy_2"). They used to be Resources.Load'd from
-        // Resources/Faces/, which silently kept them OUT of the atlas.
-
-        // Fallback for characters with no face names on their definition asset
-        // (Matt predates the per-character face fields).
-        private const string FALLBACK_NEUTRAL = "Matt_Neutral";
-        private static readonly string[] FallbackHappy =
-        {
-            "Matt_Happy_1",
-            "Matt_Happy_2",
-            "Matt_Happy_3",
-        };
-        private static readonly string[] FallbackSad =
-        {
-            "Matt_Sad_1",
-            "Matt_Sad_2",
-            "Matt_Sad_3",
-        };
+        private const float FLOURISH_SECONDS = 0.9f;
+        private const int LEVELS = Systems_FaceArt.LEVELS;
 
         private Systems_GameMatchManager _manager;
         private Systems_FightHud _hud;
         private Agent_Biped _fighter;
         private Agent_BipedBody _body;
         private bool _fighterIsA;
-
-        private Sprite _neutral;
-        private Sprite[] _happy, _sad;
+        private string _prefix;
 
         private float _smoothedDom = 50f;
-        private int _displayLevel;         // -3 (sad3) .. 0 (neutral) .. +3 (happy3), moves ±1 per step
-        private float _nextStepTime;
-        private Sprite _current;
 
+        // What is on screen, and the moment it was last changed.
+        private Systems_FighterMood _shownMood = Systems_FighterMood.Neutral;
+        private int _shownLevel;
+        private float _nextStepTime;
+
+        private Systems_FighterMood _flashMood;
         private int _flashLevel;
         private float _flashUntil;
         private bool _flashActive;
-        private bool _holdActive;          // match-over face, kept until rematch
-        private int _holdLevel;
-        private bool _wasDown;
-        private float _kdRearmTime;
 
-        private float _lastInterestTime;   // last flash/round event/mood shift
-        private float _idleDelay;          // rolled 15-30 s after each interesting moment
+        private float _lastInterestTime;
+        private float _idleDelay;
         private int _idleFlourishes;
-        private int _lastMoodTarget;
-        private const float FLOURISH_SECONDS = 0.9f; // ladder rides up, holds a beat, walks back
+        private Systems_FighterMood _lastBaselineMood;
 
         /// Fallback for an instance placed by hand in a scene rather than spawned
         /// by the manager. Ambiguous in a mirror match, which is exactly why the
@@ -98,58 +87,43 @@ namespace PoSumo
         {
             _manager = FindAnyObjectByType<Systems_GameMatchManager>();
             _hud = FindAnyObjectByType<Systems_FightHud>();
-            if (_manager == null) return;
+            if (_manager == null) { enabled = false; return; }
 
-            // Bound by INSTANCE, never by behaviour name. The bracket seeds each
-            // character twice, so in a mirror bout the name is ambiguous: both
-            // spawned drivers matched wrestlerA, leaving B's face frozen on its
-            // spawn sprite while A's head sprite was written by two components.
+            // Bound by INSTANCE, never by behaviour name — in a mirror bout the
+            // name is ambiguous and both drivers would write one head.
             _fighter = fighter != null ? fighter : ResolveByName();
-            if (_fighter == null) return;
+            if (_fighter == null) { enabled = false; return; }
             _fighterIsA = _fighter == _manager.wrestlerA;
             _body = _fighter.GetComponent<Agent_BipedBody>();
+            if (_body == null) { enabled = false; return; }
 
-            // Face names come from the character definition; Matt's legacy
-            // hardcoded set is the fallback when the asset leaves them empty.
-            var def = _body.character;
-            string neutralName = def != null && !string.IsNullOrEmpty(def.faceNeutralName)
-                ? def.faceNeutralName : FALLBACK_NEUTRAL;
-            string[] happyNames = def != null && def.faceHappyNames != null && def.faceHappyNames.Length == 3
-                ? def.faceHappyNames : FallbackHappy;
-            string[] sadNames = def != null && def.faceSadNames != null && def.faceSadNames.Length == 3
-                ? def.faceSadNames : FallbackSad;
-
-            _neutral = Systems_FaceArt.Load(neutralName);
-            _happy = new Sprite[happyNames.Length];
-            _sad = new Sprite[sadNames.Length];
-            int loaded = _neutral != null ? 1 : 0;
-            for (int happyNameIndex = 0; happyNameIndex < happyNames.Length; happyNameIndex++)
+            _prefix = _body.character != null ? _body.character.FaceArtPrefix : fighterBehaviorName;
+            if (Systems_FaceArt.Resolve(_prefix, Systems_FighterMood.Neutral, 0, out _) == null)
             {
-                _happy[happyNameIndex] = Systems_FaceArt.Load(happyNames[happyNameIndex]);
-                _sad[happyNameIndex] = Systems_FaceArt.Load(sadNames[happyNameIndex]);
-                if (_happy[happyNameIndex] != null) loaded++;
-                if (_sad[happyNameIndex] != null) loaded++;
-            }
-            if (loaded < 7)
-            {
-                Debug.LogWarning($"Systems_FaceMood ({fighterBehaviorName}): only {loaded}/7 face sprites loaded from Resources");
+                // No face art at all: the body drew its plain disc. Nothing to drive.
+                Debug.LogWarning($"Systems_FaceMood ({_prefix}): no '{_prefix}_Neutral' in the FaceAtlas — face stays static.");
+                enabled = false;
+                return;
             }
 
-            _manager.RoundEnded += OnRoundEnded;
-            _manager.MatchEnded += OnMatchEnded;
             _manager.MatchReset += OnMatchReset;
             _manager.RoundStarted += MarkInterest;
 
             MarkInterest();
-            Apply(LevelSprite(0));
+            Show(Systems_FighterMood.Neutral, 0);
+        }
+
+        private void OnEnable()
+        {
+            Systems_FighterVoice.Expressed += OnExpressed;
         }
 
         private void OnDisable()
         {
+            // Static event: a missed unsubscribe keeps a dead scene's face alive.
+            Systems_FighterVoice.Expressed -= OnExpressed;
             if (_manager != null)
             {
-                _manager.RoundEnded -= OnRoundEnded;
-                _manager.MatchEnded -= OnMatchEnded;
                 _manager.MatchReset -= OnMatchReset;
                 _manager.RoundStarted -= MarkInterest;
             }
@@ -161,60 +135,23 @@ namespace PoSumo
             _idleDelay = Random.Range(idleMinSeconds, idleMaxSeconds);
         }
 
-        /// Round results flash to a level scaled by the score margin rather than
-        /// always slamming to ±3. Winning the opener shows happy1, pulling ahead
-        /// happy2, clinching happy3 — which is what actually gets the middle
-        /// expressions on screen. Rounds are far too short for in-round dominance
-        /// drift to reach them on its own.
-        private void OnRoundEnded(Agent_Biped winner, Agent_Biped loser)
+        private void OnExpressed(Agent_Biped who, Systems_FighterMood mood, int level, float holdSeconds)
         {
-            int margin = MarginForFighter();
-            int level = Mathf.Clamp(Mathf.Abs(margin), 1, 3);
-            // Two ring-outs running: happy3 held twice as long, whatever the
-            // margin — the same streak Systems_MatchAudio chants for. Tracked here
-            // rather than read off the audio companion, because companions do not
-            // reach across to each other.
-            bool ringOut = _manager != null
-                && _manager.LastOutcome == Systems_GameMatchManager.RoundOutcome.RingOut;
-            _ringOutStreak = winner == _fighter && ringOut ? _ringOutStreak + 1 : 0;
-            if (_ringOutStreak >= 2) { Flash(3, flashSeconds * 2f); return; }   // 2 = the clinch in a first-to-2 bout
-            if (winner == _fighter) Flash(level, flashSeconds);
-            else if (loser == _fighter) Flash(-level, flashSeconds);
-        }
-
-        private int _ringOutStreak;
-
-        /// Score margin from this fighter's point of view, after the round.
-        private int MarginForFighter()
-        {
-            if (_manager == null) return 1;
-            int mine = _fighterIsA ? _manager.ScoreA : _manager.ScoreB;
-            int theirs = _fighterIsA ? _manager.ScoreB : _manager.ScoreA;
-            int margin = mine - theirs;
-            return margin == 0 ? 1 : margin;
-        }
-
-        private void OnMatchEnded(Agent_Biped winner)
-        {
-            _holdActive = true;
-            _holdLevel = winner == _fighter ? 3 : -3;
+            if (who != _fighter || _fighter == null) return;
+            // A held face (the match result) is only replaced by another hold.
+            if (_flashActive && float.IsPositiveInfinity(_flashUntil) && !float.IsPositiveInfinity(holdSeconds)) return;
+            _flashMood = mood;
+            _flashLevel = Mathf.Clamp(level, 1, LEVELS);
+            _flashActive = true;
+            _flashUntil = float.IsPositiveInfinity(holdSeconds) ? float.PositiveInfinity : Time.unscaledTime + holdSeconds;
+            MarkInterest();
         }
 
         private void OnMatchReset()
         {
-            _holdActive = false;
             _flashActive = false;
-            _ringOutStreak = 0;
             _smoothedDom = 50f;
             _idleFlourishes = 0;
-            MarkInterest();
-        }
-
-        private void Flash(int level, float seconds)
-        {
-            _flashLevel = level;
-            _flashActive = true;
-            _flashUntil = Time.unscaledTime + seconds;
             MarkInterest();
         }
 
@@ -222,75 +159,129 @@ namespace PoSumo
         {
             if (_fighter == null || _body == null) return;
 
-            // Knockdown reaction (mid-round, debounced).
-            bool down = _fighter.IsDown;
-            if (down && !_wasDown && Time.unscaledTime >= _kdRearmTime && _manager.RoundActive)
-            {
-                Flash(-2, knockdownFlashSeconds);
-                _kdRearmTime = Time.unscaledTime + 2f;
-            }
-            _wasDown = down;
-
             float dom = _hud != null ? (_fighterIsA ? _hud.DominanceA : _hud.DominanceB) : 50f;
             float t = 1f - Mathf.Exp(-smoothingRate * Time.deltaTime);
             _smoothedDom = Mathf.Lerp(_smoothedDom, dom, t);
 
             if (_flashActive && Time.unscaledTime >= _flashUntil) _flashActive = false;
 
-            int mood = MoodLevel(_smoothedDom);
-            if (mood != _lastMoodTarget)
+            Baseline(_smoothedDom, out Systems_FighterMood baseMood, out int baseLevel);
+            if (baseMood != _lastBaselineMood)
             {
-                _lastMoodTarget = mood;
-                MarkInterest(); // a naturally shifting face is interesting enough
+                _lastBaselineMood = baseMood;
+                MarkInterest();
             }
 
-            // Idle flourish: a dull stretch earns a quick ladder ride to 3 and
-            // back — happy if currently ahead, sad if behind.
-            if (!_holdActive && !_flashActive && _manager.RoundActive
+            // Idle flourish: a dull stretch earns a quick ride to 5 in the current
+            // baseline direction and back.
+            if (!_flashActive && _manager.RoundActive
                 && _idleFlourishes < idleFlourishesPerMatch
                 && Time.unscaledTime - _lastInterestTime >= _idleDelay)
             {
                 _idleFlourishes++;
-                Flash(_smoothedDom >= 50f ? 3 : -3, FLOURISH_SECONDS);
+                OnExpressed(_fighter, _smoothedDom >= 50f ? Systems_FighterMood.Happy : Systems_FighterMood.Angry,
+                            LEVELS, FLOURISH_SECONDS);
             }
 
-            int target;
-            if (_holdActive) target = _holdLevel;
-            else if (_flashActive) target = _flashLevel;
-            else target = mood;
+            Systems_FighterMood targetMood = _flashActive ? _flashMood : baseMood;
+            int targetLevel = _flashActive ? _flashLevel : baseLevel;
+            if (targetMood == Systems_FighterMood.Neutral) targetLevel = 0;
 
-            // Walk the ladder one expression per step — never jump.
-            if (_displayLevel != target && Time.unscaledTime >= _nextStepTime)
+            if (Time.unscaledTime < _nextStepTime) return;
+            if (_shownMood == targetMood && _shownLevel == targetLevel) return;
+
+            // One level per step. A mood change walks DOWN to Neutral first, then up.
+            if (_shownMood != targetMood && _shownLevel > 0)
             {
-                _displayLevel += _displayLevel < target ? 1 : -1;
-                _nextStepTime = Time.unscaledTime + stepSeconds;
-                Apply(LevelSprite(_displayLevel));
+                Show(_shownMood, _shownLevel - 1);
             }
+            else if (_shownMood != targetMood)
+            {
+                Show(targetMood, targetLevel > 0 ? 1 : 0);
+            }
+            else
+            {
+                Show(_shownMood, _shownLevel + (_shownLevel < targetLevel ? 1 : -1));
+            }
+            _nextStepTime = Time.unscaledTime + stepSeconds;
         }
 
-        private static int MoodLevel(float dom)
+        /// Dominance -> baseline. Seven-point bands either side of an even fight,
+        /// so a clear lead reaches Happy 3 and a rout reaches 5.
+        private static void Baseline(float dom, out Systems_FighterMood mood, out int level)
         {
-            if (dom >= 76f) return 3;
-            if (dom >= 66f) return 2;
-            if (dom >= 57f) return 1;
-            if (dom <= 24f) return -3;
-            if (dom <= 34f) return -2;
-            if (dom <= 43f) return -1;
-            return 0;
+            if (dom >= 57f)
+            {
+                mood = Systems_FighterMood.Happy;
+                level = Mathf.Clamp(1 + Mathf.FloorToInt((dom - 57f) / 7f), 1, LEVELS);
+                return;
+            }
+            if (dom <= 43f)
+            {
+                mood = Systems_FighterMood.Angry;
+                level = Mathf.Clamp(1 + Mathf.FloorToInt((43f - dom) / 7f), 1, LEVELS);
+                return;
+            }
+            mood = Systems_FighterMood.Neutral;
+            level = 0;
         }
 
-        private Sprite LevelSprite(int level)
+        private void Show(Systems_FighterMood mood, int level)
         {
-            if (level > 0) return _happy[level - 1];
-            if (level < 0) return _sad[-level - 1];
-            return _neutral;
+            if (level <= 0) mood = Systems_FighterMood.Neutral;
+            _shownMood = mood;
+            _shownLevel = mood == Systems_FighterMood.Neutral ? 0 : level;
+
+            Sprite sprite = Systems_FaceArt.Resolve(_prefix, mood, _shownLevel, out int levelOfArt);
+            if (sprite == null) return;
+            _body.SetHeadSprite(sprite);
+
+            // Whatever intensity the art does not already carry is drawn on top.
+            // Art drawn at a HIGHER level than asked (nearest-level fallback) gets
+            // a negative residual, which eases the procedural terms back.
+            float residual = mood == Systems_FighterMood.Neutral ? 0f : _shownLevel - levelOfArt;
+            if (Mathf.Approximately(residual, 0f)) return;
+            Procedural(mood, residual, out Color tint, out float sx, out float sy, out float tilt);
+            _body.SetHeadExpression(tint, sx, sy, tilt);
         }
 
-        private void Apply(Sprite s)
+        /// The procedural expression for `levels` of a mood (may be fractional or
+        /// negative). Each mood is a distinct silhouette as well as a colour,
+        /// because at gameplay size a head is ~100 px and colour alone is not read:
+        ///   Happy   warm, a little wider, chin lifting
+        ///   Angry   flushed red, compressed, chin DOWN and driving forward
+        ///   Hurt    pale and cold, drawn long, head snapping BACK
+        ///   Insult  sallow-violet, chin high — looking down the nose
+        private static void Procedural(Systems_FighterMood mood, float levels,
+                                       out Color tint, out float sx, out float sy, out float tilt)
         {
-            if (s == null || s == _current) return;
-            _current = s;
-            _body.SetHeadSprite(s);
+            float l = levels;
+            switch (mood)
+            {
+                case Systems_FighterMood.Happy:
+                    tint = new Color(1f, 1f - 0.02f * l, 1f - 0.07f * l);
+                    sx = 1f + 0.03f * l; sy = 1f - 0.015f * l; tilt = 2f * l;
+                    break;
+                case Systems_FighterMood.Angry:
+                    tint = new Color(1f, 1f - 0.09f * l, 1f - 0.10f * l);
+                    sx = 1f + 0.025f * l; sy = 1f - 0.03f * l; tilt = -2.5f * l;
+                    break;
+                case Systems_FighterMood.Hurt:
+                    tint = new Color(1f - 0.07f * l, 1f - 0.035f * l, 1f - 0.005f * l);
+                    sx = 1f - 0.02f * l; sy = 1f + 0.03f * l; tilt = 3.5f * l;
+                    break;
+                case Systems_FighterMood.Insult:
+                    tint = new Color(1f - 0.03f * l, 1f - 0.07f * l, 1f - 0.01f * l);
+                    sx = 1f + 0.015f * l; sy = 1f; tilt = 4f * l;
+                    break;
+                default:
+                    tint = Color.white; sx = 1f; sy = 1f; tilt = 0f;
+                    break;
+            }
+            tint.r = Mathf.Clamp01(tint.r);
+            tint.g = Mathf.Clamp01(tint.g);
+            tint.b = Mathf.Clamp01(tint.b);
+            tint.a = 1f;
         }
     }
 }

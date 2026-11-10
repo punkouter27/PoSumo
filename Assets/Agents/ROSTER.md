@@ -1,36 +1,47 @@
-# PoSumo Fighter Roster (4)
+# PoSumo Fighter Roster (16: 4 trained + 12 placeholders)
 
-Four RL-trained fighters, and nothing else: the hand-coded heuristic `Bot` was removed
-from the game on 2026-10-04 at the user's request. The tournament is built and
-playable: `SCN_TOURNAMENT` seeds a 4-slot single-elimination bracket from this roster
-— each fighter once, two semifinals and a final, no byes and no mirror bouts.
+**Since 2026-11-10 the bracket is 16 slots**, drawn as a tree: eight seeds down the left,
+eight down the right, the final and champion in the centre. Four fighters are RL-trained;
+the other twelve are **PLACEHOLDERS** that fight on a **borrowed** brain until they are
+trained (`borrowedBrainFrom` on the character asset; the debug panel says PLACEHOLDER).
+They are still RL fighters — there is no heuristic fighter (removed 2026-10-04).
 
-There is no code mirror of this table — each fighter's `<Name>_Character.asset`
-is the single source of truth, and `Systems_TournamentBracket._roster` is where
-the bracket's entrants are assigned in the scene.
+There is no code mirror of this table — each fighter's `<Name>_Character.asset` is the
+single source of truth, and `Systems_TournamentBracket._roster` (SCN_TOURNAMENT) is where
+the entrants are assigned. *PoSumo → Generate Placeholder Fighters* rebuilds the twelve
+and re-wires that roster.
 
-| Fighter | Behavior | Folder | Colour | Physique | Identity | Brain (run) |
-|---|---|---|---|---|---|---|
-| MATT | `Matt` | Matt_v01 | red | 1.00 / 1.00 / 1.00 | aggressive baseline — highest impact reward | `matt_unified02` (15.0M) |
-| GRANDMA | `Grandma` | Grandma_v01 | green | 1.00 / 1.00 / 1.00 | neutral reference — renamed from `Standard` 2026-09-22; face art added same day | `standard_unified01` (15.0M, run id under the old name) |
-| NICK | `Nick` | Nick_v01 | blue | 0.72 / 0.82 / 0.85 | mobile lightweight — highest cadence, no deep-stance requirement | `nick_unified01` (15.0M) |
-| KIM | `Kim` | Kim_v01 | purple | 1.45 / 1.30 / 1.50 | heavyweight anchor — deep stance, does not chase | `kim_unified01` (15.0M) |
+| Fighter | Behavior | Folder | Brain |
+|---|---|---|---|
+| MATT | `Matt` | Matt_v01 | own (`*_lunge01`) |
+| GRANDMA | `Grandma` | Grandma_v01 | own |
+| NICK | `Nick` | Nick_v01 | own |
+| KIM | `Kim` | Kim_v01 | own |
+| Tong, Alan, Josh | same | `<Name>_v01` | borrows **Matt** |
+| Maya, Baily, Porto | same | `<Name>_v01` | borrows **Grandma** |
+| Brendan, Decoy, Sokol | same | `<Name>_v01` | borrows **Nick** |
+| Dupee, Velez, Manzi | same | `<Name>_v01` | borrows **Kim** |
 
-**One brain per fighter, covering both walking and fighting.** The walk and fight
-policies were merged: a task flag in the observation vector tells the two jobs
-apart. There is no separate walk brain, walk config, walk scene or walk `.onnx`
-any more, and `Grandma` no longer lends its gait to anyone.
+Placeholder bodies are the donor's at ±4% mass / width — kept small because the borrowed
+policy was fitted to the donor's physique.
 
-Audio and art coverage is uneven, and that is the current state rather than a bug
-— `Systems_FighterVoice` and `Systems_FaceMood` each disable themselves rather
-than warn, so a silent, faceless fighter looks intentional:
+## Faces and voices (2026-11-10)
 
-| Fighter | Face art | Voice clips |
+Both use four moods — **Happy, Angry, Hurt, Insult** — at levels **1-5** (1 mildest), plus a
+Neutral face. `Systems_FighterVoice` decides every emotional moment and announces it on
+`Expressed`; `Systems_FaceMood` draws the same mood and level.
+
+| | Real asset (wins when present) | Fallback |
 |---|---|---|
-| Matt | yes (fallback constants — his asset leaves the name fields empty) | yes (15) |
-| Nick | yes | yes (15) |
-| Kim | yes | none |
-| Grandma | yes (added 2026-09-22 — her 7 PNGs landed in `Assets/Art/Faces/`) | none |
+| Face | `Assets/Art/Faces/<Name>_<Mood>_<1-5>.png` | nearest level of that mood, else `<Name>_Neutral` + procedural tint/squash/tilt |
+| Voice | `Resources/Audio/Voice/<Name>_<Mood>_L<1-5>_<1-5>.wav` (5 variants per level) | synthesised at runtime by `Systems_VoiceSynth` |
+
+- Trained four: real face photos at Happy 1/3/5 and Hurt 1/3/5 (the old Happy 1-3 / Sad 1-3);
+  real voice lines as variant 1 of Happy / Hurt (was Sad) / Insult at every level. Angry is
+  fully procedural.
+- Placeholders: one FAKE right-facing profile Neutral each (cut from a front photo by
+  `Tools/make_placeholder_faces.py` — a true side view needs a generative model), every
+  expression and every voice line procedural.
 
 ## Clothing (visual only)
 

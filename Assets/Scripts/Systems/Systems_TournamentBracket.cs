@@ -9,16 +9,24 @@ using UnityEngine.InputSystem;
 namespace PoSumo
 {
     /// March-Madness style bracket screen for a single-elimination tournament
-    /// in an 8-slot frame. The bracket auto-seeds each character ONCE (shuffled)
-    /// and leaves the spare slots as BYES; the user can drag to rearrange before
-    /// starting. Each real bout is then played in SCN_SUMO and the winner is
-    /// filled in on return; a bye advances its fighter without loading the arena.
+    /// in a 16-slot frame (since 2026-11-10), drawn as a TREE: eight seeds down
+    /// the left edge and eight down the right, each round one column further in,
+    /// and the final with the champion in the centre. The bracket auto-seeds each
+    /// character ONCE (shuffled) and leaves the spare slots as BYES; the user can
+    /// drag one seed onto another to swap them before starting. Pressing START
+    /// plays the whole bracket unattended: each real bout is played in SCN_SUMO,
+    /// the winner is filled in on return, and the next bout launches after a
+    /// short pause. A bye advances its fighter without loading the arena.
+    ///
+    /// Every chip carries the fighter's TOURNAMENT Elo (Systems_TournamentElo,
+    /// separate from the career rating), and a decided bout's winner chip shows
+    /// the points it took.
     ///
     /// UI Toolkit, built in code — same approach as the fight HUD, so there is no
     /// UXML/USS asset to keep in sync.
     public sealed class Systems_TournamentBracket : MonoBehaviour
     {
-        [Tooltip("Characters available as entrants. Each is seeded exactly once; with fewer than 8 the spare slots are byes.")]
+        [Tooltip("Characters available as entrants. Each is seeded exactly once; with fewer than 16 the spare slots are byes.")]
         [SerializeField] private Agent_CharacterDefinition[] _roster;
         [SerializeField] private PanelSettings _panelSettings;
         [Tooltip("Shared match tuning. Only used to state the correct best-of on this screen, so the status line cannot drift from the rule the matches actually run.")]
@@ -118,12 +126,10 @@ namespace PoSumo
         private Systems_CareerScreen _careerScreen;
         private Systems_PromotionCeremony _promotionCeremony;
 
-        /// The two round blocks (header + card) and the last height each was
-        /// laid out at — see FitRounds. There were three until 2026-10-04, when
-        /// the frame went from eight slots to four and the quarterfinals went
-        /// with it.
-        private VisualElement _semifinalGroup, _finalGroup;
-        private float _seedingHeight, _semifinalHeight, _finalHeight;
+        /// The tree (column headers + the seven columns), and the label that
+        /// reports the last decided bout with the Elo it moved.
+        private VisualElement _tree;
+        private Label _boutNews;
 
         /// The settings bottom sheet (top-right menu button) and the two layers
         /// it is shown on — see BuildSettings.
@@ -140,11 +146,9 @@ namespace PoSumo
         private Label _statusLabel;
         private Button _actionButton;
         private Button _resetButton;
-        private VisualElement _paletteRow;
         private Button _autoButton;
         private Label _hint;
-        /// Hint + palette as ONE block, so the pane's vertical distribution
-        /// cannot pull the instruction away from the thing it describes.
+        /// The seeding hint, shown only while the draw is editable.
         private VisualElement _seedingGroup;
 
         /// RESUME, and what it would resume into. A bracket in progress is saved
@@ -357,38 +361,29 @@ namespace PoSumo
             _rankNews.style.display = DisplayStyle.None;
             _content.Add(_rankNews);
 
+            _boutNews = Systems_UiKit.Text("", Systems_UiKit.FONT_SMALL, Systems_UiKit.TextHi, true);
+            _boutNews.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _boutNews.style.whiteSpace = WhiteSpace.Normal;
+            _boutNews.style.display = DisplayStyle.None;
+            _content.Add(_boutNews);
+
+            // The palette (a 2-up grid of every fighter, dragged onto a slot) went
+            // on 2026-11-10. It existed to put fighters INTO the draw, and every
+            // fighter has been seeded exactly once since 2026-10-04 — so all a
+            // palette drop could ever do was swap two seeds, which dragging one
+            // seed chip onto another already does. At sixteen fighters it would
+            // also have been eight rows tall.
             _seedingGroup = Systems_UiKit.Column();
             _paneBracket.Add(_seedingGroup);
-            _content = _seedingGroup;
-
-            _hint = Systems_UiKit.Text("drag a fighter onto a slot to move it",
+            _hint = Systems_UiKit.Text("drag a fighter onto another to swap them",
                                        Systems_UiKit.FONT_SMALL, Systems_UiKit.TextLow);
             _hint.style.unityTextAlign = TextAnchor.MiddleCenter;
-            _hint.style.marginBottom = Systems_UiKit.SPACE_2;
-            _content.Add(_hint);
-
-            BuildPalette();
-            _content = _paneBracket;
+            _hint.style.marginBottom = Systems_UiKit.SPACE_1;
+            _seedingGroup.Add(_hint);
 
             _seedSlots.Clear();
             _winnerSlots.Clear();
-
-            // FOUR FIGHTERS, THREE BOUTS (2026-10-04): the semifinals are the
-            // first round now, so they are the SEED rows — the ones a fighter is
-            // dragged onto — and the final is the only row fed by earlier winners.
-            VisualElement semifinals = AddRound("SEMIFINALS");
-            for (int match = 0; match < Systems_TournamentState.FIRST_ROUND_MATCHES; match++)
-            {
-                AddPairRow(semifinals, seedA: match * 2, seedB: match * 2 + 1, winnerMatch: match);
-            }
-
-            VisualElement final = AddRound("FINAL");
-            AddResultRow(final, feederA: 0, feederB: 1,
-                         winnerMatch: Systems_TournamentState.FINAL_MATCH);
-            // The header+card blocks, for FitRounds: a round card's parent is its
-            // group (see AddRound).
-            _semifinalGroup = semifinals.parent;
-            _finalGroup = final.parent;
+            BuildTree();
 
             BuildSpotlight();
 
@@ -399,10 +394,7 @@ namespace PoSumo
             // checklist #1): Systems_CareerScreen builds its segmented
             // BANZUKE/FIGHTERS view straight into this pane, and the rules
             // footnote closes it. (A BOT LADDER card sat between the two until
-            // the heuristic Bot was removed on 2026-10-04.) The palette stays on the
-            // BRACKET pane because dragging a fighter onto a SLOT only works when
-            // the roster and the slots are on screen together — a ROSTER tab
-            // would have severed every drag.
+            // the heuristic Bot was removed on 2026-10-04.)
             _content = _paneRecord;
             _careerScreen = new Systems_CareerScreen(_paneRecord);
             BuildRulesNote();
@@ -758,85 +750,318 @@ namespace PoSumo
                              $"{change.FromRank} -> {change.ToRank}");
         }
 
-        private void BuildPalette()
+        // --- tree ------------------------------------------------------------
+
+        /// Compact chip metrics for the tree. Seven columns share ~578pt of
+        /// usable width on a phone (measured; see SLOT_SIZE), ~82pt each, which is
+        /// below what the kit's smallest type (FONT_MICRO, 19) can fit a name
+        /// into beside a portrait. So a tree chip STACKS: portrait over name over
+        /// Elo, at a dedicated small size, and the portrait is what shrinks.
+        private const int TREE_FONT_NAME = 13;
+        private const int TREE_FONT_ELO = 12;
+        private const int TREE_FACE = 26;
+        private const int TREE_FACE_CHAMPION = 54;
+
+        /// Builds the seven columns. Left to right:
+        ///   R16 (seeds 0-7)  QF (wins 0-3)  SF (wins 8-9)  FINAL  SF (wins 10-11)
+        ///   QF (wins 4-7)  R16 (seeds 8-15)
+        /// Each column spreads its chips with SpaceAround inside the same height,
+        /// which puts every winner chip EXACTLY between the two chips that feed it
+        /// (chip j of an n-chip column sits at (j+0.5)/n of the height, the mean of
+        /// chips 2j and 2j+1 of the 2n-chip column beside it) — the bracket reads
+        /// as a tree with no connector lines to compute.
+        private void BuildTree()
         {
-            VisualElement row = Systems_UiKit.Row();
-            row.style.justifyContent = Justify.Center;
-            row.style.marginBottom = Systems_UiKit.SPACE_3;
-            _content.Add(row);
-            _paletteRow = row;
+            int rounds = Systems_TournamentState.ROUND_COUNT;          // 4
+            int half = Systems_TournamentState.SEED_COUNT / 2;          // 8 seeds a side
 
-            // A 2-UP GRID, not a strip. Four chips side by side is more width than
-            // the panel has to give each of them, and simply allowing wrap put
-            // three on the first line and left KIM alone across the full width of
-            // the second — which reads as a layout fault rather than a roster.
-            //
-            // Each chip rides in a 50%-wide CELL and the gutter is the cell's
-            // padding, so two cells come to exactly 100% at any panel width. A
-            // margin on the chip itself would push the pair past 100% and wrap them
-            // one per line — the failure this replaced, in a different disguise.
-            row.style.flexWrap = Wrap.Wrap;
+            _tree = Systems_UiKit.Column();
+            _tree.style.flexGrow = 1;
+            _tree.style.minHeight = 0;
+            _paneBracket.Add(_tree);
 
-            for (int rosterIndex = 0; rosterIndex < _roster.Length; rosterIndex++)
+            VisualElement headers = Systems_UiKit.Row();
+            headers.style.marginBottom = Systems_UiKit.SPACE_1;
+            _tree.Add(headers);
+
+            VisualElement body = Systems_UiKit.Row(Align.Stretch);
+            body.style.flexGrow = 1;
+            body.style.minHeight = 0;
+            _tree.Add(body);
+
+            // LEFT half, outermost column first.
+            for (int round = 0; round < rounds - 1; round++)
             {
-                Agent_CharacterDefinition character = _roster[rosterIndex];
+                headers.Add(TreeHeader(ShortRound(round)));
+                body.Add(TreeColumn(round, leftSide: true, half));
+            }
 
-                // A ROW, not a bare VisualElement. The chip sizes itself with
-                // flexGrow/flexBasis, and flex-basis applies to the MAIN axis — in
-                // a default column container that is HEIGHT, so `flexBasis: 0`
-                // collapsed every palette chip to zero height and the roster
-                // disappeared off the screen with no error to show for it.
-                VisualElement cell = Systems_UiKit.Row();
-                cell.style.width = Length.Percent(50f);
-                cell.style.paddingRight = rosterIndex % 2 == 0 ? Systems_UiKit.SPACE_1 : 0;
-                cell.style.paddingLeft = rosterIndex % 2 == 0 ? 0 : Systems_UiKit.SPACE_1;
-                cell.style.paddingBottom = Systems_UiKit.SPACE_1;
+            headers.Add(TreeHeader("FINAL"));
+            body.Add(CentreColumn());
 
-                VisualElement chip = MakeChip(character);
-                // The bracket's 164pt floor is for a row of three; two-up cells are
-                // already wider than that, and leaving it on would fight the cell.
-                chip.style.minWidth = 0;
-                chip.Add(DragGrip());
-                Agent_CharacterDefinition captured = character;
-                chip.RegisterCallback<PointerDownEvent>(evt => BeginDrag(evt, -1, captured));
-
-                cell.Add(chip);
-                row.Add(cell);
+            // RIGHT half, innermost column first, so the outer seeds end at the edge.
+            for (int round = rounds - 2; round >= 0; round--)
+            {
+                headers.Add(TreeHeader(ShortRound(round)));
+                body.Add(TreeColumn(round, leftSide: false, half));
             }
         }
 
-        /// Opens a round: a centred header over a card that holds that round's
-        /// rows, and returns the card for them to be added to.
-        ///
-        /// The three rounds used to be seven rows in a single flat column, told
-        /// apart only by a left-aligned 17pt caption and a 4pt gap — the same 4pt
-        /// that separated the rows WITHIN a round, so nothing on the screen said
-        /// where one round ended. Boxing each round is what lets the gaps mean
-        /// something: SPACE_2 between rows of the same round, SPACE_4 between
-        /// rounds, and a surface behind each group.
-        private VisualElement AddRound(string text)
+        private static string ShortRound(int round)
         {
-            // Header and card travel as ONE block. The bracket pane distributes
-            // its free height between its children, and as two separate children
-            // the gap would open between a round's title and its own card.
-            VisualElement group = Systems_UiKit.Column();
-            _content.Add(group);
+            int fromEnd = Systems_TournamentState.ROUND_COUNT - 1 - round;
+            switch (fromEnd)
+            {
+                case 1: return "SF";
+                case 2: return "QF";
+                default: return "R" + (Systems_TournamentState.SEED_COUNT >> round);
+            }
+        }
 
-            Label header = Systems_UiKit.Caption(text, Systems_UiKit.FONT_SMALL,
-                                                 Systems_UiKit.TextLow, true);
-            header.style.marginTop = Systems_UiKit.SPACE_4;
-            header.style.marginBottom = Systems_UiKit.SPACE_1;
-            group.Add(header);
+        private static Label TreeHeader(string text)
+        {
+            Label label = Systems_UiKit.Caption(text, TREE_FONT_ELO, Systems_UiKit.TextLow, true);
+            label.style.flexGrow = 1;
+            label.style.flexBasis = 0;
+            label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            return label;
+        }
 
-            VisualElement card = Systems_UiKit.ElevatedCard(
-                Systems_UiKit.Elevation.Raised, Systems_UiKit.RADIUS_MD);
-            card.Pad(Systems_UiKit.SPACE_3, Systems_UiKit.SPACE_3);
-            // The last row's own bottom margin supplies the card's bottom padding,
-            // so a round with one row and a round with four are inset identically.
-            // Padding both would double up under the final row of every card.
-            card.style.paddingBottom = 0;
-            group.Add(card);
-            return card;
+        /// One column of one half. Round 0 is the SEEDS (draggable); later rounds
+        /// show the winners of the round before.
+        private VisualElement TreeColumn(int round, bool leftSide, int half)
+        {
+            VisualElement column = Systems_UiKit.Column(Align.Stretch);
+            column.style.flexGrow = 1;
+            column.style.flexBasis = 0;
+            column.style.justifyContent = Justify.SpaceAround;
+            column.style.paddingLeft = 1;
+            column.style.paddingRight = 1;
+
+            if (round == 0)
+            {
+                int firstSeed = leftSide ? 0 : half;
+                for (int seed = firstSeed; seed < firstSeed + half; seed++)
+                {
+                    column.Add(MakeTreeSeedSlot(seed));
+                }
+                return column;
+            }
+
+            // Winners of the PREVIOUS round, restricted to this half.
+            int previous = round - 1;
+            int firstMatch = Systems_TournamentState.FirstMatchOfRound(previous);
+            int count = Systems_TournamentState.MatchesInRound(previous);
+            int start = leftSide ? firstMatch : firstMatch + count / 2;
+            for (int match = start; match < start + count / 2; match++)
+            {
+                column.Add(MakeTreeWinnerSlot(match, TREE_FACE));
+            }
+            return column;
+        }
+
+        /// The centre: both finalists, and the champion under a gold caption.
+        private VisualElement CentreColumn()
+        {
+            int final = Systems_TournamentState.FINAL_MATCH;
+            int semiFirst = Systems_TournamentState.FirstMatchOfRound(Systems_TournamentState.ROUND_COUNT - 2);
+
+            VisualElement column = Systems_UiKit.Column(Align.Stretch);
+            column.style.flexGrow = 1.25f;
+            column.style.flexBasis = 0;
+            column.style.justifyContent = Justify.Center;
+            column.style.paddingLeft = 2;
+            column.style.paddingRight = 2;
+
+            column.Add(MakeTreeWinnerSlot(semiFirst, TREE_FACE));
+            Label versus = Systems_UiKit.Text("v", TREE_FONT_NAME, Systems_UiKit.TextLow);
+            versus.style.unityTextAlign = TextAnchor.MiddleCenter;
+            column.Add(versus);
+            column.Add(MakeTreeWinnerSlot(semiFirst + 1, TREE_FACE));
+
+            Label caption = Systems_UiKit.Caption("CHAMPION", TREE_FONT_ELO, Systems_UiKit.Gold, true);
+            caption.style.unityTextAlign = TextAnchor.MiddleCenter;
+            caption.style.marginTop = Systems_UiKit.SPACE_4;
+            column.Add(caption);
+            VisualElement champion = MakeTreeWinnerSlot(final, TREE_FACE_CHAMPION);
+            champion.style.borderTopWidth = 2;
+            champion.style.borderBottomWidth = 2;
+            champion.style.borderLeftWidth = 2;
+            champion.style.borderRightWidth = 2;
+            champion.style.borderTopColor = Systems_UiKit.Gold;
+            champion.style.borderBottomColor = Systems_UiKit.Gold;
+            champion.style.borderLeftColor = Systems_UiKit.Gold;
+            champion.style.borderRightColor = Systems_UiKit.Gold;
+            column.Add(champion);
+            return column;
+        }
+
+        private VisualElement MakeTreeSeedSlot(int seedIndex)
+        {
+            VisualElement slot = MakeTreeChip(TREE_FACE);
+            slot.userData = seedIndex;
+            _seedSlots.Add(slot);
+            int captured = seedIndex;
+            slot.RegisterCallback<PointerDownEvent>(evt =>
+                BeginDrag(evt, captured, Systems_TournamentState.GetSeed(captured)));
+            return slot;
+        }
+
+        /// Several chips show the SAME match (a semifinal winner is also a
+        /// finalist), so `_winnerSlots` holds one entry per CHIP and Refresh reads
+        /// each chip's match from its userData. Keying by match would orphan the
+        /// duplicate and it would never repaint.
+        private VisualElement MakeTreeWinnerSlot(int matchIndex, int faceSize)
+        {
+            VisualElement slot = MakeTreeChip(faceSize);
+            slot.userData = matchIndex;
+            _winnerSlots.Add(slot);
+            return slot;
+        }
+
+        /// Portrait over name over Elo. Children: [0] face, [1] name, [2] Elo.
+        private static VisualElement MakeTreeChip(int faceSize)
+        {
+            VisualElement chip = Systems_UiKit.Column(Align.Center);
+            chip.style.flexShrink = 0;
+            chip.style.paddingTop = 2;
+            chip.style.paddingBottom = 2;
+            chip.style.marginTop = 1;
+            chip.style.marginBottom = 1;
+            chip.style.backgroundColor = Systems_UiKit.Chip;
+            chip.style.overflow = Overflow.Hidden;
+            chip.Round(Systems_UiKit.RADIUS_SM);
+            chip.style.borderLeftWidth = 0;
+
+            var face = new VisualElement();
+            face.style.width = faceSize;
+            face.style.height = faceSize;
+            face.style.flexShrink = 0;
+            face.Round(faceSize / 2);
+            face.NoPick();
+            chip.Add(face);
+
+            Label name = Systems_UiKit.Text("", TREE_FONT_NAME, Systems_UiKit.TextHi, true);
+            name.style.unityTextAlign = TextAnchor.MiddleCenter;
+            name.NoPick();
+            chip.Add(name);
+
+            Label elo = Systems_UiKit.Text("", TREE_FONT_ELO, Systems_UiKit.TextLow);
+            elo.style.unityTextAlign = TextAnchor.MiddleCenter;
+            elo.NoPick();
+            chip.Add(elo);
+            return chip;
+        }
+
+        /// Repaint one tree chip in place (rebuilding would lose its drag callback).
+        /// `match` is the decided match a WINNER chip reports, for its Elo gain; -1
+        /// for a seed chip.
+        private static void ApplyTreeChip(VisualElement chip, Agent_CharacterDefinition character,
+                                          string emptyLabel, int match)
+        {
+            chip.style.opacity = character != null ? 1f : 0.5f;
+            VisualElement face = chip[0];
+            var name = (Label)chip[1];
+            var elo = (Label)chip[2];
+
+            face.style.backgroundColor = character != null && character.headSprite == null
+                ? character.teamColor
+                : (character != null ? Color.clear : new Color(0.25f, 0.23f, 0.24f));
+            face.style.backgroundImage = character != null && character.headSprite != null
+                ? new StyleBackground(character.headSprite)
+                : new StyleBackground();
+            name.text = ChipName(character, emptyLabel);
+            name.style.color = character != null ? character.teamColor : Systems_UiKit.TextLow;
+
+            if (character == null)
+            {
+                elo.text = string.Empty;
+                return;
+            }
+            int rating = Mathf.RoundToInt(Systems_TournamentElo.Get(character.behaviorName));
+            float gained = match >= 0 && Systems_TournamentState.WasBout(match)
+                ? Systems_TournamentState.EloDelta(match) : 0f;
+            elo.text = gained > 0.5f ? $"{rating} +{Mathf.RoundToInt(gained)}" : rating.ToString();
+            elo.style.color = gained > 0.5f ? Systems_UiKit.Good : Systems_UiKit.TextLow;
+        }
+
+        /// Gold outline on the chips that ARE the current bout — its two seeds in
+        /// the first round, or the two winner chips that feed it later on.
+        private void HighlightCurrentBout()
+        {
+            int current = Systems_TournamentState.Active ? Systems_TournamentState.CurrentMatch : -1;
+            int round = current >= 0 ? Systems_TournamentState.RoundOf(current) : -1;
+            int feederA = -1;
+            if (round > 0)
+            {
+                int first = Systems_TournamentState.FirstMatchOfRound(round);
+                int previousFirst = Systems_TournamentState.FirstMatchOfRound(round - 1);
+                feederA = previousFirst + (current - first) * 2;
+            }
+
+            for (int seedSlotIndex = 0; seedSlotIndex < _seedSlots.Count; seedSlotIndex++)
+            {
+                int seed = (int)_seedSlots[seedSlotIndex].userData;
+                Outline(_seedSlots[seedSlotIndex], round == 0 && seed / 2 == current);
+            }
+            for (int winnerSlotIndex = 0; winnerSlotIndex < _winnerSlots.Count; winnerSlotIndex++)
+            {
+                VisualElement chip = _winnerSlots[winnerSlotIndex];
+                int match = (int)chip.userData;
+                if (match == Systems_TournamentState.FINAL_MATCH)
+                {
+                    continue;   // the champion chip keeps its own gold frame
+                }
+                // Each match's winner is drawn in exactly one column, so this
+                // outlines exactly the two chips that feed the bout.
+                Outline(chip, feederA >= 0 && (match == feederA || match == feederA + 1));
+            }
+        }
+
+        private static void Outline(VisualElement chip, bool on)
+        {
+            float width = on ? 2f : 0f;
+            chip.style.borderTopWidth = width;
+            chip.style.borderBottomWidth = width;
+            chip.style.borderLeftWidth = width;
+            chip.style.borderRightWidth = width;
+            if (on)
+            {
+                chip.style.borderTopColor = Systems_UiKit.Gold;
+                chip.style.borderBottomColor = Systems_UiKit.Gold;
+                chip.style.borderLeftColor = Systems_UiKit.Gold;
+                chip.style.borderRightColor = Systems_UiKit.Gold;
+            }
+        }
+
+        /// "MATT def. TONG  ·  ELO +16" for the bout just decided.
+        private void RefreshBoutNews()
+        {
+            if (_boutNews == null)
+            {
+                return;
+            }
+            int match = Systems_TournamentState.LastDecidedMatch;
+            if (match < 0 || !Systems_TournamentState.WasBout(match))
+            {
+                _boutNews.style.display = DisplayStyle.None;
+                return;
+            }
+            Systems_TournamentState.GetEntrants(match, out Agent_CharacterDefinition a, out Agent_CharacterDefinition b);
+            Agent_CharacterDefinition winner = Systems_TournamentState.GetWinner(match);
+            Agent_CharacterDefinition loser = winner == a ? b : a;
+            if (winner == null || loser == null)
+            {
+                _boutNews.style.display = DisplayStyle.None;
+                return;
+            }
+            int delta = Mathf.RoundToInt(Systems_TournamentState.EloDelta(match));
+            int winnerElo = Mathf.RoundToInt(Systems_TournamentElo.Get(winner.behaviorName));
+            int loserElo = Mathf.RoundToInt(Systems_TournamentElo.Get(loser.behaviorName));
+            _boutNews.text = $"{winner.behaviorName.ToUpperInvariant()} def. {loser.behaviorName.ToUpperInvariant()}"
+                             + $"  ·  ELO +{delta} ({winnerElo})  /  -{delta} ({loserElo})";
+            _boutNews.style.color = winner.teamColor;
+            _boutNews.style.display = DisplayStyle.Flex;
         }
 
         // --- spotlight ------------------------------------------------------
@@ -967,84 +1192,23 @@ namespace PoSumo
             // Read-only: Get hands back the live record, nothing is written here.
             Systems_CareerStats.Record record = Systems_CareerStats.Get(character.behaviorName);
             _spotlightRank[side].text = Systems_CareerLadder.NameFor(record);
-            string line = $"{record.matchWins}W-{record.matchLosses}L  ·  ELO {record.elo:F0}";
+            // TOURNAMENT Elo here — this is the bracket screen. The career W-L
+            // and rank stay beside it; the career Elo is on the RECORD tab.
+            string line = $"{record.matchWins}W-{record.matchLosses}L  ·  "
+                          + $"ELO {Systems_TournamentElo.Get(character.behaviorName):F0}";
             if (withTitles)
             {
-                line += record.titles == 1 ? "  ·  1 TITLE" : $"  ·  {record.titles} TITLES";
+                int titles = Systems_TournamentElo.Titles(character.behaviorName);
+                line += titles == 1 ? "  ·  1 TITLE" : $"  ·  {titles} TITLES";
+            }
+            if (character.IsPlaceholder)
+            {
+                line += "  ·  PLACEHOLDER";
             }
             _spotlightRecord[side].text = line;
         }
 
         private void OnBracketPaneGeometry(GeometryChangedEvent evt) => FitSpotlight();
-
-        /// While SEEDING, shows the later rounds only if the pane has the height
-        /// for them — the same "only when it fits" rule as the spotlight, and for
-        /// the same reason: this screen does not scroll, so a block that does not
-        /// fit must not exist rather than push its neighbours off the pane.
-        ///
-        /// MEASURED at 1200x1600 (a 960pt panel, 629pt of pane): hint + palette
-        /// 217, QUARTERFINALS 311, SEMIFINALS 191, FINAL 131 — 850pt, 206 over,
-        /// with the FINAL card drawn underneath the pinned footer and the status
-        /// line printed across the semifinal row. Chip heights had already been
-        /// cut once (66 -> 48) to chase this and there is no 200pt left in them.
-        ///
-        /// What gives way is what carries no information at that moment. Before
-        /// START the FINAL is always "- v -". The palette and the seed rows — the
-        /// two things a player is actually dragging between — are never dropped.
-        /// Once the bracket is running the palette is gone and every round
-        /// returns. (The measurement above is from the eight-slot frame, whose
-        /// seed rows were the QUARTERFINALS; since 2026-10-04 the seed rows are
-        /// the SEMIFINALS and there are two round cards, not three.)
-        ///
-        /// Decided from each block's NATURAL height, remembered from when it was
-        /// last laid out, never from its current one: a hidden block measures
-        /// zero, and a test that read that would show it again on the next pass
-        /// and flip every layout.
-        private void FitRounds()
-        {
-            if (_semifinalGroup == null || _finalGroup == null || _seedingGroup == null)
-            {
-                return;
-            }
-            RememberHeight(_seedingGroup, ref _seedingHeight);
-            RememberHeight(_semifinalGroup, ref _semifinalHeight);
-            RememberHeight(_finalGroup, ref _finalHeight);
-
-            // The semifinals are the seed rows now and are never dropped; only
-            // the FINAL — "- v -" until a semifinal is decided — can give way.
-            bool showFinal = true;
-            float available = _paneBracket.contentRect.height;
-            if (!BracketLocked && !float.IsNaN(available) && available > 0f)
-            {
-                float core = _seedingHeight + _semifinalHeight;
-                showFinal = core + _finalHeight <= available + 1f;
-            }
-            SetDisplay(_finalGroup, showFinal);
-        }
-
-        private static void RememberHeight(VisualElement block, ref float remembered)
-        {
-            if (block.style.display == DisplayStyle.None)
-            {
-                return;
-            }
-            float height = block.layout.height;
-            if (!float.IsNaN(height) && height > 0f)
-            {
-                remembered = height;
-            }
-        }
-
-        /// Written only on a change: an identical inline write still dirties the
-        /// element, and this runs from a geometry callback.
-        private static void SetDisplay(VisualElement element, bool show)
-        {
-            DisplayStyle display = show ? DisplayStyle.Flex : DisplayStyle.None;
-            if (element.style.display != display)
-            {
-                element.style.display = display;
-            }
-        }
 
         /// Shows the spotlight when it is wanted AND the pane has the height for
         /// it; hides it otherwise.
@@ -1058,7 +1222,6 @@ namespace PoSumo
             {
                 return;
             }
-            FitRounds();
             bool fits = false;
             if (_spotlightWanted)
             {
@@ -1125,84 +1288,6 @@ namespace PoSumo
             }
         }
 
-        /// A first-round (seed) row: two draggable seed slots plus the winner readout.
-        private void AddPairRow(VisualElement round, int seedA, int seedB, int winnerMatch)
-        {
-            var row = MakeRow();
-            row.Add(MakeSeedSlot(seedA));
-            row.Add(MakeVs());
-            row.Add(MakeSeedSlot(seedB));
-            row.Add(MakeArrow());
-            row.Add(MakeWinnerSlot(winnerMatch));
-            round.Add(row);
-        }
-
-        /// A semifinal/final row: both entrants come from earlier winners, so
-        /// nothing here is draggable.
-        private void AddResultRow(VisualElement round, int feederA, int feederB, int winnerMatch)
-        {
-            var row = MakeRow();
-            row.Add(MakeWinnerSlot(feederA));
-            row.Add(MakeVs());
-            row.Add(MakeWinnerSlot(feederB));
-            row.Add(MakeArrow());
-            row.Add(MakeWinnerSlot(winnerMatch));
-            round.Add(row);
-        }
-
-        /// Rows inside a round card. The bottom margin is both the gap between
-        /// rows and — on the last row — the card's bottom inset; see AddRound.
-        private static VisualElement MakeRow()
-        {
-            VisualElement row = Systems_UiKit.Row();
-            row.style.marginBottom = Systems_UiKit.SPACE_3;
-            return row;
-        }
-
-        /// The separators are fixed furniture between elastic chips: flexShrink 0
-        /// so the row takes its slack out of the chips (which have a minWidth and
-        /// clip gracefully) rather than out of a two-character label.
-        private static Label MakeVs()
-        {
-            Label label = Systems_UiKit.Text("v", Systems_UiKit.FONT_SMALL, Systems_UiKit.TextLow);
-            label.style.flexShrink = 0;
-            label.style.marginLeft = Systems_UiKit.SPACE_1;
-            label.style.marginRight = Systems_UiKit.SPACE_1;
-            return label;
-        }
-
-        private static Label MakeArrow()
-        {
-            Label label = Systems_UiKit.Text("→", Systems_UiKit.FONT_BODY, Systems_UiKit.TextLow);
-            label.style.flexShrink = 0;
-            label.style.marginLeft = Systems_UiKit.SPACE_2;
-            label.style.marginRight = Systems_UiKit.SPACE_2;
-            return label;
-        }
-
-        private VisualElement MakeSeedSlot(int seedIndex)
-        {
-            VisualElement slot = MakeChip(Systems_TournamentState.GetSeed(seedIndex));
-            slot.userData = seedIndex;
-            _seedSlots.Add(slot);
-            int captured = seedIndex;
-            slot.RegisterCallback<PointerDownEvent>(evt =>
-                BeginDrag(evt, captured, Systems_TournamentState.GetSeed(captured)));
-            return slot;
-        }
-
-        private VisualElement MakeWinnerSlot(int matchIndex)
-        {
-            VisualElement slot = MakeChip(Systems_TournamentState.GetAdvancing(matchIndex));
-            slot.userData = matchIndex;
-            // Several rows show the SAME match: match 0 is both the QF-0 winner
-            // readout and the semifinal's left entrant. Keeping one chip per match
-            // index meant the later slot overwrote the earlier one and Refresh()
-            // never repainted the orphan — stale winners survived a reshuffle.
-            _winnerSlots.Add(slot);
-            return slot;
-        }
-
         /// A fighter chip: face sprite when the character has one, otherwise a
         /// colour block (Standard ships without face art), plus the name.
         ///
@@ -1266,47 +1351,6 @@ namespace PoSumo
             name.style.marginLeft = Systems_UiKit.SPACE_1;
             chip.Add(name);
             return chip;
-        }
-
-        /// Three stacked bars at the right edge of a palette chip: the universal
-        /// "this can be dragged" affordance.
-        ///
-        /// Without it the ONLY cue that the roster is interactive was the hint
-        /// line above it, which is one small grey sentence on a screen where
-        /// nothing else moves. On a touch screen there is no hover to discover it
-        /// with, so a player who did not read the line had no way to learn the
-        /// draw is editable at all.
-        ///
-        /// DRAWN, not a glyph. A hamburger character would be the obvious way to
-        /// do this and is the wrong one here: the project ships no font asset, so
-        /// anything outside the default UI font's coverage renders as a box. Three
-        /// VisualElements cannot fail that way.
-        ///
-        /// Non-pickable, or it would swallow the PointerDownEvent that starts the
-        /// very drag it is advertising.
-        private static VisualElement DragGrip()
-        {
-            VisualElement grip = Systems_UiKit.Column();
-            grip.style.width = 14;
-            grip.style.flexShrink = 0;
-            // Auto, so the grip is pushed to the CHIP'S RIGHT EDGE rather than
-            // sitting against the end of the name. The name has no flexGrow, so
-            // without this the grip would float mid-chip and read as punctuation.
-            grip.style.marginLeft = StyleKeyword.Auto;
-            grip.style.marginRight = Systems_UiKit.SPACE_1;
-            grip.style.justifyContent = Justify.Center;
-            grip.NoPick();
-
-            for (int bar = 0; bar < 3; bar++)
-            {
-                var line = new VisualElement();
-                line.style.height = 2;
-                line.style.marginTop = bar == 0 ? 0 : 3;
-                line.style.backgroundColor = Systems_UiKit.TextLow;
-                line.NoPick();
-                grip.Add(line);
-            }
-            return grip;
         }
 
         /// What an EMPTY chip says. A seed slot with nobody in it is a BYE — a
@@ -1447,16 +1491,18 @@ namespace PoSumo
             for (int seedSlotIndex = 0; seedSlotIndex < _seedSlots.Count; seedSlotIndex++)
             {
                 int seedIndex = (int)_seedSlots[seedSlotIndex].userData;
-                ApplyChip(_seedSlots[seedSlotIndex], Systems_TournamentState.GetSeed(seedIndex), EMPTY_BYE);
+                ApplyTreeChip(_seedSlots[seedSlotIndex], Systems_TournamentState.GetSeed(seedIndex), EMPTY_BYE, -1);
             }
             for (int winnerSlotIndex = 0; winnerSlotIndex < _winnerSlots.Count; winnerSlotIndex++)
             {
                 int matchIndex = (int)_winnerSlots[winnerSlotIndex].userData;
                 // GetAdvancing, not GetWinner: a bye shows who it carries through
                 // as soon as the draw exists, not only once START has settled it.
-                ApplyChip(_winnerSlots[winnerSlotIndex],
-                          Systems_TournamentState.GetAdvancing(matchIndex), EMPTY_UNDECIDED);
+                ApplyTreeChip(_winnerSlots[winnerSlotIndex],
+                              Systems_TournamentState.GetAdvancing(matchIndex), EMPTY_UNDECIDED, matchIndex);
             }
+            HighlightCurrentBout();
+            RefreshBoutNews();
 
             // The seeding controls only exist while seeding is possible. Left up,
             // they invited a drag that BeginDrag then silently ignored — a palette
@@ -1498,7 +1544,10 @@ namespace PoSumo
             if (Systems_TournamentState.IsComplete)
             {
                 var champion = Systems_TournamentState.Champion;
-                _statusLabel.text = $"CHAMPION — {champion.behaviorName.ToUpperInvariant()}";
+                _statusLabel.text = $"CHAMPION — {champion.behaviorName.ToUpperInvariant()}"
+                                    + $"  ·  ELO {Systems_TournamentElo.Get(champion.behaviorName):F0}"
+                                    + $"  ·  {Systems_TournamentElo.Titles(champion.behaviorName)} TITLE"
+                                    + (Systems_TournamentElo.Titles(champion.behaviorName) == 1 ? "" : "S");
                 _statusLabel.style.color = champion.teamColor;
                 _actionButton.text = "NEW TOURNAMENT";
                 return;
@@ -1511,8 +1560,7 @@ namespace PoSumo
                 string bName = b != null ? b.behaviorName.ToUpperInvariant() : "?";
                 // No arena suffix any more: every bout is on the same clay, so
                 // naming it on every line was noise rather than information.
-                // BOUTS, not match slots — a bye is a walkover nobody plays. With
-                // the full four-fighter draw the two happen to agree: three.
+                // BOUTS, not match slots — a bye is a walkover nobody plays.
                 _statusLabel.text = $"BOUT {Systems_TournamentState.BoutsPlayed + 1} of " +
                                     $"{Systems_TournamentState.BoutCount} — {aName} v {bName}";
                 _statusLabel.style.color = Systems_UiKit.Gold;
@@ -1526,9 +1574,7 @@ namespace PoSumo
             // the project's tuning convention tells you to do — left this screen
             // stating a rule the game no longer followed.
             // SLOTS, fighters and BYES, each counted off the live draw. SEED_COUNT
-            // is 4 and the roster is 4, so today the bye clause is empty; it is
-            // still counted rather than assumed, because a roster of three draws
-            // one.
+            // is 16; a roster short of that draws byes and this says how many.
             _statusLabel.style.color = Systems_UiKit.Gold;
             if (offerResume)
             {
@@ -1556,27 +1602,6 @@ namespace PoSumo
             // "TART TOURNAMEN", clipped at both ends. The status line directly
             // above already says what is being started.
             _actionButton.text = "START";
-        }
-
-        /// Repaint one chip in place. Rebuilding the element would lose the
-        /// registered drag callbacks, so only the visuals are swapped.
-        private static void ApplyChip(VisualElement chip, Agent_CharacterDefinition character,
-                                      string emptyLabel)
-        {
-            // An empty chip recedes: a BYE is furniture, not an entrant, and at
-            // full strength three of them out-shouted the one real quarterfinal.
-            chip.style.opacity = character != null ? 1f : 0.55f;
-            var icon = chip[0];
-            var name = (Label)chip[1];
-            chip.style.borderLeftColor = character != null ? character.teamColor : Systems_UiKit.Chip;
-            icon.style.backgroundColor = character != null && character.headSprite == null
-                ? character.teamColor
-                : (character != null ? Color.clear : new Color(0.25f, 0.23f, 0.24f));
-            icon.style.backgroundImage = character != null && character.headSprite != null
-                ? new StyleBackground(character.headSprite)
-                : new StyleBackground();
-            name.text = ChipName(character, emptyLabel);
-            name.style.color = character != null ? character.teamColor : Systems_UiKit.TextLow;
         }
 
         /// Once the bracket is seeded and running, matches chain on their own —

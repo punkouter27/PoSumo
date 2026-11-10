@@ -754,6 +754,12 @@ namespace PoSumo
             _sb.Append("  ·  ").Append(agent.ResolvedObservationCount).Append(" obs · ")
                .Append(Agent_Biped.ActionCount).Append(" act · decides every ")
                .Append(agent.decisionPeriod).Append(" steps");
+            // A placeholder fighter is fighting on somebody else's training.
+            if (body != null && body.character != null && body.character.IsPlaceholder)
+            {
+                _sb.Append("\nPLACEHOLDER — borrows ").Append(body.character.borrowedBrainFrom)
+                   .Append("'s brain until it is trained");
+            }
             card.Brain.text = _sb.ToString();
 
             AppendVerdict(card, agent, body);

@@ -4,7 +4,9 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// Bracket state for a single-elimination tournament of UP TO eight entrants.
+    /// Bracket state for a single-elimination tournament of UP TO SIXTEEN entrants
+    /// (16 slots since 2026-11-10 — see the constants; the eight-slot description
+    /// below is history, but every rule in it still holds on the larger frame).
     ///
     /// This is static on purpose: each match is played by loading SCN_SUMO and
     /// coming back, so the bracket has to outlive a scene load. Statics persist
@@ -34,16 +36,19 @@ namespace PoSumo
     /// entrants minus one, whatever the draw).
     public static class Systems_TournamentState
     {
-        // FOUR SLOTS SINCE 2026-10-04. The heuristic Bot was removed from the game
-        // at the user's request, leaving exactly four RL-trained fighters, so the
-        // frame went 8 seeds / 7 matches -> 4 seeds / 3 matches: two semifinals
-        // and a final, every slot filled, no byes. The header above describes the
-        // eight-slot frame this replaced; the indices are now
-        //   0..1  semifinals — seeds (0,1) (2,3)
-        //   2     final      — winners of 0 and 1
-        // Everything below is written against these three constants, and the bye
-        // / walkover machinery is kept: a roster of three still draws one bye.
-        public const int SEED_COUNT = 4;
+        // SIXTEEN SLOTS SINCE 2026-11-10 (user: "In the main menu have placeholders
+        // for 16 players ... I will eventually have 16 players ready and trained").
+        // It was 4 slots / 3 bouts from 2026-10-04 and 8 / 7 before that. Indices:
+        //   0..7    round of 16    — seeds (0,1) (2,3) .. (14,15)
+        //   8..11   quarterfinals  — winners of (0,1) (2,3) (4,5) (6,7)
+        //   12..13  semifinals     — winners of (8,9) (10,11)
+        //   14      final          — winners of 12 and 13
+        // The LEFT half of the drawn bracket is seeds 0-7 (matches 0-3, 8-9, 12),
+        // the RIGHT half seeds 8-15 (4-7, 10-11, 13); the final sits between them.
+        // Everything below is written against these constants and the feeder
+        // formula, so the frame is any power of two. A roster smaller than 16
+        // draws byes, dealt one per first-round pair before any pair gets two.
+        public const int SEED_COUNT = 16;
         public const int MATCH_COUNT = SEED_COUNT - 1;
         public const int FINAL_MATCH = MATCH_COUNT - 1;
         /// Matches whose entrants are SEEDS rather than earlier winners.
@@ -75,6 +80,7 @@ namespace PoSumo
         private static readonly Agent_CharacterDefinition[] _seeds = new Agent_CharacterDefinition[SEED_COUNT];
         private static readonly Agent_CharacterDefinition[] _winners = new Agent_CharacterDefinition[MATCH_COUNT];
         private static readonly int[] _outcomes = new int[MATCH_COUNT];
+        private static readonly float[] _eloDeltas = new float[MATCH_COUNT];
         /// True once a draw has been made. "Every slot non-null" stopped being the
         /// test for that the day an empty slot started meaning BYE.
         private static bool _seeded;
@@ -83,7 +89,7 @@ namespace PoSumo
         /// it should use the bracket's pairing rather than its own roster.
         public static bool Active { get; private set; }
 
-        /// Index of the match currently being played (0..2). Walkovers are
+        /// Index of the match currently being played (0..MATCH_COUNT-1). Walkovers are
         /// stepped over, so while `Active` this always names a real bout.
         public static int CurrentMatch { get; private set; }
 
@@ -135,14 +141,70 @@ namespace PoSumo
         /// title off this, so it has to follow the fighters and not the frame.
         public static bool IsTitleBout => Active && FighterCount - BoutsPlayed == 2;
 
+        /// Number of rounds in the frame: 4 for 16 seeds.
+        public static readonly int ROUND_COUNT = Log2(SEED_COUNT);
+
+        private static int Log2(int value)
+        {
+            int rounds = 0;
+            while ((1 << rounds) < value) rounds++;
+            return rounds;
+        }
+
+        /// 0-based round of a match: 0 = first round, ROUND_COUNT-1 = final.
+        public static int RoundOf(int match)
+        {
+            int first = 0;
+            int size = FIRST_ROUND_MATCHES;
+            for (int round = 0; round < ROUND_COUNT; round++)
+            {
+                if (match < first + size) return round;
+                first += size;
+                size /= 2;
+            }
+            return ROUND_COUNT - 1;
+        }
+
+        /// First match index of a round.
+        public static int FirstMatchOfRound(int round)
+        {
+            int first = 0;
+            int size = FIRST_ROUND_MATCHES;
+            for (int index = 0; index < round; index++)
+            {
+                first += size;
+                size /= 2;
+            }
+            return first;
+        }
+
+        public static int MatchesInRound(int round) => FIRST_ROUND_MATCHES >> round;
+
         /// Human-readable name of the round a match belongs to. Lives here rather
         /// than on the bracket screen because the arena needs it too — a fighter
         /// watching a bout could not tell a quarterfinal from the final.
-        public static string RoundName(int match)
+        public static string RoundName(int match) => RoundTitle(RoundOf(match));
+
+        public static string RoundTitle(int round)
         {
-            if (match >= FINAL_MATCH) return "FINAL";
-            return "SEMIFINAL";
+            int fromEnd = ROUND_COUNT - 1 - round;
+            switch (fromEnd)
+            {
+                case 0: return "FINAL";
+                case 1: return "SEMIFINAL";
+                case 2: return "QUARTERFINAL";
+                default: return "ROUND OF " + (SEED_COUNT >> round);
+            }
         }
+
+        /// Tournament Elo the WINNER of a decided bout gained (the loser lost the
+        /// same). 0 for a walkover or a match not yet played.
+        public static float EloDelta(int match) => _eloDeltas[match];
+
+        /// The bout most recently decided, for the "+14 / -14" line the bracket
+        /// screen shows on return. -1 when none has been decided since the last
+        /// START or resume.
+        public static int LastDecidedMatch { get; private set; } = -1;
 
         public static Agent_CharacterDefinition GetSeed(int slot) => _seeds[slot];
         public static Agent_CharacterDefinition GetWinner(int match) => _winners[match];
@@ -166,7 +228,7 @@ namespace PoSumo
         }
 
         /// Returns true when the match's outcome is already determined, with the
-        /// fighter it sends on (possibly nobody). Depth is at most two.
+        /// fighter it sends on (possibly nobody). Depth is at most ROUND_COUNT.
         private static bool Resolve(int match, out Agent_CharacterDefinition winner)
         {
             winner = null;
@@ -199,8 +261,8 @@ namespace PoSumo
         }
 
         /// First of the two matches that feed `match` (the other is the next
-        /// index). In the four-slot frame only the final is fed: final <- 0,1.
-        /// (The same formula gave 4 <- 0,1  5 <- 2,3  6 <- 4,5 on eight slots.)
+        /// index). Sixteen slots: 8 <- 0,1 .. 11 <- 6,7, 12 <- 8,9, 13 <- 10,11,
+        /// 14 <- 12,13. (The same formula served the 4- and 8-slot frames.)
         private static int FeederOf(int match) => (match - FIRST_ROUND_MATCHES) * 2;
 
         public static void SetSeed(int slot, Agent_CharacterDefinition character)
@@ -346,7 +408,9 @@ namespace PoSumo
             {
                 _winners[match] = null;
                 _outcomes[match] = OUTCOME_PENDING;
+                _eloDeltas[match] = 0f;
             }
+            LastDecidedMatch = -1;
             CurrentMatch = 0;
             Active = true;
             AdvanceToNextBout();
@@ -358,8 +422,17 @@ namespace PoSumo
         public static bool ReportWinner(Agent_CharacterDefinition winner)
         {
             if (!Active) return false;
+            GetEntrants(CurrentMatch, out Agent_CharacterDefinition a, out Agent_CharacterDefinition b);
+            Agent_CharacterDefinition loser = winner == a ? b : a;
             _winners[CurrentMatch] = winner;
             _outcomes[CurrentMatch] = OUTCOME_BOUT;
+            _eloDeltas[CurrentMatch] = Systems_TournamentElo.RecordBout(NameOf(winner), NameOf(loser));
+            LastDecidedMatch = CurrentMatch;
+            if (FighterCount - BoutsPlayed == 1)
+            {
+                // That was the title bout (with byes it need not be the final slot).
+                Systems_TournamentElo.RecordTitle(NameOf(winner));
+            }
             if (CurrentMatch < FINAL_MATCH)
             {
                 CurrentMatch++;
@@ -429,7 +502,9 @@ namespace PoSumo
             {
                 _winners[match] = null;
                 _outcomes[match] = OUTCOME_PENDING;
+                _eloDeltas[match] = 0f;
             }
+            LastDecidedMatch = -1;
             CurrentMatch = 0;
             Active = false;
             _seeded = false;
@@ -452,6 +527,7 @@ namespace PoSumo
             public string[] seeds = new string[SEED_COUNT];
             public string[] winners = new string[MATCH_COUNT];
             public int[] outcomes = new int[MATCH_COUNT];
+            public float[] eloDeltas = new float[MATCH_COUNT];
             public int currentMatch;
         }
 
@@ -477,6 +553,7 @@ namespace PoSumo
                 {
                     file.winners[match] = NameOf(_winners[match]);
                     file.outcomes[match] = _outcomes[match];
+                    file.eloDeltas[match] = _eloDeltas[match];
                 }
                 File.WriteAllText(SavePath, JsonUtility.ToJson(file, true));
             }
@@ -615,7 +692,9 @@ namespace PoSumo
             {
                 _winners[match] = Find(roster, file.winners[match]);
                 _outcomes[match] = file.outcomes[match];
+                _eloDeltas[match] = file.eloDeltas != null && match < file.eloDeltas.Length ? file.eloDeltas[match] : 0f;
             }
+            LastDecidedMatch = -1;
             CurrentMatch = file.currentMatch;
             _seeded = true;
             Active = true;

@@ -2602,3 +2602,45 @@ have NOT been retrained at the new speed beyond ~250k steps on Matt
 Launching the Editor directly with no Hub running sticks on a licence error — start Unity
 Hub first. With the CoplayDev server in HTTP mode (port 8080) `Tools/unity.py` finds no
 stdio bridge; POST JSON-RPC to `http://127.0.0.1:8080/mcp` instead.
+
+## Session of 2026-11-10 — 16-fighter bracket, 4 moods x 5 levels, placeholder fighters
+
+Supersedes every "four fighters", "4-slot bracket", "Happy/Sad/Insult" and "Happy_1-3 /
+Sad_1-3" statement above. `Assets/Agents/ROSTER.md` has the roster table.
+
+- **Bracket: 16 slots, 15 matches** (`Systems_TournamentState.SEED_COUNT`; R16 0-7, QF
+  8-11, SF 12-13, final 14). `Systems_TournamentBracket` draws it as a tree — seeds 0-7
+  down the left, 8-15 down the right, the final and champion in the centre — with each
+  column `SpaceAround`, which centres every winner chip between its feeders. The drag
+  PALETTE is gone (every fighter is always seeded; drag seed onto seed to swap). START
+  plays the whole bracket unattended (`_autoPlay`, unchanged). `BracketTestHarness`'s
+  ceiling is now per bout (200 s each).
+- **Tournament Elo** (`Systems_TournamentElo`, `tournament_elo.json`, K 32, start 1000) is
+  SEPARATE from the career Elo by the user's choice: moved only by bracket bouts, recorded
+  in `ReportWinner`, shown on every tree chip, as `+N` on a decided bout's winner chip, in
+  the "X def. Y · ELO +N" line on return, and on the champion line.
+- **12 PLACEHOLDER fighters** (*PoSumo → Generate Placeholder Fighters*): own name, colour,
+  face and voice; brain borrowed from a trained donor (`borrowedBrainFrom`), every
+  brain-generation field copied from it; body ±4%. Promote one by training it and clearing
+  the field. Faces are FAKE profiles from `Tools/make_placeholder_faces.py` (front photos
+  in `G:/My Drive/VAULT/_2DGFX/2DGFX_REFS`; JH was unusable — tiny in frame — and Velez
+  took the slot).
+- **Moods: `Systems_FighterMood` = Neutral, Happy, Angry, Hurt, Insult; levels 1-5.**
+  `Systems_FighterVoice` owns WHEN (hit -> Hurt, knockdown -> Hurt 4, dominance high/low ->
+  Happy/Angry, timer -> Insult, round/match result -> 4/5) and raises the static
+  `Expressed`; `Systems_FaceMood` only draws it, plus a dominance baseline.
+- **Voice lines: 4 moods x 5 levels x 5 variants.** Real WAV at
+  `Resources/Audio/Voice/<Name>_<Mood>_L<level>_<variant>.wav` wins; anything missing is
+  synthesised at runtime by `Systems_VoiceSynth` (the old Editor `GeneratePlaceholderVoices`
+  is deleted — 1 600 baked WAVs would have been ~70 MB in every build). Old clips were
+  renamed with `git mv` to variant 1, Sad -> Hurt; `VoiceGains.asset` names were rewritten
+  to match.
+- **Faces: `<Name>_<Mood>_<level>.png`, any subset.** `Systems_FaceArt.Resolve` falls back
+  to the nearest level, then to Neutral + `Agent_BipedBody.SetHeadExpression` (tint,
+  squash, chin tilt — art only, the hitbox is a separate child). The trained four's photos
+  moved Happy 1/2/3 -> 1/3/5 and Sad 1/2/3 -> Hurt 1/3/5. `Agent_CharacterDefinition`'s
+  `faceNeutralName` / `faceHappyNames` / `faceSadNames` are replaced by `faceArtName`
+  (empty = behavior name); the Matt fallback constants are gone.
+- `Tools/naming_audit.py` enforces both new naming schemes.
+- No observation, action, mass of a trained fighter or collider changed: **no brain is
+  invalidated.**

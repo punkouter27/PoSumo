@@ -16,15 +16,10 @@ MonoBehaviour:
   teamColor: {r: 0.2, g: 0.5, b: 0.3, a: 1}
   headSprite: {fileID: 21300000, guid: c8f33e616b8c8154aa3b266b161e8412, type: 3}
   faceArtFacesLeft: 0
-  faceNeutralName: Grandma_Neutral
-  faceHappyNames:
-  - Grandma_Happy_1
-  - Grandma_Happy_2
-  - Grandma_Happy_3
-  faceSadNames:
-  - Grandma_Sad_1
-  - Grandma_Sad_2
-  - Grandma_Sad_3
+  faceArtName: 
+  voicePitchHz: 110
+  voiceTract: 1
+  borrowedBrainFrom: 
   clothing:
     legs: 2
     legsColor: {r: 0.55, g: 0.56, b: 0.58, a: 1}

@@ -9,7 +9,11 @@ Enforces the conventions CLAUDE.md mandates across the tree:
   * env builds are Builds/<Name>Env/ matching their scene;
   * configs are <Name><Phase><NN>.yaml paired 1:1 with run-id <name>_<phase><nn>;
   * agent assets live in Assets/Agents/<Name>_v<NN>/ with a MANIFEST.md;
-  * face art is Assets/Art/Faces/<Name>_{Neutral,Happy_1-3,Sad_1-3}.png;
+  * face art is Assets/Art/Faces/<Name>_Neutral.png or
+    <Name>_<Happy|Angry|Hurt|Insult>_<1-5>.png (any subset - missing slots are
+    drawn procedurally by Systems_FaceMood);
+  * voice lines are Assets/Resources/Audio/Voice/<Name>_<Mood>_L<1-5>_<1-5>.wav
+    (any subset - missing lines are synthesised by Systems_VoiceSynth);
   * hierarchy roots carry the standard 7 groups (checked only when a scene
     conveniently serializes them -- this tool does NOT parse .unity files).
 
@@ -27,7 +31,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VALID_PREFIXES = {"Agent_", "Sensor_", "Reward_", "Systems_"}
 SCRIPT_FOLDERS = {"Agent", "Sensor", "Reward", "Systems"}
-FACES = {"Neutral", "Happy_1", "Happy_2", "Happy_3", "Sad_1", "Sad_2", "Sad_3"}
+MOODS = "Happy|Angry|Hurt|Insult"
+FACE_RE = re.compile(rf"^[A-Za-z0-9]+_(Neutral|(?:{MOODS})_[1-5])\.png$")
+VOICE_RE = re.compile(rf"^[A-Za-z0-9]+_(?:{MOODS})_L[1-5]_[1-5]\.wav$")
 
 violations: list[str] = []
 
@@ -99,9 +105,17 @@ def audit_faces() -> None:
     if not faces.is_dir():
         return
     for png in sorted(faces.glob("*.png")):
-        match = re.match(r"^(.*?)_(Neutral|Happy_\d|Sad_\d)\.png$", png.name)
-        if not match or match.group(2) not in FACES:
-            violation(png, "face art must be <Name>_{Neutral,Happy_1-3,Sad_1-3}.png")
+        if not FACE_RE.match(png.name):
+            violation(png, "face art must be <Name>_Neutral.png or <Name>_<Happy|Angry|Hurt|Insult>_<1-5>.png")
+
+
+def audit_voices() -> None:
+    voices = ROOT / "Assets" / "Resources" / "Audio" / "Voice"
+    if not voices.is_dir():
+        return
+    for wav in sorted(voices.glob("*.wav")):
+        if not VOICE_RE.match(wav.name):
+            violation(wav, "voice line must be <Name>_<Happy|Angry|Hurt|Insult>_L<1-5>_<1-5>.wav")
 
 
 def main() -> int:
@@ -115,6 +129,7 @@ def main() -> int:
     audit_configs()
     audit_agents()
     audit_faces()
+    audit_voices()
 
     if violations:
         print(f"NAMING AUDIT: {len(violations)} violation(s)")
