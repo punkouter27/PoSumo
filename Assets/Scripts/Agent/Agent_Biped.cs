@@ -324,6 +324,10 @@ namespace PoSumo
         {
             BrainStale = false;
             if (inferenceModel == null) return;
+            // A training env launched with -posumoBalanceObs widens the vector ON
+            // PURPOSE and is driven by the trainer, not by this file: the sheet's
+            // shipped .onnx is one input block short by design. Not stale.
+            if (Systems_TrainingFlags.ForceBalanceObservations) return;
 
             if (!_modelInputSize.TryGetValue(inferenceModel, out int modelSize))
             {
