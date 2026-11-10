@@ -24,9 +24,88 @@ family's MuJoCo siblings rather than PoSumo's current pipeline.
 
 ---
 
+## UU_AGENT rules (as given by the user, 2026-11-10) — CURRENT
+
+Scope: RL-trained humanoids and animals with realistic motion on Earth, in Unity or Unreal.
+Recorded verbatim. **This list supersedes the 2026-10-05 and 2026-10-04 lists below**
+wherever they differ; those sections are kept for their PoSumo status notes. Unlike the
+earlier lists, this one carries **no "ignore MuJoCo if the project uses ML-Agents"
+override** — see the notes after it.
+
+### 1. Workflow & Setup
+- **Git:** Work on `master`. Commit before syncing or pulling. Check `/DOCS` first.
+- **Automation:** Set up scenes, prefabs and levels via CLI and headless Blender. UI changes get before/after
+  screenshots and an HTML report in `SCREENSHOTS/`.
+- **Build stamp:** Show the build date (`YYMMDD`) in the bottom-right corner.
+
+| | Unity | Unreal Engine 5 |
+|---|---|---|
+| Background | Enable Run In Background | Disable Use Less CPU when in Background |
+| Raw assets | `Assets/Art/Raw/` | `Content/Art/Raw/` |
+| Exported assets | `Assets/Art/Exports/GLB/` | `Content/Art/Exports/` |
+| Physics | MuJoCo (`org.mujoco`), not PhysX | MuJoCo / URLab, not Chaos |
+| Policy runtime | Unity Sentis / ONNX | NNE / ONNX Runtime |
+
+### 2. Physics & Realism
+- **Collision:** Primitive colliders only (capsules, spheres, boxes). Non-adjacent parts collide with each other.
+  Zero penetration at rest, at joint limits and through motion.
+- **Fidelity:** Gravity −9.81 m/s², anatomical mass, realistic joint, torque and speed limits. Skeleton joints match between the 3D files and the simulator.
+- **Smooth motion:** Rewards carry action-rate/jerk penalties (or low-pass filtering): fluid motion, no jitter.
+
+### 3. Policy Architecture & Retraining
+- **Hierarchy:** A few small policies, one per motor skill family (locomotion, balance/get-up, task skills). Cover variants with command inputs (velocity, gait, target, style), not new policies. Layered rule-based directors (game flow → body → skill) switch policies on physical state (contacts, centre of mass, falls) through one
+  transition table, mirrored in every runtime. Policies never pick each other.
+- **Hand-overs:** All policies of a body share the observation layout, joint order, action map, timing and motion-style reward. Preload every policy. Pass on the last action; never snap poses or blend outputs. Train each policy on the states it inherits (get-up from real falls).
+- **Frozen interface:** Append inputs only at the end, with zero-initialised weights; never reorder or remove them. If the interface must break, distil the old policy into the new layout.
+- Every new character gets its own training run and its own policies. No character reuses another's brain, even when the bodies are similar.
+- Personality comes from the character card's traits and its own style reward weights, learned in training. Directors don't script it.
+- Each character trains from scratch, passes every ladder level and the gate, and trains against the existing roster. Once a character is trained try to avoid retraining an existing character fully.
+- **Before any change:** List the policies it touches (body physics → that body's; rules → the policies acting under them; new skill → its policy plus director rows; visuals → none) and log that in `/DOCS`. Afterwards, re-run every policy's regression scenarios (task + realism). Tag each checkpoint with its interface and physics versions.
+
+### 4. Training, Gates & Reports
+- **Execution:** Close the editor for runs over 30 min or when free RAM drops below 4 GB. Save and commit first.
+- **Cleanup:** Delete failed runs, short tests (<5,000 steps) and unneeded checkpoints. Never delete a run written
+  to in the last 24 h or one a queue will resume.
+- **Graduation gate:** Export ONNX only after the target score holds for 100 straight episodes with no NaN gradients.
+- **Telemetry:** Run TensorBoard with every run. Log metrics and progress to `/DOCS/<YYYYMMDD>/` so later agents can pick up where a run left off.
+- **Reports & updates:** Runs over 30 min get an HTML report with metric charts and run-over-run deltas. Estimate training time at startup. Send hourly updates (status grid, key improvements, short summary).
+
+### 5. Communication
+- **Large changes:** Over 100 lines of code: offer 3 roadmap/architecture questions.
+- **Summary:** Responses over 100 words end with a ~20-word TL;DR.
+- **Problem solving:** End with a proposed fix for the app's main open issue and ask before acting on it.
+
+### How these land in PoSumo (notes, not part of the rules — measured 2026-11-10)
+
+Rules that already hold here: `master`, `/DOCS` first, Run In Background
+(`Systems_AcademyLifecycle`), Earth gravity and anatomical mass (§2.6), jerk penalty and
+activation lag (§2.4, §2.2), TensorBoard with every run (`.claude/rules/training.md`),
+append-only observation order (§3.6), the zero-initialised graft used for the 13 → 14
+action move (`CLAUDE.md`, *Evening of 2026-10-05*), TL;DR, and the editor-closed rule (§4.6).
+Policy runtime: `com.unity.ai.inference` **is** Sentis under its new name, so that row holds.
+
+**Discrepancies, stated rather than resolved — ask before acting on any of them:**
+
+| Rule | What PoSumo actually has |
+|---|---|
+| Physics: MuJoCo (`org.mujoco`), not PhysX | Unity **Physics2D** (Box2D), a sagittal 2D ragdoll. No MuJoCo anywhere. The earlier lists exempted ML-Agents apps; this one does not say so. Switching would invalidate every brain and rewrite `Agent_BipedBody` — treat it as a family rule for the 3D siblings unless told otherwise |
+| Build stamp `YYMMDD` bottom-right | The corner is right (`Systems_ScreenChrome`), the content is not: it shows `"v" + Application.version` = `v1.0.4` (`bundleVersion`), not a date |
+| UI reports in `SCREENSHOTS/` | No `SCREENSHOTS/` folder exists yet; create it with the first UI report |
+| `Assets/Art/Raw/`, `Assets/Art/Exports/GLB/` | Neither exists. `Assets/Art/` holds `Atlases`, `Faces`, `Generated`; the biped has no mesh at all |
+| Scenes/prefabs via CLI and headless Blender | Same conflict as *Scene authoring* below: scenes hold managers, the body is built in code, there are no `.prefab` assets |
+| Non-adjacent parts collide | Only the 30 leg-vs-trunk pairs collide (`Agent_BipedBody.EnableLegTrunkCollisions`); arms and leg-vs-leg pass through on purpose, and the user confirmed leg-vs-leg on 2026-10-05 |
+| A few small policies per skill family, switched by a director | **One unified brain per fighter** for walk + fight, told apart by the task-flag observation. Get-up is a flag inside `Mode.Walk`, not a separate policy |
+| No character reuses another's brain; each trains from scratch | **Directly contradicted by the 12 placeholder fighters added today** (`Agent_CharacterDefinition.borrowedBrainFrom`), each running a trained donor's `.onnx`. They are recorded as placeholders to be promoted by training, which is the path back into compliance |
+| Graduation gate: 100 straight episodes at target | Not implemented. Fight runs are accepted on ELO-curve shape (§4.5); no gate checks a streak or NaN gradients before deploy |
+| Log progress to `/DOCS/<YYYYMMDD>/`; tag checkpoints with interface + physics versions; hourly updates; time estimate at startup | None of this exists yet. The closest are config header comments and `Training/README.md` |
+| "Before any change: list touched policies, log in `/DOCS`" | New process with no precedent here; start it with the next change that touches a body, rule or skill |
+
+---
+
 ## UU_AGENT rules (as given by the user, 2026-10-05)
 
-The current wording of the family rule list, recorded verbatim. It restates the
+**Superseded by the 2026-11-10 list above.** Was the current wording of the family rule
+list, recorded verbatim. It restates the
 2026-10-04 list below and adds one rule (**Data Logging**). Where the two differ in
 wording, this one is newer. The 2026-10-04 section is kept because it carries the
 PoSumo-specific status notes and the two stated discrepancies, which still apply.
