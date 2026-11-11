@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Unique01 campaign: train all 16 fighters, each with its own recipe, for
     $Minutes minutes each, $Concurrent at a time. Created 2026-11-10.
@@ -84,16 +84,21 @@ Get-ChildItem Training/results -Directory -Filter '*_intentinit' -ErrorAction Si
     Remove-Item -LiteralPath $_.FullName -Recurse -Force
 }
 
-# --- 3. stage warm starts -------------------------------------------------------
+# --- 3. stage warm starts + preflight stamps ------------------------------------
 foreach ($row in $roster) {
     $name = $row.fighter; $donor = $row.donor
     $run = "$($name.ToLowerInvariant())_unique01"
     if (Test-Path "Training/results/$run") { throw "Training/results/$run already exists — delete it or this would resume instead of warm-starting." }
-    $src = "Training/results/$($donor.ToLowerInvariant())_intent01/$donor/checkpoint.pt"
+    $sheetPath = "Assets/Agents/${name}_v01/${name}_Character.asset"
+    $usesBalance = (Test-Path $sheetPath) -and (Select-String -Path $sheetPath -Pattern '^\s*balanceObservations:\s*1\b' -Quiet)
+    $phase = if ($usesBalance -and (Test-Path "Training/results/$($donor.ToLowerInvariant())_real01/$donor/checkpoint.pt")) { 'real01' } else { 'intent01' }
+    $src = "Training/results/$($donor.ToLowerInvariant())_${phase}/$donor/checkpoint.pt"
     if (-not (Test-Path $src)) { throw "warm-start source missing: $src" }
     $dst = "Training/results/$($name.ToLowerInvariant())_uniqueinit/$name"
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
     Copy-Item -LiteralPath $src -Destination "$dst/checkpoint.pt" -Force
+    & $venvPython Tools/preflight.py "Training/configs/${name}Unique01.yaml" --run-id $run --initialize-from "$($name.ToLowerInvariant())_uniqueinit" --env "Builds/${donor}Env/${donor}Env.exe"
+    if ($LASTEXITCODE -ne 0) { throw "preflight failed for $name ($run)" }
 }
 
 # --- 4. TensorBoard ---------------------------------------------------------------
