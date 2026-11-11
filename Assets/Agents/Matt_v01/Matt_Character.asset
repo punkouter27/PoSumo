@@ -37,6 +37,7 @@ MonoBehaviour:
   contactObservations: 1
   staminaObservation: 1
   intentObservations: 1
+  balanceObservations: 1
   inferenceModel: {fileID: 5022602860645237092, guid: 239f499b7abb2934f8d71d52682b5f23, type: 3}
   uprightReward: 0.002
   closingReward: 0.0045
@@ -54,6 +55,8 @@ MonoBehaviour:
   edgeBraceReward: 0.0006
   energyPenalty: 0.0003
   jerkPenalty: 0.0003
+  slipPenalty: 0
+  jerk2Penalty: 0
   straightLegEarnFraction: 0.3
   walkForwardReward: 0.0075
   walkStanceFloor: 0.1
@@ -63,3 +66,5 @@ MonoBehaviour:
   walkCadenceReward: 0.0012
   walkEnergyPenalty: 0.00018
   walkStallPenalty: 0.0025
+  walkSlipPenalty: 0
+  walkJerk2Penalty: 0

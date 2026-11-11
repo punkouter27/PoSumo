@@ -78,27 +78,28 @@ override** — see the notes after it.
 ### How these land in PoSumo (notes, not part of the rules — measured 2026-11-10)
 
 Rules that already hold here: `master`, `/DOCS` first, Run In Background
-(`Systems_AcademyLifecycle`), Earth gravity and anatomical mass (§2.6), jerk penalty and
-activation lag (§2.4, §2.2), TensorBoard with every run (`.claude/rules/training.md`),
-append-only observation order (§3.6), the zero-initialised graft used for the 13 → 14
-action move (`CLAUDE.md`, *Evening of 2026-10-05*), TL;DR, and the editor-closed rule (§4.6).
-Policy runtime: `com.unity.ai.inference` **is** Sentis under its new name, so that row holds.
+(`Systems_AcademyLifecycle`), build stamp `YYMMDD` bottom-right (`Systems_BuildStamp` /
+`Systems_ScreenChrome`, `WriteBuildStamp.cs`), UI reports in `SCREENSHOTS/`
+(`SCREENSHOTS/20261110_hudsheet/report.html`), Earth gravity and anatomical mass (§2.6),
+jerk penalty and activation lag (§2.4, §2.2), TensorBoard with every run
+(`.claude/rules/training.md`), append-only observation order (§3.6), the zero-initialised
+graft used for the 13 → 14 action and 53 → 55 observation moves (`Tools/onnx_warmstart.py`),
+TL;DR, and the editor-closed rule (§4.6). Policy runtime: `com.unity.ai.inference` **is**
+Sentis under its new name, so that row holds.
 
 **Discrepancies, stated rather than resolved — ask before acting on any of them:**
 
 | Rule | What PoSumo actually has |
 |---|---|
 | Physics: MuJoCo (`org.mujoco`), not PhysX | Unity **Physics2D** (Box2D), a sagittal 2D ragdoll. No MuJoCo anywhere. The earlier lists exempted ML-Agents apps; this one does not say so. Switching would invalidate every brain and rewrite `Agent_BipedBody` — treat it as a family rule for the 3D siblings unless told otherwise |
-| Build stamp `YYMMDD` bottom-right | The corner is right (`Systems_ScreenChrome`), the content is not: it shows `"v" + Application.version` = `v1.0.4` (`bundleVersion`), not a date |
-| UI reports in `SCREENSHOTS/` | No `SCREENSHOTS/` folder exists yet; create it with the first UI report |
 | `Assets/Art/Raw/`, `Assets/Art/Exports/GLB/` | Neither exists. `Assets/Art/` holds `Atlases`, `Faces`, `Generated`; the biped has no mesh at all |
 | Scenes/prefabs via CLI and headless Blender | Same conflict as *Scene authoring* below: scenes hold managers, the body is built in code, there are no `.prefab` assets |
 | Non-adjacent parts collide | Only the 30 leg-vs-trunk pairs collide (`Agent_BipedBody.EnableLegTrunkCollisions`); arms and leg-vs-leg pass through on purpose, and the user confirmed leg-vs-leg on 2026-10-05 |
 | A few small policies per skill family, switched by a director | **One unified brain per fighter** for walk + fight, told apart by the task-flag observation. Get-up is a flag inside `Mode.Walk`, not a separate policy |
-| No character reuses another's brain; each trains from scratch | **Directly contradicted by the 12 placeholder fighters added today** (`Agent_CharacterDefinition.borrowedBrainFrom`), each running a trained donor's `.onnx`. They are recorded as placeholders to be promoted by training, which is the path back into compliance |
-| Graduation gate: 100 straight episodes at target | **Built 2026-11-10** (`Tools/graduation_gate.py`, enforced by `DeployBrain`). Streak counted from the `Gate/*` stats an env built after that date records; `--school walk` is reachable, `--school sumo` is near-impossible against self-play, so ELO shape stays the fight's signal |
+| No character reuses another's brain; each trains from scratch | **Directly contradicted by the 12 placeholder fighters added today** (`Agent_CharacterDefinition.borrowedBrainFrom`), each running a trained donor's `.onnx`. `Unique01` (4 waves × 4 fighters) is the training queue built to promote them into compliance |
+| Graduation gate: 100 straight episodes at target | **Built 2026-11-10** (`Tools/graduation_gate.py`, enforced by `DeployBrain`). Streak counted from the `Gate/*` stats an env built after that date records; `--school walk` is reachable once walk obstacles/perturbations settle, `--school sumo` is near-impossible against self-play, so ELO shape stays the fight's signal |
 | Log progress to `/DOCS/<YYYYMMDD>/`; tag checkpoints with interface + physics versions; hourly updates; time estimate at startup | Version tagging **built 2026-11-10**: `Tools/preflight.py` stamps `Training/stamps/<run>.json`, the gate copies it into the run as `STAMP.json`. `/DOCS/<date>/` logs exist per pass. Hourly updates and the time estimate still do not |
-| "Before any change: list touched policies, log in `/DOCS`" | New process with no precedent here; start it with the next change that touches a body, rule or skill |
+| "Before any change: list touched policies, log in `/DOCS`" | Active as of `DOCS/20261110/real01.md` and `DOCS/20261110/hudsheet.md` |
 
 ---
 

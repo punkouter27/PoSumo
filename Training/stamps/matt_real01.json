@@ -1,0 +1,23 @@
+{
+  "run_id": "matt_real01",
+  "config": "Training/configs/MattReal01.yaml",
+  "initialize_from": "matt_realinit",
+  "interface_version": "393ab1788d1d",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Matt": {
+      "observations": 55,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": true
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-10T22:30:19+00:00"
+}

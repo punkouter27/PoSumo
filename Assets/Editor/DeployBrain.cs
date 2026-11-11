@@ -328,8 +328,8 @@ namespace PoSumo.EditorTools
 
         /// The only vector flag a Real01 run changes is balanceObservations (trained
         /// with -posumoBalanceObs while the sheet stayed off). Reads the deployed
-        /// model's input width and sets the flag on this sheet AND on every
-        /// placeholder that borrows this brain, so neither ships a STALE BRAIN.
+        /// model's input width and sets the flag on every sheet whose
+        /// inferenceModel IS this file, so none of them ships a STALE BRAIN.
         private static string SyncBalanceFlag(Unity.InferenceEngine.ModelAsset model,
                                               Agent_CharacterDefinition character)
         {
@@ -364,8 +364,13 @@ namespace PoSumo.EditorTools
             {
                 var sheet = AssetDatabase.LoadAssetAtPath<Agent_CharacterDefinition>(AssetDatabase.GUIDToAssetPath(guid));
                 if (sheet == null) continue;
-                bool ownsOrBorrows = sheet == character || sheet.borrowedBrainFrom == character.behaviorName;
-                if (!ownsOrBorrows || sheet.balanceObservations == want) continue;
+                // Only sheets that RUN this very file. Placeholders that borrow this
+                // fighter's brain hold their OWN copy of the donor's .onnx (e.g.
+                // Dupee.onnx), still at the old width: flipping their flag made all
+                // four go STALE and limp in the first bracket after a Real01 deploy.
+                // They pick the new width up when their own copy is replaced.
+                bool runsThisModel = sheet == character || sheet.inferenceModel == model;
+                if (!runsThisModel || sheet.balanceObservations == want) continue;
                 sheet.balanceObservations = want;
                 EditorUtility.SetDirty(sheet);
                 changed++;
