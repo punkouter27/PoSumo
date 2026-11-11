@@ -1761,7 +1761,7 @@ namespace PoSumo
         public float JointSpeedNorm(int j)
         {
             HingeJoint2D joint = Joints[j];
-            return joint == null ? 0f : joint.jointSpeed * facingSign / 600f;
+            return joint == null ? 0f : Mathf.Clamp(joint.jointSpeed * facingSign / 600f, -5f, 5f);
         }
 
         /// Applies the passive restoring torque to every joint.

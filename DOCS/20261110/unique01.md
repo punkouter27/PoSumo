@@ -78,3 +78,7 @@ start pose does not break them. It does not say they are fitted to it; that is t
 - **16 / 16 fighters produced and deployed their own `.onnx` brains** (`25,921,490` total new `Unique01` steps across 4 passes / 32 waves; `1.47M – 1.77M` steps per fighter).
 - All 12 former placeholder fighters (`Alan`, `Dupee`, `Porto`, `Tong`, `Brendan`, `Maya`, `Velez`, `Baily`, `Josh`, `Decoy`, `Manzi`, `Sokol`) now own their dedicated `.onnx` weights in `Assets/Agents/<Name>_v01/<Name>.onnx` with `borrowedBrainFrom` cleared on every character asset (`0` borrowed brains).
 - Full interactive SVG telemetry report: `DOCS/20261110/training_status.html` and `DOCS/training_report.html`.
+- **Post-Training 16-Fighter Bracket Regression (`BracketTestHarness.Run()`, 2026-11-11 07:14):**
+  - `BRACKET HARNESS RESULT: PASS — champion Porto over 15 bouts (16 fighters, 0 byes) in 404s` (`console: errors=0 warnings=4 layout=0`).
+  - `SELF OVERLAP TIMING`: **`0` deep (`>2 cm`) self-overlap steps across all 15 bouts** (`0-0.6s`, `0.6-2s`, and `>2s` all read `deepSteps=0 deepPairs=0`, `hipFolded(<=-100deg)=0`).
+  - Newly promoted `Unique01` policies won 7 of 8 Round-of-16 bouts (`Baily`, `Josh`, `Dupee`, `Tong`, `Porto`, `Brendan` + `Grandma`, `Nick`), swept the Quarterfinals (`Baily`, `Dupee`, `Porto`, `Brendan`) and Semifinals (`Baily`, `Porto`), with `Porto` (`home-mat specialist`, trained on full game-width mat every round) winning the 72s Final over `Baily`.
