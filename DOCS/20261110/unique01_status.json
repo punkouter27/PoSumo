@@ -1,0 +1,169 @@
+﻿{
+    "campaign":  "unique01",
+    "startedLocal":  "2026-11-11T06:00:17",
+    "minutesEach":  5,
+    "resume":  true,
+    "runs":  [
+                 {
+                     "fighter":  "Matt",
+                     "style":  "baseline",
+                     "donor":  "Matt",
+                     "run":  "matt_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Matt-1599698.onnx",
+                     "steps":  1599698,
+                     "minutes":  5.2
+                 },
+                 {
+                     "fighter":  "Grandma",
+                     "style":  "patient",
+                     "donor":  "Grandma",
+                     "run":  "grandma_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Grandma-1699580.onnx",
+                     "steps":  1699580,
+                     "minutes":  5.2
+                 },
+                 {
+                     "fighter":  "Nick",
+                     "style":  "explorer",
+                     "donor":  "Nick",
+                     "run":  "nick_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Nick-1574986.onnx",
+                     "steps":  1574986,
+                     "minutes":  5.3
+                 },
+                 {
+                     "fighter":  "Kim",
+                     "style":  "rooted anchor",
+                     "donor":  "Kim",
+                     "run":  "kim_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Kim-1649797.onnx",
+                     "steps":  1649797,
+                     "minutes":  5.3
+                 },
+                 {
+                     "fighter":  "Alan",
+                     "style":  "counter-puncher",
+                     "donor":  "Matt",
+                     "run":  "alan_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Alan-1474901.onnx",
+                     "steps":  1474901,
+                     "minutes":  5.7
+                 },
+                 {
+                     "fighter":  "Dupee",
+                     "style":  "bulldozer",
+                     "donor":  "Matt",
+                     "run":  "dupee_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Dupee-1674698.onnx",
+                     "steps":  1674698,
+                     "minutes":  5.7
+                 },
+                 {
+                     "fighter":  "Porto",
+                     "style":  "home-mat specialist",
+                     "donor":  "Matt",
+                     "run":  "porto_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Porto-1549860.onnx",
+                     "steps":  1549860,
+                     "minutes":  5.4
+                 },
+                 {
+                     "fighter":  "Tong",
+                     "style":  "quick learner",
+                     "donor":  "Matt",
+                     "run":  "tong_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Tong-1774987.onnx",
+                     "steps":  1774987,
+                     "minutes":  5.4
+                 },
+                 {
+                     "fighter":  "Brendan",
+                     "style":  "survivor",
+                     "donor":  "Grandma",
+                     "run":  "brendan_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Brendan-1599686.onnx",
+                     "steps":  1599686,
+                     "minutes":  5.9
+                 },
+                 {
+                     "fighter":  "Maya",
+                     "style":  "technician",
+                     "donor":  "Grandma",
+                     "run":  "maya_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Maya-1549964.onnx",
+                     "steps":  1549964,
+                     "minutes":  5.9
+                 },
+                 {
+                     "fighter":  "Velez",
+                     "style":  "heavy presser",
+                     "donor":  "Grandma",
+                     "run":  "velez_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Velez-1599919.onnx",
+                     "steps":  1599919,
+                     "minutes":  5.2
+                 },
+                 {
+                     "fighter":  "Baily",
+                     "style":  "dancer",
+                     "donor":  "Nick",
+                     "run":  "baily_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Baily-1674908.onnx",
+                     "steps":  1674908,
+                     "minutes":  5.2
+                 },
+                 {
+                     "fighter":  "Josh",
+                     "style":  "opportunist",
+                     "donor":  "Nick",
+                     "run":  "josh_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Josh-1574557.onnx",
+                     "steps":  1574557,
+                     "minutes":  5.4
+                 },
+                 {
+                     "fighter":  "Decoy",
+                     "style":  "feint artist",
+                     "donor":  "Kim",
+                     "run":  "decoy_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Decoy-1649523.onnx",
+                     "steps":  1649523,
+                     "minutes":  5.4
+                 },
+                 {
+                     "fighter":  "Manzi",
+                     "style":  "wall",
+                     "donor":  "Kim",
+                     "run":  "manzi_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Manzi-1549672.onnx",
+                     "steps":  1549672,
+                     "minutes":  5.2
+                 },
+                 {
+                     "fighter":  "Sokol",
+                     "style":  "scrambler",
+                     "donor":  "Kim",
+                     "run":  "sokol_unique01",
+                     "finalOnnx":  false,
+                     "lastNumberedOnnx":  "Sokol-1674764.onnx",
+                     "steps":  1674764,
+                     "minutes":  5.2
+                 }
+             ],
+    "finishedLocal":  "2026-11-11T06:45:40"
+}

@@ -19,7 +19,7 @@ MonoBehaviour:
   faceArtName: 
   voicePitchHz: 115
   voiceTract: 0.98
-  borrowedBrainFrom: Matt
+  borrowedBrainFrom: 
   clothing:
     legs: 1
     legsColor: {r: 0.74, g: 0.37, b: 0.08, a: 1}

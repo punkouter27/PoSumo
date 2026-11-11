@@ -74,4 +74,7 @@ pose. Across all lanes only 9 overlaps passed 2 cm in the whole bracket, all toe
 These brains were all trained on the OLD pose, so the passing harness says the new
 start pose does not break them. It does not say they are fitted to it; that is the run.
 
-Training: pending (needs the Editor closed).
+**Training completed (2026-11-11 06:45, 8-hour unattended campaign via `Training/Run-Extended8h.ps1`).**
+- **16 / 16 fighters produced and deployed their own `.onnx` brains** (`25,921,490` total new `Unique01` steps across 4 passes / 32 waves; `1.47M – 1.77M` steps per fighter).
+- All 12 former placeholder fighters (`Alan`, `Dupee`, `Porto`, `Tong`, `Brendan`, `Maya`, `Velez`, `Baily`, `Josh`, `Decoy`, `Manzi`, `Sokol`) now own their dedicated `.onnx` weights in `Assets/Agents/<Name>_v01/<Name>.onnx` with `borrowedBrainFrom` cleared on every character asset (`0` borrowed brains).
+- Full interactive SVG telemetry report: `DOCS/20261110/training_status.html` and `DOCS/training_report.html`.

@@ -9,22 +9,14 @@
     Recipes: Training/configs/<Name>Unique01.yaml, written by
     Tools/make_unique01_configs.py. Donors: Training/unique01_roster.csv.
 
-    Order of work, all with the Unity Editor CLOSED (AGENTS.md §4: close it for runs
+    Order of work, all with the Unity Editor CLOSED (AGENTS.md section 4: close it for runs
     over 30 min; the env builds below also need the project lock):
       1. build the four donor envs in batch mode (skipped if present, -Rebuild forces)
       2. prune event-less *_intentinit staging runs out of the TensorBoard logdir
       3. stage each warm start: <donor>_intent01 checkpoint -> <name>_uniqueinit/<Name>
       4. TensorBoard on 6006 (started here unless already serving Training/results)
       5. waves of $Concurrent trainers; each gets $Minutes of wall clock from the
-         moment its env players exist, then a graceful close (final checkpoint + ONNX)
-
-    Status after every run: DOCS/20261110/unique01_status.json. Full trainer output:
-    Training/results/<run>/trainer.log is NOT captured (the trainer needs its own
-    console window for the graceful close) — the run's own run_logs/ hold the record.
-
-.EXAMPLE
-    pwsh -File Training/Run-Unique01.ps1
-    pwsh -File Training/Run-Unique01.ps1 -Fighters Matt,Tong -Minutes 5
+         moment its env players exist, then a checkpoint close (final checkpoint + ONNX)
 #>
 param(
     [string[]]$Fighters,
@@ -53,7 +45,7 @@ if (-not $roster) { throw 'no fighters selected' }
 $editor = Get-CimInstance Win32_Process -Filter "Name='Unity.exe'" |
     Where-Object { $_.CommandLine -match [regex]::Escape('PoSumo') -or -not $_.CommandLine }
 if ($editor) {
-    throw "Unity is still running (PID $($editor.ProcessId -join ', ')). Close the Editor first: the env builds need the project, and AGENTS.md §4 forbids an open Editor during a campaign this long."
+    throw "Unity is still running (PID $($editor.ProcessId -join ', ')). Close the Editor first."
 }
 
 $waves = [math]::Ceiling($roster.Count / $Concurrent)
@@ -74,10 +66,10 @@ foreach ($donor in $donors) {
         '-logFile', "`"$log`"")
     $result = Select-String -Path $log -Pattern 'BUILD RESULT:.*' | Select-Object -Last 1
     if (-not (Test-Path $exe) -or ($result -and $result.Line -notmatch 'Succeeded')) {
-        throw "${donor}Env build failed (exit $($p.ExitCode)): $($result.Line) — see $log"
+        throw "${donor}Env build failed (exit $($p.ExitCode)): $($result.Line) -- see $log"
     }
     (Get-Item $exe).LastWriteTime = Get-Date
-    Write-Host "  built    $donor — $($result.Line)"
+    Write-Host "  built    $donor -- $($result.Line)"
 }
 
 # --- 2. prune obsolete staging runs (no events, superseded by *_intent01) -----------
@@ -95,7 +87,7 @@ foreach ($row in $roster) {
             Write-Host "  resume   $name ($run already exists)"
             continue
         }
-        throw "Training/results/$run already exists — delete it or pass -Resume."
+        throw "Training/results/$run already exists -- delete it or pass -Resume."
     }
     $sheetPath = "Assets/Agents/${name}_v01/${name}_Character.asset"
     $usesBalance = (Test-Path $sheetPath) -and (Select-String -Path $sheetPath -Pattern '^\s*balanceObservations:\s*1\b' -Quiet)
@@ -122,7 +114,7 @@ if ($tbOwner) {
 }
 
 # --- 5. waves -----------------------------------------------------------------------
-$status = [ordered]@{ campaign = 'unique01'; startedLocal = (Get-Date).ToString('s'); minutesEach = $Minutes; runs = @() }
+$status = [ordered]@{ campaign = 'unique01'; startedLocal = (Get-Date).ToString('s'); minutesEach = $Minutes; resume = [bool]$Resume; runs = @() }
 function Save-Status { $status | ConvertTo-Json -Depth 5 | Set-Content -Path $statusFile -Encoding utf8 }
 
 function EnvPlayers([string]$name) {
@@ -147,7 +139,7 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
             "--base-port=$port",
             '--no-graphics',
             $initFlag,
-            '--env-args', '-posumoFighter', $name)   # --env-args must be LAST
+            '--env-args', '-posumoFighter', $name)
         $proc = Start-Process -FilePath $learnExe -PassThru -WorkingDirectory $repoRoot -ArgumentList $learnArgs
         Write-Host ("[{0:HH:mm:ss}] wave {1}/{2}: {3} ({4}, env {5}) trainer {6} ports {7}+" -f (Get-Date), ($wave + 1), $waves, $name, $row.style, $donor, $proc.Id, $port)
         $live += [pscustomobject]@{ name = $name; run = $run; style = $row.style; donor = $donor; proc = $proc; clock = $null; launched = Get-Date }
@@ -165,15 +157,29 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
                 $pending = $true; continue
             }
             if (((Get-Date) - $r.clock).TotalMinutes -lt $Minutes) { $pending = $true; continue }
-            Write-Host ("[{0:HH:mm:ss}]   {1}: time — closing trainer for a final checkpoint" -f (Get-Date), $r.name)
-            if (-not $r.proc.CloseMainWindow()) { Write-Warning "$($r.name): no window to close" }
+            Write-Host ("[{0:HH:mm:ss}]   {1}: time -- waiting for fresh 25k-step checkpoint before stopping" -f (Get-Date), $r.name)
+            $ckptPath = "Training/results/$($r.run)/$($r.name)/checkpoint.pt"
+            $waitStart = Get-Date
+            while (-not $r.proc.HasExited -and ((Get-Date) - $waitStart).TotalSeconds -lt 42) {
+                if ((Test-Path $ckptPath) -and ((Get-Date) - (Get-Item $ckptPath).LastWriteTime).TotalSeconds -lt 12) {
+                    break
+                }
+                Start-Sleep -Seconds 3
+            }
+            if (-not $r.proc.HasExited) {
+                if (-not $r.proc.CloseMainWindow()) {
+                    $r.proc.Kill()
+                }
+            }
         }
         if (-not $pending) { break }
         Start-Sleep -Seconds 10
     }
 
     foreach ($r in $live) {
-        if (-not $r.proc.WaitForExit(120000)) { Write-Warning "$($r.name): trainer did not exit in 120 s — killing"; $r.proc.Kill() }
+        if (-not $r.proc.HasExited) {
+            if (-not $r.proc.WaitForExit(15000)) { $r.proc.Kill() }
+        }
         EnvPlayers $r.name | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
         $dir = "Training/results/$($r.run)/$($r.name)"
         $finalOnnx = Test-Path "Training/results/$($r.run)/$($r.name).onnx"
@@ -191,15 +197,15 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
             Copy-Item -LiteralPath $bestOnnx -Destination $dstOnnx -Force
             $charAsset = "Assets/Agents/$($r.name)_v01/$($r.name)_Character.asset"
             if (Test-Path $charAsset) {
-                $raw = Get-Content -LiteralPath $charAsset -Raw
-                $updated = $raw -replace '(?m)^(\s*borrowedBrainFrom:)\s*\S+', '$1 '
-                if ($updated -ne $raw) { Set-Content -LiteralPath $charAsset -Value $updated -NoNewline -Encoding utf8 }
+                $raw = [System.IO.File]::ReadAllText((Resolve-Path $charAsset))
+                $updated = [regex]::Replace($raw, '(?m)^([ \t]*borrowedBrainFrom:)[ \t]*\S+', '$1 ')
+                if ($updated -ne $raw) { [System.IO.File]::WriteAllText((Resolve-Path $charAsset), $updated, (New-Object System.Text.UTF8Encoding($false))) }
             }
             $stampSrc = "Training/stamps/$($r.run).json"
             if (Test-Path $stampSrc) { Copy-Item -LiteralPath $stampSrc -Destination "Training/results/$($r.run)/STAMP.json" -Force }
-            Write-Host ("[{0:HH:mm:ss}]   {1}: promoted ONNX -> {2}" -f (Get-Date), $r.name, $dstOnnx)
+            Write-Host ("[{0:HH:mm:ss}]   {1}: promoted ONNX -> {2} ({3} steps)" -f (Get-Date), $r.name, $dstOnnx, $steps)
         }
-        Write-Host ("[{0:HH:mm:ss}]   {1}: done — final onnx {2}, last numbered {3}" -f (Get-Date), $r.name, $finalOnnx, $entry.lastNumberedOnnx)
+        Write-Host ("[{0:HH:mm:ss}]   {1}: done -- final onnx {2}, last numbered {3}" -f (Get-Date), $r.name, $finalOnnx, $entry.lastNumberedOnnx)
     }
     # The staging dirs hold weights, not history: out of the logdir once used.
     foreach ($r in $live) { Remove-Item -Recurse -Force "Training/results/$($r.name.ToLowerInvariant())_uniqueinit" -ErrorAction SilentlyContinue }
@@ -209,4 +215,3 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
 $status.finishedLocal = (Get-Date).ToString('s')
 Save-Status
 Write-Host "UNIQUE01 RESULT: $(@($status.runs | Where-Object { $_.finalOnnx -or $_.lastNumberedOnnx }).Count)/$($roster.Count) fighters produced an ONNX. Status: $statusFile"
-Write-Host 'Next: reopen Unity, then deploy each run (Tools/deploy_unique01 step in DOCS/20261110/unique01.md).'
