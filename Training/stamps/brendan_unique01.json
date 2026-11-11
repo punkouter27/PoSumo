@@ -1,0 +1,23 @@
+{
+  "run_id": "brendan_unique01",
+  "config": "Training/configs/BrendanUnique01.yaml",
+  "initialize_from": "brendan_uniqueinit",
+  "interface_version": "d2711f29f3bc",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Brendan": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:14+00:00"
+}

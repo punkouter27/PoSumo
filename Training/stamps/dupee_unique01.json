@@ -1,0 +1,23 @@
+{
+  "run_id": "dupee_unique01",
+  "config": "Training/configs/DupeeUnique01.yaml",
+  "initialize_from": "dupee_uniqueinit",
+  "interface_version": "55db4494da94",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Dupee": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:13+00:00"
+}

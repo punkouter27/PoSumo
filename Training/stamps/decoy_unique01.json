@@ -1,0 +1,23 @@
+{
+  "run_id": "decoy_unique01",
+  "config": "Training/configs/DecoyUnique01.yaml",
+  "initialize_from": "decoy_uniqueinit",
+  "interface_version": "60e410954e23",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Decoy": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:16+00:00"
+}

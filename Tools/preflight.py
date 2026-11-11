@@ -143,6 +143,15 @@ def newest_script_mtime():
     return max(os.path.getmtime(path) for path in files)
 
 
+def env_build_mtime(exe):
+    mtimes = [os.path.getmtime(exe)]
+    stem = os.path.splitext(exe)[0]
+    runtime_dll = os.path.join(f"{stem}_Data", "Managed", "PoSumo.Runtime.dll")
+    if os.path.exists(runtime_dll):
+        mtimes.append(os.path.getmtime(runtime_dll))
+    return max(mtimes)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("config")
@@ -183,7 +192,7 @@ def main():
         exe = args.env or os.path.join(ROOT, "Builds", f"{behavior}Env", f"{behavior}Env.exe")
         if not os.path.exists(exe):
             errors.append(f"{behavior}: no env build at {os.path.relpath(exe, ROOT)} - PoSumo > Build {behavior} Training Env")
-        elif os.path.getmtime(exe) < newest_script_mtime():
+        elif env_build_mtime(exe) < newest_script_mtime():
             errors.append(f"{behavior}: env build is OLDER than Assets/Scripts - it would train the old code. Rebuild it.")
 
         behaviors[behavior] = {

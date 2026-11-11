@@ -41,7 +41,8 @@ function Write-CampaignLog([string]$msg) {
 "@ | Set-Content -Path $logMd -Encoding utf8
 
 Write-CampaignLog "Starting Pass 1: Unique01 initial promotion pass (16 fighters, $Pass1Minutes min/wave, -Rebuild)."
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot 'Training/Run-Unique01.ps1') -Minutes $Pass1Minutes -Concurrent $Concurrent -NumEnvs $NumEnvs -Rebuild
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot 'Training/Run-Unique01.ps1') -Minutes $Pass1Minutes -Concurrent $Concurrent -NumEnvs $NumEnvs
+if ($LASTEXITCODE -ne 0) { throw "Pass 1 (Run-Unique01.ps1) failed with exit code $LASTEXITCODE" }
 Write-CampaignLog "Completed Pass 1: All 16 fighters completed initial Unique01 pass and ONNX promotion."
 
 $cycle = 2
@@ -54,6 +55,7 @@ while ((Get-Date) -lt $deadline) {
     $waveMin = [math]::Min($ResumeWaveMinutes, [math]::Max(5, [int][math]::Floor($remainingMin / 8)))
     Write-CampaignLog "Starting Pass ${cycle}: Continuous convergence resume pass across roster ($waveMin min/wave, $remainingMin min remaining before deadline)."
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repoRoot 'Training/Run-Unique01.ps1') -Minutes $waveMin -Concurrent $Concurrent -NumEnvs $NumEnvs -Resume
+    if ($LASTEXITCODE -ne 0) { throw "Pass $cycle (Run-Unique01.ps1 -Resume) failed with exit code $LASTEXITCODE" }
     Write-CampaignLog "Completed Pass ${cycle}."
     $cycle++
 }

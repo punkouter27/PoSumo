@@ -1,0 +1,23 @@
+{
+  "run_id": "matt_unique01",
+  "config": "Training/configs/MattUnique01.yaml",
+  "initialize_from": "matt_uniqueinit",
+  "interface_version": "393ab1788d1d",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Matt": {
+      "observations": 55,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": true
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 55
+    }
+  },
+  "written": "2026-11-11T04:39:12+00:00"
+}

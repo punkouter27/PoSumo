@@ -1,0 +1,23 @@
+{
+  "run_id": "nick_unique01",
+  "config": "Training/configs/NickUnique01.yaml",
+  "initialize_from": "nick_uniqueinit",
+  "interface_version": "e876e57e6533",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Nick": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:12+00:00"
+}

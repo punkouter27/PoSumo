@@ -1,0 +1,23 @@
+{
+  "run_id": "alan_unique01",
+  "config": "Training/configs/AlanUnique01.yaml",
+  "initialize_from": "alan_uniqueinit",
+  "interface_version": "c2cac56791f4",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Alan": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:13+00:00"
+}

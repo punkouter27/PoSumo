@@ -1,0 +1,23 @@
+{
+  "run_id": "velez_unique01",
+  "config": "Training/configs/VelezUnique01.yaml",
+  "initialize_from": "velez_uniqueinit",
+  "interface_version": "599fe1cb9a63",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Velez": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:15+00:00"
+}

@@ -1,0 +1,23 @@
+{
+  "run_id": "grandma_unique01",
+  "config": "Training/configs/GrandmaUnique01.yaml",
+  "initialize_from": "grandma_uniqueinit",
+  "interface_version": "8c9411b67fc9",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Grandma": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:12+00:00"
+}

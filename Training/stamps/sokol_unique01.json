@@ -1,0 +1,23 @@
+{
+  "run_id": "sokol_unique01",
+  "config": "Training/configs/SokolUnique01.yaml",
+  "initialize_from": "sokol_uniqueinit",
+  "interface_version": "e4f286767669",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Sokol": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:17+00:00"
+}

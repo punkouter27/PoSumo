@@ -76,6 +76,7 @@ foreach ($donor in $donors) {
     if (-not (Test-Path $exe) -or ($result -and $result.Line -notmatch 'Succeeded')) {
         throw "${donor}Env build failed (exit $($p.ExitCode)): $($result.Line) — see $log"
     }
+    (Get-Item $exe).LastWriteTime = Get-Date
     Write-Host "  built    $donor — $($result.Line)"
 }
 

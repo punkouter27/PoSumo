@@ -1,0 +1,23 @@
+{
+  "run_id": "maya_unique01",
+  "config": "Training/configs/MayaUnique01.yaml",
+  "initialize_from": "maya_uniqueinit",
+  "interface_version": "a072a04608ce",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Maya": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:15+00:00"
+}

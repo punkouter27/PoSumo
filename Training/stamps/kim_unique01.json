@@ -1,0 +1,23 @@
+{
+  "run_id": "kim_unique01",
+  "config": "Training/configs/KimUnique01.yaml",
+  "initialize_from": "kim_uniqueinit",
+  "interface_version": "f9feff559ad9",
+  "physics_version": "566a176eee40",
+  "behaviors": {
+    "Kim": {
+      "observations": 53,
+      "actions": 14,
+      "flags": {
+        "contactObservations": true,
+        "staminaObservation": true,
+        "extendedObservations": true,
+        "intentObservations": true,
+        "balanceObservations": false
+      },
+      "decision_period": "3",
+      "deployed_onnx_inputs": 53
+    }
+  },
+  "written": "2026-11-11T04:39:13+00:00"
+}
