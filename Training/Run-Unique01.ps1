@@ -33,7 +33,8 @@ param(
     [ValidateRange(1, 4)][int]$NumEnvs = 2,
     [int]$BasePort = 5105,
     [int]$TensorBoardPort = 6006,
-    [switch]$Rebuild
+    [switch]$Rebuild,
+    [switch]$Resume
 )
 
 $ErrorActionPreference = 'Stop'
@@ -88,7 +89,13 @@ Get-ChildItem Training/results -Directory -Filter '*_intentinit' -ErrorAction Si
 foreach ($row in $roster) {
     $name = $row.fighter; $donor = $row.donor
     $run = "$($name.ToLowerInvariant())_unique01"
-    if (Test-Path "Training/results/$run") { throw "Training/results/$run already exists — delete it or this would resume instead of warm-starting." }
+    if (Test-Path "Training/results/$run") {
+        if ($Resume) {
+            Write-Host "  resume   $name ($run already exists)"
+            continue
+        }
+        throw "Training/results/$run already exists — delete it or pass -Resume."
+    }
     $sheetPath = "Assets/Agents/${name}_v01/${name}_Character.asset"
     $usesBalance = (Test-Path $sheetPath) -and (Select-String -Path $sheetPath -Pattern '^\s*balanceObservations:\s*1\b' -Quiet)
     $phase = if ($usesBalance -and (Test-Path "Training/results/$($donor.ToLowerInvariant())_real01/$donor/checkpoint.pt")) { 'real01' } else { 'intent01' }
@@ -129,6 +136,7 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
     foreach ($row in $batch) {
         $name = $row.fighter; $donor = $row.donor
         $run = "$($name.ToLowerInvariant())_unique01"
+        $initFlag = if ($Resume -and (Test-Path "Training/results/$run/$name/checkpoint.pt")) { '--resume' } else { "--initialize-from=$($name.ToLowerInvariant())_uniqueinit" }
         $learnArgs = @(
             "Training/configs/${name}Unique01.yaml",
             "--run-id=$run",
@@ -137,7 +145,7 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
             "--num-envs=$NumEnvs",
             "--base-port=$port",
             '--no-graphics',
-            "--initialize-from=$($name.ToLowerInvariant())_uniqueinit",
+            $initFlag,
             '--env-args', '-posumoFighter', $name)   # --env-args must be LAST
         $proc = Start-Process -FilePath $learnExe -PassThru -WorkingDirectory $repoRoot -ArgumentList $learnArgs
         Write-Host ("[{0:HH:mm:ss}] wave {1}/{2}: {3} ({4}, env {5}) trainer {6} ports {7}+" -f (Get-Date), ($wave + 1), $waves, $name, $row.style, $donor, $proc.Id, $port)
@@ -175,10 +183,26 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
             minutes = if ($r.clock) { [math]::Round(((Get-Date) - $r.clock).TotalMinutes, 1) } else { 0 } }
         $status.runs += $entry
         Save-Status
+        # Deploy production ONNX weights in-place (preserving .meta GUID) and promote placeholder brain ownership
+        $bestOnnx = if ($finalOnnx) { "Training/results/$($r.run)/$($r.name).onnx" } elseif ($numbered) { $numbered[-1].FullName } else { $null }
+        if ($bestOnnx -and (Test-Path $bestOnnx)) {
+            $dstOnnx = "Assets/Agents/$($r.name)_v01/$($r.name).onnx"
+            Copy-Item -LiteralPath $bestOnnx -Destination $dstOnnx -Force
+            $charAsset = "Assets/Agents/$($r.name)_v01/$($r.name)_Character.asset"
+            if (Test-Path $charAsset) {
+                $raw = Get-Content -LiteralPath $charAsset -Raw
+                $updated = $raw -replace '(?m)^(\s*borrowedBrainFrom:)\s*\S+', '$1 '
+                if ($updated -ne $raw) { Set-Content -LiteralPath $charAsset -Value $updated -NoNewline -Encoding utf8 }
+            }
+            $stampSrc = "Training/stamps/$($r.run).json"
+            if (Test-Path $stampSrc) { Copy-Item -LiteralPath $stampSrc -Destination "Training/results/$($r.run)/STAMP.json" -Force }
+            Write-Host ("[{0:HH:mm:ss}]   {1}: promoted ONNX -> {2}" -f (Get-Date), $r.name, $dstOnnx)
+        }
         Write-Host ("[{0:HH:mm:ss}]   {1}: done — final onnx {2}, last numbered {3}" -f (Get-Date), $r.name, $finalOnnx, $entry.lastNumberedOnnx)
     }
     # The staging dirs hold weights, not history: out of the logdir once used.
     foreach ($r in $live) { Remove-Item -Recurse -Force "Training/results/$($r.name.ToLowerInvariant())_uniqueinit" -ErrorAction SilentlyContinue }
+    & $venvPython Tools/generate_training_report.py
 }
 
 $status.finishedLocal = (Get-Date).ToString('s')
