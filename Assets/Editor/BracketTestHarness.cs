@@ -66,6 +66,11 @@ namespace PoSumo.EditorTools
                 Debug.LogError("BRACKET HARNESS: enter Play mode on SCN_TOURNAMENT first.");
                 return;
             }
+            if (_running)
+            {
+                Debug.Log("BRACKET HARNESS: already running.");
+                return;
+            }
 
             var bracket = Object.FindAnyObjectByType<Systems_TournamentBracket>();
             if (bracket == null)
