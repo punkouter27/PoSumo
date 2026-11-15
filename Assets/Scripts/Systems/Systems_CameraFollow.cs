@@ -98,6 +98,18 @@ namespace PoSumo
         private float _focusUntil;
         private float _wideUntil;
         /// Blend rate while a shot is live; 0 means "use `smoothing`".
+
+        public enum CameraMode { Broadcast, Follow, Orbit, Free }
+        public static CameraMode Mode { get; set; } = CameraMode.Broadcast;
+        public static Vector3 FreeOffset { get; set; }
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetCameraStatics()
+        {
+            Mode = CameraMode.Broadcast;
+            FreeOffset = Vector3.zero;
+        }
+        public static CameraMode CycleMode() => Mode = (CameraMode)(((int)Mode + 1) % 4);
+        public static void AddFreeOffset(Vector3 delta) => FreeOffset += delta;
         ///
         /// Exists because `smoothing` is tuned for FOLLOWING — it has to ignore the
         /// fighters' frame-to-frame jitter, so it is slow on purpose. A ceremony
@@ -427,6 +439,22 @@ namespace PoSumo
 
             // Vertical center of the frame sits at the wrestlers' feet.
             float midY = (_a.Torso.position.y + _b.Torso.position.y) * 0.5f - feetDrop;
+
+            if (Mode == CameraMode.Follow)
+            {
+                mid = ax;
+                midY = _a.Torso.position.y - feetDrop * 0.5f;
+            }
+            else if (Mode == CameraMode.Orbit)
+            {
+                mid += Mathf.Sin(Time.unscaledTime * 0.6f) * 0.8f;
+                midY += Mathf.Cos(Time.unscaledTime * 0.6f) * 0.15f;
+            }
+            else if (Mode == CameraMode.Free)
+            {
+                mid += FreeOffset.x;
+                midY += FreeOffset.y;
+            }
 
             if (focusActive)
             {

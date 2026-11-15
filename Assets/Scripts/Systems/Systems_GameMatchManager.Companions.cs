@@ -259,6 +259,8 @@ namespace PoSumo
                 sb.Append("  ·  ");
             }
             AppendFighter(sb, wrestlerB);
+            int nan = (wrestlerA != null ? wrestlerA.NanInfCount : 0) + (wrestlerB != null ? wrestlerB.NanInfCount : 0);
+            sb.Append("  ·  ").Append(Mode).Append('/').Append(Systems_CameraFollow.Mode).Append(" n").Append(nan);
         }
 
         private void AppendFighter(System.Text.StringBuilder sb, Agent_Biped fighter)

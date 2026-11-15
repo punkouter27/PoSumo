@@ -388,6 +388,16 @@ namespace PoSumo
         /// whose slow-motion timer is REALTIME and so keeps running behind the
         /// pause — it must not write Time.timeScale back to 1 there.
         public bool IsPaused => _paused;
+        public enum AppMode { Watch, Play, Testbed }
+        public static AppMode Mode { get; private set; } = AppMode.Watch;
+        public static int ActiveSeed { get; private set; } = 42;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetMatchStatics()
+        {
+            Mode = AppMode.Watch;
+            ActiveSeed = 42;
+        }
+        public static AppMode CycleAppMode() => Mode = (AppMode)(((int)Mode + 1) % 3);
 
         /// Fired when a round is decided: (roundWinner, roundLoser) — both null on a draw.
         public event System.Action<Agent_Biped, Agent_Biped> RoundEnded;
@@ -421,6 +431,12 @@ namespace PoSumo
 
         private void Start()
         {
+            if (int.TryParse(System.Environment.GetEnvironmentVariable("POSUMO_SEED"), out int envSeed))
+                ActiveSeed = envSeed;
+            var args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i + 1 < args.Length; i++)
+                if (args[i] == "-seed" && int.TryParse(args[i + 1], out int cliSeed)) ActiveSeed = cliSeed;
+            Random.InitState(ActiveSeed);
             if (tuning != null)
             {
                 // Bracket matches are shorter than exhibitions. Decided HERE
@@ -1547,6 +1563,30 @@ namespace PoSumo
             // than in the panel so there is still exactly one place in the arena
             // that reads the keyboard.
             if (DebugKeyPressed() && _agentDebug != null) _agentDebug.Toggle();
+            HandleHotkeys();
+        }
+
+        private void HandleHotkeys()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb == null) return;
+            if (kb.f1Key.wasPressedThisFrame) { CycleAppMode(); return; }
+            if (kb.f2Key.wasPressedThisFrame) { Systems_CameraFollow.CycleMode(); return; }
+            if (kb.f3Key.wasPressedThisFrame) { _agentDebug?.Toggle(); return; }
+            if (kb.f4Key.wasPressedThisFrame) { wrestlerA?.HotSwapPolicy(); return; }
+            if (kb.rKey.wasPressedThisFrame) { ResetMatch(); return; }
+            if (kb.spaceKey.wasPressedThisFrame && _phase != Phase.MatchOver) { TogglePause(); return; }
+            if (Systems_CameraFollow.Mode == Systems_CameraFollow.CameraMode.Free)
+            {
+                Vector3 pan = Vector3.zero;
+                if (kb.wKey.isPressed || kb.upArrowKey.isPressed) pan.y += 1f;
+                if (kb.sKey.isPressed || kb.downArrowKey.isPressed) pan.y -= 1f;
+                if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) pan.x -= 1f;
+                if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan.x += 1f;
+                if (pan.sqrMagnitude > 0f) Systems_CameraFollow.AddFreeOffset(pan.normalized * (6f * Time.unscaledDeltaTime));
+            }
+#endif
         }
 
         private bool DebugKeyPressed()

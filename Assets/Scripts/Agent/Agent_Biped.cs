@@ -53,6 +53,35 @@ namespace PoSumo
         [Tooltip("Optional trained model for in-editor inference playback (no Python needed).")]
         public Unity.InferenceEngine.ModelAsset inferenceModel;
 
+        public int NanInfCount { get; private set; }
+        public void ResetTelemetry() => NanInfCount = 0;
+
+        /// Appends tail observations into a pre-sized zero-initialized buffer without reordering prefix features.
+        public static void AppendZeroInitInputs(float[] src, int baseCount, float[] dst)
+        {
+            if (dst == null || baseCount < 0 || dst.Length <= baseCount) return;
+            System.Array.Clear(dst, baseCount, dst.Length - baseCount);
+            if (src == null) return;
+            int copy = System.Math.Min(src.Length, dst.Length - baseCount);
+            if (copy > 0) System.Array.Copy(src, 0, dst, baseCount, copy);
+        }
+
+        /// Hot-swaps the active Sentis model at runtime or toggles fallback motor enablement if none supplied.
+        public bool HotSwapPolicy(Unity.InferenceEngine.ModelAsset nextModel = null)
+        {
+            if (nextModel != null)
+            {
+                inferenceModel = nextModel;
+                var bp = GetComponent<BehaviorParameters>();
+                if (bp != null) bp.Model = nextModel;
+                SetModel(behaviorName, nextModel);
+                actionsEnabled = true;
+                return true;
+            }
+            actionsEnabled = !actionsEnabled;
+            return true;
+        }
+
 
         /// While true, OnActionReceived only drives motors — no rewards, no
         /// episode termination. Used while the presentation layer (walk-in)
@@ -610,7 +639,9 @@ namespace PoSumo
             }
             for (int slotIndex = 0; slotIndex < _obsCount; slotIndex++)
             {
-                sensor.AddObservation(source[slotIndex]);
+                float v = source[slotIndex];
+                if (!float.IsFinite(v)) { NanInfCount++; v = 0f; }
+                sensor.AddObservation(v);
             }
         }
 
@@ -910,8 +941,10 @@ namespace PoSumo
             float energy = 0f, jerk = 0f, effort = 0f, jerk2 = 0f;
             for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
             {
-                _b.ApplyMotor(actionIndex, a[actionIndex] * actionScale);
-                float clamped = Mathf.Clamp(a[actionIndex], -1f, 1f);
+                float raw = a[actionIndex];
+                if (!float.IsFinite(raw)) { NanInfCount++; raw = 0f; }
+                _b.ApplyMotor(actionIndex, raw * actionScale);
+                float clamped = Mathf.Clamp(raw, -1f, 1f);
                 LastActions[actionIndex] = clamped;
                 energy += Mathf.Abs(clamped);
                 effort += clamped * clamped;

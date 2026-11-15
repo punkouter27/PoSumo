@@ -113,6 +113,9 @@ namespace PoSumo
         public static readonly Color Good = new Color(0.4f, 0.82f, 0.45f);
         public static readonly Color Warn = new Color(0.9f, 0.75f, 0.25f);
         public static readonly Color Bad = new Color(0.92f, 0.42f, 0.32f);
+        public static readonly Color PolicyBot = new Color(0.92f, 0.25f, 0.25f);
+        public static readonly Color PolicyRef = new Color(0.25f, 0.78f, 0.35f);
+        public static readonly Color PolicyCustom = new Color(0.27f, 0.62f, 0.98f);
         public static readonly Color Backdrop = new Color(0f, 0f, 0f, 0.72f);
 
         /// Drop shadow for text that sits over the arena rather than over a card.
