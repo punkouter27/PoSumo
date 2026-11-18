@@ -103,3 +103,6 @@ Training/*.log
 # YYMMDD in the bottom-right corner). Changes per build; git already knows the date.
 /Assets/Resources/BuildStamp.txt
 /Assets/Resources/BuildStamp.txt.meta
+
+# Generated Unity C# project files
+/*.csproj
