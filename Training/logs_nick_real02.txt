@@ -105,3 +105,8 @@
 [INFO] Nick. Step: 240000. Time Elapsed: 1191.765 s. Mean Reward: 2.478. Std of Reward: 0.947. Training. ELO: 1235.589.
 [INFO] Nick. Step: 270000. Time Elapsed: 1280.823 s. Mean Reward: 3.436. Std of Reward: 2.166. Training. ELO: 1248.929.
 [INFO] Nick. Step: 300000. Time Elapsed: 1324.955 s. Mean Reward: 3.622. Std of Reward: 2.546. Training. ELO: 1275.743.
+[INFO] Nick. Step: 330000. Time Elapsed: 1374.983 s. Mean Reward: 3.728. Std of Reward: 2.522. Training. ELO: 1297.304.
+[INFO] Nick. Step: 360000. Time Elapsed: 1428.842 s. Mean Reward: 3.178. Std of Reward: 2.589. Training. ELO: 1310.701.
+[INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
+[INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
+[INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.

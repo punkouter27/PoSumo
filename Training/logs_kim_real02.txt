@@ -105,3 +105,8 @@
 [INFO] Kim. Step: 240000. Time Elapsed: 1210.161 s. Mean Reward: 2.998. Std of Reward: 1.070. Training. ELO: 1173.908.
 [INFO] Kim. Step: 270000. Time Elapsed: 1299.091 s. Mean Reward: 3.303. Std of Reward: 2.429. Training. ELO: 1178.651.
 [INFO] Kim. Step: 300000. Time Elapsed: 1343.369 s. Mean Reward: 4.020. Std of Reward: 3.021. Training. ELO: 1183.960.
+[INFO] Kim. Step: 330000. Time Elapsed: 1389.308 s. Mean Reward: 4.832. Std of Reward: 2.942. Training. ELO: 1186.590.
+[INFO] Kim. Step: 360000. Time Elapsed: 1441.035 s. Mean Reward: 4.292. Std of Reward: 3.192. Training. ELO: 1190.155.
+[INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
+[INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
+[INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.

@@ -106,3 +106,6 @@
 [INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
 [INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
 [INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.
+[INFO] Matt. Step: 390000. Time Elapsed: 1435.549 s. Mean Reward: 4.526. Std of Reward: 3.269. Training. ELO: 1234.606.
+[INFO] Exported Training/results\matt_real02\Matt\Matt-399828.onnx
+[INFO] Matt. Step: 420000. Time Elapsed: 1489.098 s. Mean Reward: 4.380. Std of Reward: 3.407. Training. ELO: 1234.606.
