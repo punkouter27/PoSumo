@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -20,14 +20,15 @@ MonoBehaviour:
   voicePitchHz: 100
   voiceTract: 1.04
   borrowedBrainFrom: 
-    legs: 3
-    legsColor: {r: 0.14, g: 0.24, b: 0.48, a: 1}
-    torso: 2
-    torsoColor: {r: 0.38, g: 0.56, b: 0.88, a: 1}
+  clothing:
+    legs: 0
+    legsColor: {r: 0.22, g: 0.26, b: 0.4, a: 1}
+    torso: 0
+    torsoColor: {r: 0.93, g: 0.92, b: 0.9, a: 1}
     arms: 0
-    armsColor: {r: 1, g: 1, b: 1, a: 1}
-    feet: 1
-    feetColor: {r: 0.16, g: 0.27, b: 0.52, a: 1}
+    armsColor: {r: 0.93, g: 0.92, b: 0.9, a: 1}
+    feet: 0
+    feetColor: {r: 0.95, g: 0.95, b: 0.93, a: 1}
   massScale: 1.02
   widthScale: 0.8446
   torqueScale: 1
@@ -36,6 +37,7 @@ MonoBehaviour:
   contactObservations: 1
   staminaObservation: 1
   intentObservations: 1
+  balanceObservations: 0
   inferenceModel: {fileID: 5022602860645237092, guid: 64327f7d8d0200b4c975494e075b3af7, type: 3}
   uprightReward: 0.002
   closingReward: 0.0055
@@ -53,6 +55,8 @@ MonoBehaviour:
   edgeBraceReward: 0
   energyPenalty: 0.0002
   jerkPenalty: 0.00015
+  slipPenalty: 0
+  jerk2Penalty: 0
   straightLegEarnFraction: 0.75
   walkForwardReward: 0.004
   walkStanceFloor: 0.1
@@ -62,3 +66,5 @@ MonoBehaviour:
   walkCadenceReward: 0.002
   walkEnergyPenalty: 0.0003
   walkStallPenalty: 0.0025
+  walkSlipPenalty: 0
+  walkJerk2Penalty: 0
