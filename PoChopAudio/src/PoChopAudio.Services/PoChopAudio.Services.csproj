@@ -5,7 +5,7 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime" />
     <PackageReference Include="NAudio" />
     <PackageReference Include="NLayer.NAudioSupport" />
-    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="SixLabors.ImageSharp" ExcludeAssets="build" />
   </ItemGroup>
 
 
