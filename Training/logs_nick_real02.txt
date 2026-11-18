@@ -110,3 +110,19 @@
 [INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
 [INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
 [INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.
+[INFO] Nick. Step: 390000. Time Elapsed: 1475.832 s. Mean Reward: 2.891. Std of Reward: 2.657. Training. ELO: 1315.772.
+[INFO] Exported Training/results\nick_real02\Nick\Nick-399816.onnx
+[INFO] Nick. Step: 420000. Time Elapsed: 1530.496 s. Mean Reward: 3.130. Std of Reward: 2.638. Training. ELO: 1318.940.
+[INFO] Nick. Step: 450000. Time Elapsed: 1572.254 s. Mean Reward: 2.992. Std of Reward: 2.728. Training. ELO: 1322.706.
+[INFO] Nick. Step: 480000. Time Elapsed: 1623.130 s. Mean Reward: 3.268. Std of Reward: 2.792. Training. ELO: 1327.705.
+[INFO] Nick. Step: 510000. Time Elapsed: 1702.268 s. Mean Reward: 2.721. Std of Reward: 2.467. Training. ELO: 1338.165.
+[INFO] Nick. Step: 540000. Time Elapsed: 1851.750 s. Mean Reward: 1.709. Std of Reward: 1.257. Training. ELO: 1341.424.
+[INFO] Nick. Step: 570000. Time Elapsed: 1990.895 s. Mean Reward: 1.661. Std of Reward: 1.244. Training. ELO: 1327.670.
+[INFO] Nick. Step: 600000. Time Elapsed: 2139.076 s. Mean Reward: 1.682. Std of Reward: 1.345. Training. ELO: 1313.659.
+[INFO] Exported Training/results\nick_real02\Nick\Nick-599976.onnx
+[INFO] Parameter 'walk_obstacle_height' is in lesson 'low' and has value 'Float: value=0.03'.
+[INFO] Nick. Step: 630000. Time Elapsed: 2281.860 s. Mean Reward: 1.859. Std of Reward: 1.323. Training. ELO: 1317.487.
+[INFO] Nick. Step: 660000. Time Elapsed: 2431.061 s. Mean Reward: 1.861. Std of Reward: 1.203. Training. ELO: 1325.461.
+[INFO] Nick. Step: 690000. Time Elapsed: 2570.371 s. Mean Reward: 1.735. Std of Reward: 1.280. Training. ELO: 1329.820.
+[INFO] Nick. Step: 720000. Time Elapsed: 2710.984 s. Mean Reward: 1.992. Std of Reward: 1.274. Training. ELO: 1329.499.
+[INFO] Nick. Step: 750000. Time Elapsed: 2859.439 s. Mean Reward: 1.715. Std of Reward: 1.271. Training. ELO: 1326.749.

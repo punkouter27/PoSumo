@@ -110,3 +110,18 @@
 [INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
 [INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
 [INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.
+[INFO] Kim. Step: 390000. Time Elapsed: 1492.638 s. Mean Reward: 3.782. Std of Reward: 3.242. Training. ELO: 1191.442.
+[INFO] Exported Training/results\kim_real02\Kim\Kim-399792.onnx
+[INFO] Kim. Step: 420000. Time Elapsed: 1543.240 s. Mean Reward: 3.718. Std of Reward: 3.366. Training. ELO: 1189.142.
+[INFO] Kim. Step: 450000. Time Elapsed: 1586.338 s. Mean Reward: 2.788. Std of Reward: 3.106. Training. ELO: 1191.152.
+[INFO] Kim. Step: 480000. Time Elapsed: 1636.966 s. Mean Reward: 3.368. Std of Reward: 3.245. Training. ELO: 1192.655.
+[INFO] Kim. Step: 510000. Time Elapsed: 1716.563 s. Mean Reward: 3.311. Std of Reward: 2.947. Training. ELO: 1195.686.
+[INFO] Kim. Step: 540000. Time Elapsed: 1865.826 s. Mean Reward: 2.092. Std of Reward: 1.597. Training. ELO: 1187.559.
+[INFO] Kim. Step: 570000. Time Elapsed: 2006.457 s. Mean Reward: 2.027. Std of Reward: 1.434. Training. ELO: 1183.040.
+[INFO] Kim. Step: 600000. Time Elapsed: 2147.652 s. Mean Reward: 2.191. Std of Reward: 1.391. Training. ELO: 1184.924.
+[INFO] Exported Training/results\kim_real02\Kim\Kim-599704.onnx
+[INFO] Parameter 'walk_obstacle_height' is in lesson 'low' and has value 'Float: value=0.03'.
+[INFO] Kim. Step: 630000. Time Elapsed: 2303.092 s. Mean Reward: 2.102. Std of Reward: 1.474. Training. ELO: 1188.140.
+[INFO] Kim. Step: 660000. Time Elapsed: 2445.746 s. Mean Reward: 2.045. Std of Reward: 1.471. Training. ELO: 1186.855.
+[INFO] Kim. Step: 690000. Time Elapsed: 2593.876 s. Mean Reward: 2.168. Std of Reward: 1.502. Training. ELO: 1190.077.
+[INFO] Kim. Step: 720000. Time Elapsed: 2732.561 s. Mean Reward: 2.248. Std of Reward: 1.618. Training. ELO: 1184.995.

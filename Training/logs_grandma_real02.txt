@@ -113,3 +113,22 @@
 [INFO] Grandma. Step: 390000. Time Elapsed: 1143.285 s. Mean Reward: 1.154. Std of Reward: 1.166. Training. ELO: 1250.340.
 [INFO] Exported Training/results\grandma_real02\Grandma\Grandma-399962.onnx
 [INFO] Grandma. Step: 420000. Time Elapsed: 1293.159 s. Mean Reward: 1.089. Std of Reward: 1.173. Training. ELO: 1247.142.
+[INFO] Grandma. Step: 450000. Time Elapsed: 1442.278 s. Mean Reward: 1.391. Std of Reward: 1.163. Training. ELO: 1249.208.
+[INFO] Grandma. Step: 480000. Time Elapsed: 1585.945 s. Mean Reward: 1.211. Std of Reward: 1.201. Training. ELO: 1248.493.
+[INFO] Grandma. Step: 510000. Time Elapsed: 1708.634 s. Mean Reward: 1.827. Std of Reward: 2.025. Training. ELO: 1249.812.
+[INFO] Grandma. Step: 540000. Time Elapsed: 1751.848 s. Mean Reward: 3.847. Std of Reward: 3.544. Training. ELO: 1262.015.
+[INFO] Grandma. Step: 570000. Time Elapsed: 1805.536 s. Mean Reward: 3.427. Std of Reward: 3.566. Training. ELO: 1268.205.
+[INFO] Grandma. Step: 600000. Time Elapsed: 1852.015 s. Mean Reward: 3.499. Std of Reward: 3.635. Training. ELO: 1281.734.
+[INFO] Exported Training/results\grandma_real02\Grandma\Grandma-599864.onnx
+[INFO] Parameter 'walk_obstacle_height' is in lesson 'low' and has value 'Float: value=0.03'.
+[INFO] Grandma. Step: 630000. Time Elapsed: 1906.923 s. Mean Reward: 3.444. Std of Reward: 3.423. Training. ELO: 1285.429.
+[INFO] Grandma. Step: 660000. Time Elapsed: 1950.802 s. Mean Reward: 3.246. Std of Reward: 3.490. Training. ELO: 1283.584.
+[INFO] Grandma. Step: 690000. Time Elapsed: 2004.437 s. Mean Reward: 3.410. Std of Reward: 3.644. Training. ELO: 1282.466.
+[INFO] Grandma. Step: 720000. Time Elapsed: 2050.920 s. Mean Reward: 3.355. Std of Reward: 3.555. Training. ELO: 1284.152.
+[INFO] Grandma. Step: 750000. Time Elapsed: 2097.284 s. Mean Reward: 3.371. Std of Reward: 3.719. Training. ELO: 1284.786.
+[INFO] Grandma. Step: 780000. Time Elapsed: 2256.396 s. Mean Reward: 1.353. Std of Reward: 1.289. Training. ELO: 1285.753.
+[INFO] Exported Training/results\grandma_real02\Grandma\Grandma-799994.onnx
+[INFO] Grandma. Step: 810000. Time Elapsed: 2403.667 s. Mean Reward: 1.378. Std of Reward: 1.068. Training. ELO: 1289.001.
+[INFO] Grandma. Step: 840000. Time Elapsed: 2552.353 s. Mean Reward: 1.298. Std of Reward: 1.097. Training. ELO: 1292.868.
+[INFO] Grandma. Step: 870000. Time Elapsed: 2699.001 s. Mean Reward: 1.271. Std of Reward: 1.094. Training. ELO: 1293.317.
+[INFO] Grandma. Step: 900000. Time Elapsed: 2849.306 s. Mean Reward: 1.305. Std of Reward: 1.149. Training. ELO: 1294.730.
