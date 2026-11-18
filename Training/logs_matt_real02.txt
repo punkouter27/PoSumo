@@ -102,3 +102,7 @@
 [INFO] Matt. Step: 270000. Time Elapsed: 1245.816 s. Mean Reward: 4.782. Std of Reward: 3.127. Training. ELO: 1234.140.
 [INFO] Matt. Step: 300000. Time Elapsed: 1291.826 s. Mean Reward: 4.863. Std of Reward: 3.625. Training. ELO: 1234.606.
 [INFO] Matt. Step: 330000. Time Elapsed: 1334.772 s. Mean Reward: 5.628. Std of Reward: 3.148. Training. ELO: 1234.606.
+[INFO] Matt. Step: 360000. Time Elapsed: 1389.879 s. Mean Reward: 5.194. Std of Reward: 3.132. Training. ELO: 1234.606.
+[INFO] Parameter 'stand_assist' is in lesson 'unaided' and has value 'Float: value=0.0'.
+[INFO] Parameter 'obs_delay_max' is in lesson 'delayed' and has value 'Float: value=1'.
+[INFO] Parameter 'shove_impulse' is in lesson 'shoved' and has value 'Float: value=15'.
