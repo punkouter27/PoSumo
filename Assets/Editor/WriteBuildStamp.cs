@@ -25,6 +25,11 @@ namespace PoSumo.EditorTools
         {
             string stamp = System.DateTime.Now.ToString(PoSumo.Systems_BuildStamp.FORMAT,
                                                          CultureInfo.InvariantCulture);
+            // The WebGL page template prints v{PRODUCT_VERSION} bottom-right: same YYMMDD there.
+            if (report.summary.platform == BuildTarget.WebGL)
+            {
+                PlayerSettings.bundleVersion = stamp;
+            }
             File.WriteAllText(ASSET_PATH, stamp);
             AssetDatabase.ImportAsset(ASSET_PATH, ImportAssetOptions.ForceSynchronousImport);
             Debug.Log($"BUILD STAMP RESULT: {stamp} -> {ASSET_PATH}");
