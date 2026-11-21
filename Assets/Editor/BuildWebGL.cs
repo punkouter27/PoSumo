@@ -8,13 +8,14 @@ namespace PoSumo.EditorTools
 {
     /// <summary>
     /// The game in a browser: a WebGL player in Builds/WebGL, served from the Azure Static Web App
-    /// "posumo" (resource group PoSumo) by Tools/deploy_webgl.ps1. Menu PoSumo/Build WebGL (browser), or headless:
+    /// "posumo" (resource group PoSumo) through scripts/publish_webgl.ps1 (or scripts/deploy_webgl.ps1). Menu PoSumo/Build WebGL (browser), or headless:
     ///   Unity.exe -batchmode -quit -projectPath . -buildTarget WebGL -executeMethod PoSumo.EditorTools.BuildWebGL.Build
     /// The outcome is the "WEBGL BUILD RESULT:" log line (and the exit code in batch mode).
     ///
     /// Gzip with the decompression fallback: Static Web Apps does not send the Content-Encoding
     /// header a compressed Unity build otherwise needs, so the loader unpacks the files itself.
-    /// The canvas is 540 x 960, the 9:16 portrait the game is laid out for on the phone.
+    /// The page (Assets/WebGLTemplates/Po) sizes the canvas to the whole viewport below its top
+    /// bar, landscape or portrait; the 960 x 540 default only matters before the page's CSS applies.
     /// The MCP bridge's UNITY_MCP_* defines are stripped for the build, as for Android, so its
     /// runtime (and the NuGet closure behind it) stays out of the player.
     /// </summary>
@@ -30,8 +31,8 @@ namespace PoSumo.EditorTools
             string[] scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
             PlayerSettings.WebGL.decompressionFallback = true;
-            PlayerSettings.defaultWebScreenWidth = 540;
-            PlayerSettings.defaultWebScreenHeight = 960;
+            PlayerSettings.defaultWebScreenWidth = 960;
+            PlayerSettings.defaultWebScreenHeight = 540;
             PlayerSettings.WebGL.template = "PROJECT:Po";
 
             string defines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.WebGL);

@@ -7,7 +7,7 @@ tournament bracket until Sokol is trained.
 |---|---|
 | Brain | Sokol.onnx <- sokol_unique01 (Sokol-1674764.onnx, 1,674,764 steps, style scrambler) |
 | Body | Nick's, mass ×1.02, torso width ×1.03 |
-| Face | `Assets/Art/Faces/Sokol_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Sokol_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Sokol_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Sokol_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 100 Hz, tract 1.04) until real `Sokol_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Nick's body, so this fighter fights like a slightly

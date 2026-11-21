@@ -39,6 +39,7 @@ namespace PoSumo
         private float _rDrive = 0f;
         private float _rEdgeBrace = 0f;
         private float _pSlip = 0f, _pJerk2 = 0f;
+        private float _pJointTorque = 0f, _pJointVelocity = 0f, _pActionRate = 0f;
 
         /// Edge-brace window: within this many metres of the rim behind, metres.
         /// Checked against the quantity's range — it runs 2.275 -> 0 on every bout
@@ -73,7 +74,24 @@ namespace PoSumo
             _pJerk2 = character.jerk2Penalty;
             SheetSlipPenalty = _pSlip;
             SheetJerk2Penalty = _pJerk2;
+            _pJointTorque = SheetJointTorquePenalty = character.jointTorquePenalty;
+            _pJointVelocity = SheetJointVelocityPenalty = character.jointVelocityPenalty;
+            _pActionRate = SheetActionRatePenalty = character.actionRatePenalty;
         }
+
+        /// Training-run overrides for the three Po Game Standard penalties, read per
+        /// episode by Agent_Biped from the joint_torque_penalty /
+        /// joint_velocity_penalty / action_rate_penalty environment parameters.
+        public void OverridePenalties(float jointTorque, float jointVelocity, float actionRate)
+        {
+            _pJointTorque = jointTorque;
+            _pJointVelocity = jointVelocity;
+            _pActionRate = actionRate;
+        }
+
+        public float SheetJointTorquePenalty { get; private set; }
+        public float SheetJointVelocityPenalty { get; private set; }
+        public float SheetActionRatePenalty { get; private set; }
 
         /// Training-run overrides for the two smoothness costs, read per episode
         /// by Agent_Biped from the slip_penalty / jerk2_penalty environment
@@ -226,6 +244,15 @@ namespace PoSumo
             // second difference (a buzzing, alternating command).
             total += -ctx.Slip * _pSlip;
             total += -ctx.Jerk2 * _pJerk2;
+
+            // PO GAME STANDARD PENALTIES (2026-11-20), appended last for the same
+            // reason: 0 on every sheet, so a brain trained before them sees the same
+            // reward. Joint torque^2 is the torque the solver ACTUALLY applied (not
+            // the command), joint angular velocity^2 charges spinning limbs, and the
+            // action rate is the SQUARED command change (Jerk above is its L1 cousin).
+            total += -ctx.JointTorque2 * _pJointTorque;
+            total += -ctx.JointVelocity2 * _pJointVelocity;
+            total += -ctx.ActionRate2 * _pActionRate;
 
             return total;
         }

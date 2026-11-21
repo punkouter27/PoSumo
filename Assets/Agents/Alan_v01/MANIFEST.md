@@ -7,7 +7,7 @@ tournament bracket until Alan is trained.
 |---|---|
 | Brain | Alan.onnx <- alan_unique01 (Alan-1474901.onnx, 1,474,901 steps, style counter-puncher) |
 | Body | Matt's, mass ×0.98, torso width ×1.02 |
-| Face | `Assets/Art/Faces/Alan_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Alan_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Alan_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Alan_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 115 Hz, tract 0.98) until real `Alan_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Matt's body, so this fighter fights like a slightly

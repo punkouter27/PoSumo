@@ -16,7 +16,7 @@ namespace PoSumo.EditorTools
     /// on 2026-08-26 the Android build died in managed stripping with
     /// `Failed to resolve base type com.IvanMurzak.ReflectorNet.MethodWrapper for
     /// type com.IvanMurzak.McpPlugin.RunPrompt in assembly McpPlugin.dll`. That
-    /// exact failure is the one this project's CLAUDE.md warned would return after
+    /// exact failure is the one this project's docs/project-notes.md warned would return after
     /// an MCP core upgrade, and it did, twice in one afternoon.
     ///
     /// Nothing in the player wants these assemblies: the game's runtime code never

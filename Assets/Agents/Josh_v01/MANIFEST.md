@@ -7,7 +7,7 @@ tournament bracket until Josh is trained.
 |---|---|
 | Brain | Josh.onnx <- josh_unique01 (Josh-1574557.onnx, 1,574,557 steps, style opportunist) |
 | Body | Matt's, mass ×1.04, torso width ×1.03 |
-| Face | `Assets/Art/Faces/Josh_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Josh_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Josh_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Josh_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 105 Hz, tract 1.02) until real `Josh_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Matt's body, so this fighter fights like a slightly

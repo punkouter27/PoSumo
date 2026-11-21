@@ -1558,11 +1558,10 @@ namespace PoSumo
             // system-back handler as well as the desktop shortcut. Update still runs
             // at timeScale 0, so it can also un-pause.
             if (BackPressed()) HandleBackKey();
-            // TAB opens the fighter debug panel — the same panel, through the same
-            // Toggle, as the DBG chip in the bottom-left corner. Read here rather
-            // than in the panel so there is still exactly one place in the arena
-            // that reads the keyboard.
-            if (DebugKeyPressed() && _agentDebug != null) _agentDebug.Toggle();
+            // TAB belongs to the diagnostics overlay (Systems_DiagOverlay, the Po
+            // Game Standard's FPS / reward / latency / curriculum panel) since
+            // 2026-11-20. The fighter debug panel keeps F3 (HandleHotkeys) and the
+            // green telemetry line in the bottom-left corner.
             HandleHotkeys();
         }
 
@@ -1586,15 +1585,6 @@ namespace PoSumo
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) pan.x += 1f;
                 if (pan.sqrMagnitude > 0f) Systems_CameraFollow.AddFreeOffset(pan.normalized * (6f * Time.unscaledDeltaTime));
             }
-#endif
-        }
-
-        private bool DebugKeyPressed()
-        {
-#if ENABLE_INPUT_SYSTEM
-            return Keyboard.current != null && Keyboard.current.tabKey.wasPressedThisFrame;
-#else
-            return false;
 #endif
         }
 

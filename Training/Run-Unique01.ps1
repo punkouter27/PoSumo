@@ -7,7 +7,7 @@
     Every fighter trains under its OWN behavior name and physique, in its donor's
     training scene, with `--env-args -posumoFighter <Name>` (Systems_TrainingFighter).
     Recipes: Training/configs/<Name>Unique01.yaml, written by
-    Tools/make_unique01_configs.py. Donors: Training/unique01_roster.csv.
+    scripts/make_unique01_configs.py. Donors: Training/unique01_roster.csv.
 
     Order of work, all with the Unity Editor CLOSED (AGENTS.md section 4: close it for runs
     over 30 min; the env builds below also need the project lock):
@@ -35,7 +35,7 @@ Set-Location $repoRoot
 $learnExe = Join-Path $repoRoot 'Training/venv/Scripts/mlagents-learn.exe'
 $venvPython = Join-Path $repoRoot 'Training/venv/Scripts/python.exe'
 $unityExe = 'C:/Program Files/Unity/Hub/Editor/6000.6.0f1/Editor/Unity.exe'
-$statusFile = Join-Path $repoRoot 'DOCS/20261110/unique01_status.json'
+$statusFile = Join-Path $repoRoot 'docs/20261110/unique01_status.json'
 
 $roster = Import-Csv (Join-Path $repoRoot 'Training/unique01_roster.csv')
 if ($Fighters) { $roster = $roster | Where-Object { $Fighters -contains $_.fighter } }
@@ -97,7 +97,7 @@ foreach ($row in $roster) {
     $dst = "Training/results/$($name.ToLowerInvariant())_uniqueinit/$name"
     New-Item -ItemType Directory -Force -Path $dst | Out-Null
     Copy-Item -LiteralPath $src -Destination "$dst/checkpoint.pt" -Force
-    & $venvPython Tools/preflight.py "Training/configs/${name}Unique01.yaml" --run-id $run --initialize-from "$($name.ToLowerInvariant())_uniqueinit" --env "Builds/${donor}Env/${donor}Env.exe"
+    & $venvPython scripts/preflight.py "Training/configs/${name}Unique01.yaml" --run-id $run --initialize-from "$($name.ToLowerInvariant())_uniqueinit" --env "Builds/${donor}Env/${donor}Env.exe"
     if ($LASTEXITCODE -ne 0) { throw "preflight failed for $name ($run)" }
 }
 
@@ -209,7 +209,7 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
     }
     # The staging dirs hold weights, not history: out of the logdir once used.
     foreach ($r in $live) { Remove-Item -Recurse -Force "Training/results/$($r.name.ToLowerInvariant())_uniqueinit" -ErrorAction SilentlyContinue }
-    & $venvPython Tools/generate_training_report.py
+    & $venvPython scripts/generate_training_report.py
 }
 
 $status.finishedLocal = (Get-Date).ToString('s')

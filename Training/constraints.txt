@@ -1,6 +1,6 @@
 # Pins for the PoSumo training venv. Pass with `-c Training/constraints.txt` on
 # EVERY pip install into Training/venv, so adding one package can never drag a
-# pinned one with it. CLAUDE.md is the authority on why each of these is pinned;
+# pinned one with it. docs/project-notes.md is the authority on why each of these is pinned;
 # the short version:
 #
 #   torch 2.5.1      2.6+ breaks ONNX checkpoint export. ml-agents itself allows

@@ -70,7 +70,7 @@ namespace PoSumo
         // the colliders to touch — it only decides when the task flag flips — and at
         // 0.6 m of surface separation the two men read as having met in the middle.
         // Fixing the gait itself is a training problem with four failed runs behind
-        // it (see CLAUDE.md); this makes the presentation work with the gait we have.
+        // it (see docs/project-notes.md); this makes the presentation work with the gait we have.
         public float walkInTouchGap = 0.6f;
         [Tooltip("Hard cap on the walk-in, in seconds. 30 since 2026-08-26 (was 9): a pair that is still edging together is left to edge together, and on the cap — or after 4 s without 8 cm of new closing — the fight brains simply take over where they stand. Nothing is parked or re-counted any more.")]
         public float walkInTimeout = 30f;

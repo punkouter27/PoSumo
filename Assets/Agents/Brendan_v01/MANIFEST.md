@@ -7,7 +7,7 @@ tournament bracket until Brendan is trained.
 |---|---|
 | Brain | Brendan.onnx <- brendan_unique01 (Brendan-1599686.onnx, 1,599,686 steps, style survivor) |
 | Body | Nick's, mass ×1.03, torso width ×1.02 |
-| Face | `Assets/Art/Faces/Brendan_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Brendan_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Brendan_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Brendan_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 95 Hz, tract 1.06) until real `Brendan_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Nick's body, so this fighter fights like a slightly

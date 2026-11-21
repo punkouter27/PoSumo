@@ -40,7 +40,7 @@ Neutral face. `Systems_FighterVoice` decides every emotional moment and announce
   real voice lines as variant 1 of Happy / Hurt (was Sad) / Insult at every level. Angry is
   fully procedural.
 - Placeholders: one FAKE right-facing profile Neutral each (cut from a front photo by
-  `Tools/make_placeholder_faces.py` — a true side view needs a generative model), every
+  `scripts/make_placeholder_faces.py` — a true side view needs a generative model), every
   expression and every voice line procedural.
 
 ## Clothing (visual only)

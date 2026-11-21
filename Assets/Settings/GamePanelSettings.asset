@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 19101, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: GamePanelSettings
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.PanelSettings
-  themeUss: {fileID: -4733365628477956816, guid: 3c3937ea58c441ab93fc1e0f7ec5fa46, type: 3}
+  themeUss: {fileID: -4733365628477956816, guid: 9b2bbc1f94f0ac3478e8fb8c19960f52, type: 3}
   m_DisableNoThemeWarning: 0
   m_TargetTexture: {fileID: 0}
   m_RenderMode: 0
@@ -25,7 +25,7 @@ MonoBehaviour:
   m_ReferenceDpi: 96
   m_FallbackDpi: 96
   m_ReferenceResolution: {x: 720, y: 1280}
-  m_ScreenMatchMode: 0
+  m_ScreenMatchMode: 2
   m_Match: 0
   m_SortingOrder: 0
   m_TargetDisplay: 0

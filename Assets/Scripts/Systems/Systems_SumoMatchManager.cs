@@ -52,7 +52,7 @@ namespace PoSumo
         // tuning asset even though a field of the same name exists there. The
         // GAME has NO clock any more
         // (GameTuning.roundTimeoutSeconds is 0 and the timeout-decision path was
-        // deleted 2026-08-26) — this is a deliberate divergence, see CLAUDE.md.
+        // deleted 2026-08-26) — this is a deliberate divergence, see docs/project-notes.md.
         // Copying the asset's 0 here would end every episode on its first step.
         // A training episode still needs a bound so a stalemate is interrupted
         // (a draw, not a terminal) rather than running forever; the shrinking mat

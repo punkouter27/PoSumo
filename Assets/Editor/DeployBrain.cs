@@ -17,7 +17,7 @@ namespace PoSumo.EditorTools
 
         // ---- Graduation gate (AGENTS.md rule 4, 2026-11-10) -------------------
         //
-        // A run's brain is exported to the game only when Tools/graduation_gate.py
+        // A run's brain is exported to the game only when scripts/graduation_gate.py
         // has written a PASSING GATE.json into that run's directory: 100 straight
         // successful episodes and no NaN anywhere. Without one the deploy is
         // REFUSED with a DEPLOY RESULT line saying why.
@@ -63,7 +63,7 @@ namespace PoSumo.EditorTools
             if (!File.Exists(gate))
             {
                 return $"no GATE.json in {runDir} - run Training/venv/Scripts/python.exe " +
-                       $"Tools/graduation_gate.py {runDir} --behavior <Name>";
+                       $"scripts/graduation_gate.py {runDir} --behavior <Name>";
             }
             string json = File.ReadAllText(gate);
             if (System.Text.RegularExpressions.Regex.IsMatch(json, @"""passed""\s*:\s*true")) return null;

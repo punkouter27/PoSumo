@@ -7,7 +7,7 @@ tournament bracket until Tong is trained.
 |---|---|
 | Brain | Tong.onnx <- tong_unique01 (Tong-1774987.onnx, 1,774,987 steps, style quick learner) |
 | Body | Matt's, mass ×1.03, torso width ×0.98 |
-| Face | `Assets/Art/Faces/Tong_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Tong_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Tong_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Tong_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 300 Hz, tract 0.70) until real `Tong_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Matt's body, so this fighter fights like a slightly

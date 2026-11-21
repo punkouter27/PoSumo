@@ -1,6 +1,6 @@
 # Grandma REAL 01 - created 2026-11-10. The "realism" pass: all ten options of the
 # 2026-11-10 list that need a training run, staged as ONE curriculum.
-# DOCS/20261110/real01.md lists what each change touches and why.
+# docs/20261110/real01.md lists what each change touches and why.
 #
 # WHAT CHANGES FOR THE POLICY
 #  * INPUT +2 (53 -> 55): balance observations - centre of mass and capture point
@@ -26,11 +26,11 @@
 # its mean reward mixes two schools and cannot say when either is ready.
 #
 # WARM START: widen the shipped 53-input brain by two zero-weighted columns,
-#   Training/venv/Scripts/python.exe Tools/onnx_warmstart.py Assets/Agents/Grandma_v01/Grandma.onnx \
+#   Training/venv/Scripts/python.exe scripts/onnx_warmstart.py Assets/Agents/Grandma_v01/Grandma.onnx \
 #       Training/results/grandma_realinit/Grandma/checkpoint.pt --new-obs 2
 # then preflight with --widened. Judge the fight on ELO SHAPE from 1200, the walk
 # on Gate/WalkFailures and Realism/*. Export only after
-#   Tools/graduation_gate.py Training/results/grandma_real01 --behavior Grandma
+#   scripts/graduation_gate.py Training/results/grandma_real01 --behavior Grandma
 # passes (DeployBrain refuses otherwise).
 #
 # Launch (Editor CLOSED, AGENTS.md rule 4):

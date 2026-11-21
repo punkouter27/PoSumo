@@ -6,9 +6,9 @@
 # Changes vs Real01: short run (1.2M), assist fades at 30% progress, bales capped at
 # 3 cm, full platform from the start. Matt warm-starts from matt_real01 (55 obs);
 # Grandma/Nick/Kim from <name>_realinit (shipped 53-obs brain widened +2 by
-# Tools/onnx_warmstart.py --new-obs 2).
+# scripts/onnx_warmstart.py --new-obs 2).
 # Judge: ELO shape (fight), Gate/WalkFailures (walk); deploy only past graduation_gate.
-# Outcome: DOCS/20261118/real02.md.
+# Outcome: docs/20261118/real02.md.
 
 env_settings:
   env_args: [-posumoBalanceObs]
@@ -54,6 +54,11 @@ environment_parameters:
   walk_slip_penalty: 0.002
   jerk2_penalty: 0.0003
   walk_jerk2_penalty: 0.0003
+  # Po Game Standard penalties (2026-11-20). Not in any shipped brain's training; values are
+  # first guesses scaled like effort/jerk (each term's mean is <= 1 per motor) - measure before trusting.
+  joint_torque_penalty: 0.001     # mean (applied motor torque / cap)^2 over the powered joints
+  joint_velocity_penalty: 0.0005  # mean (joint speed / 600 deg/s)^2
+  action_rate_penalty: 0.0005     # mean (a_t - a_{t-1})^2 over the motors
   mass_jitter: 0.05
   damping_jitter: 0.2
   walk_obstacle_count: 2

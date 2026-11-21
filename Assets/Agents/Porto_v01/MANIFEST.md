@@ -7,7 +7,7 @@ tournament bracket until Porto is trained.
 |---|---|
 | Brain | Porto.onnx <- porto_unique01 (Porto-1549860.onnx, 1,549,860 steps, style home-mat specialist) |
 | Body | Grandma's, mass ×1.04, torso width ×1.03 |
-| Face | `Assets/Art/Faces/Porto_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Porto_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Porto_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Porto_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 100 Hz, tract 1.03) until real `Porto_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Grandma's body, so this fighter fights like a slightly

@@ -7,7 +7,7 @@ tournament bracket until Baily is trained.
 |---|---|
 | Brain | Baily.onnx <- baily_unique01 (Baily-1674908.onnx, 1,674,908 steps, style dancer) |
 | Body | Grandma's, mass ×1.02, torso width ×1.00 |
-| Face | `Assets/Art/Faces/Baily_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Baily_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Baily_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Baily_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 205 Hz, tract 0.85) until real `Baily_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Grandma's body, so this fighter fights like a slightly

@@ -52,7 +52,7 @@ namespace PoSumo
         // right shape for a handheld scale — a phone needs a high floor far more
         // than it needs a dramatic range.
         //
-        // Verified after the change with Tools/portrait_check.py at 1080x1920,
+        // Verified after the change with scripts/portrait_check.py at 1080x1920,
         // 1080x2400 and 1200x1600; re-run it before moving any of these again.
         public const int FONT_MICRO = 19;   // footnotes, table footers
         public const int FONT_SMALL = 21;   // stat captions, hints

@@ -59,7 +59,7 @@ param(
     # overloading it would make one switch mean two unrelated destructive things.
     [switch]$AllowSuperseded,
 
-    # The -InitializeFrom trunk was widened with Tools/onnx_warmstart.py --new-obs.
+    # The -InitializeFrom trunk was widened with scripts/onnx_warmstart.py --new-obs.
     [switch]$WidenedTrunk
 )
 
@@ -159,9 +159,9 @@ if ($InitializeFrom) {
     $learnArgs += "--initialize-from=$InitializeFrom"
 }
 
-# PREFLIGHT (2026-11-10): see Tools/preflight.py. Refuses on a hard mismatch and
+# PREFLIGHT (2026-11-10): see scripts/preflight.py. Refuses on a hard mismatch and
 # writes Training/stamps/<run>.json with the interface and physics versions.
-$preArgs = @((Join-Path $repoRoot 'Tools/preflight.py'), $Config, "--run-id=$RunId",
+$preArgs = @((Join-Path $repoRoot 'scripts/preflight.py'), $Config, "--run-id=$RunId",
              "--env=Builds/$EnvName/$EnvName.exe")
 if ($InitializeFrom) { $preArgs += "--initialize-from=$InitializeFrom" }
 if ($WidenedTrunk) { $preArgs += '--widened' }

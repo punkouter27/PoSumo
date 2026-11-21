@@ -34,7 +34,7 @@ namespace PoSumo
 
         /// Term weights. Dominance leads because it is the slow, cumulative
         /// read; the edge term is nearly as strong because the mat decides most
-        /// rounds here — see the 17-round measurement in CLAUDE.md.
+        /// rounds here — see the 17-round measurement in docs/project-notes.md.
         private const float W_DOMINANCE = 1.6f;
         private const float W_STAMINA = 0.9f;
         private const float W_EDGE = 1.1f;

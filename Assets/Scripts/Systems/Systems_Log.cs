@@ -6,7 +6,7 @@ namespace PoSumo
     /// `WALK-IN RESULT:`, `[TOURNAMENT]`, `TELEMETRY RESULT:`.
     ///
     /// These lines are not debug leftovers: `MatchTestHarness` and the whole
-    /// verification flow in `CLAUDE.md` read them back out of the console, which is
+    /// verification flow in `docs/project-notes.md` read them back out of the console, which is
     /// why they cannot simply be deleted to satisfy the "no Debug.Log in
     /// production" rule in `.claude/rules/performance.md`. They are gated instead.
     ///

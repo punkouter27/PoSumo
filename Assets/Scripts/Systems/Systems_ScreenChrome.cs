@@ -4,13 +4,18 @@ using UnityEngine.UIElements;
 
 namespace PoSumo
 {
-    /// The five fixed corners of every screen in the game, in one place.
+    /// The fixed corners of every screen in the game, in one place.
     ///
-    ///     top-left ...... the game's title
-    ///     top-centre .... live frame rate; + physics step count while TAB debug is open
+    ///     top-left ...... (free: the DIAG button of Systems_DiagOverlay sits here)
+    ///     top-centre .... live frame rate; + physics step count while the debug panel is open
     ///     top-right ..... the menu button (settings sheet)
     ///     bottom-left ... the agent telemetry stream: one live line, tap = debug panel
-    ///     bottom-right .. the build date, YYMMDD (Systems_BuildStamp)
+    ///
+    /// 2026-11-20 (Po Game Standard): the title (top-left) and the build date
+    /// (bottom-right) are no longer drawn in the game. The web page draws the name
+    /// in its top bar and the vYYMMDD stamp in its footer, OUTSIDE the canvas, so
+    /// they can never collide with the HUD; inside the game both stay in the
+    /// settings sheet's DISPLAY tab ("BUILD").
     ///
     /// 2026-11-10 HUD-sheet pass: BL was a "DBG" chip and BR was "v1.0.4". The
     /// UU_AGENT rules put a build DATE bottom-right and agent telemetry
@@ -130,31 +135,12 @@ namespace PoSumo
             _onDebug = onDebug;
 
             // Named for the corner-contract audit (HudOverflowAudit.Corners): the
-            // gate asserts exactly these five children exist, in one layer, in
-            // the right corners — TL title | TC FPS | TR menu | BL debug |
-            // BR version — so the anchor rule is a PASS/FAIL check rather than a
-            // convention someone has to remember. A sixth child is a finding too:
-            // nothing else may draw into a corner.
+            // gate asserts exactly these three children exist, in one layer, in
+            // the right corners — TC FPS | TR menu | BL debug — so the anchor
+            // rule is a PASS/FAIL check rather than a convention someone has to
+            // remember. A fourth child is a finding too: nothing else may draw
+            // into a corner.
             layer.name = "ScreenChromeLayer";
-
-            // TOP-LEFT — the game's title.
-            //
-            // Application.productName rather than a literal, for the same reason
-            // the version stamp reads Application.version: both are PlayerSettings
-            // values that ship with the build, and a constant here would be free to
-            // drift away from the name on the launcher icon.
-            //
-            // Given the same TOUCH_MIN height as the two buttons and centred within
-            // it, so the three top items share one optical band instead of the text
-            // sitting proud of the chips beside it.
-            Label title = Systems_UiKit.Text(Application.productName,
-                                             Systems_UiKit.FONT_BODY,
-                                             Systems_UiKit.Gold, true);
-            title.name = "ChromeTitle";
-            title.style.textShadow = Systems_UiKit.Outline;
-            Corner(title, layer, true, true);
-            title.style.height = Systems_UiKit.TOUCH_MIN;
-            title.style.unityTextAlign = TextAnchor.MiddleLeft;
 
             // TOP-CENTRE — frame rate.
             //
@@ -192,7 +178,7 @@ namespace PoSumo
             // (bracket), refreshed with the frame rate. When a debug panel exists
             // the line IS its button: a phone has no TAB key, and the old "DBG"
             // chip was the only on-screen way in. Still named DebugToggle, because
-            // HudOverflowAudit.Corners asserts the five names.
+            // HudOverflowAudit.Corners asserts the corner names.
             if (onDebug != null)
             {
                 _debugButton = Systems_UiKit.StreamButton(InvokeDebug);
@@ -210,20 +196,6 @@ namespace PoSumo
                 _streamLabel.style.maxWidth = Length.Percent(70);
                 Corner(_streamLabel, layer, true, false);
             }
-
-            // BOTTOM-RIGHT — the build date, YYMMDD.
-            //
-            // Written into the player at build time (Systems_BuildStamp), so two
-            // sideloaded installs from different days are told apart at a
-            // glance. The version string moved to the settings sheet.
-            Label version = Systems_UiKit.Text(Systems_BuildStamp.Date,
-                                               Systems_UiKit.FONT_MICRO,
-                                               Systems_UiKit.TextLow);
-            version.name = "ChromeVersion";
-            version.style.textShadow = Systems_UiKit.Outline;
-            version.style.height = Systems_UiKit.TOUCH_MIN;
-            version.style.unityTextAlign = TextAnchor.MiddleRight;
-            Corner(version, layer, false, false);
         }
 
         /// Pins an element to one corner of the layer. Offsets resolve against the

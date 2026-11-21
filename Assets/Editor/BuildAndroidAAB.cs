@@ -13,8 +13,9 @@ namespace PoSumo.EditorTools
     ///
     /// The upload keystore and its password live OUTSIDE the repo so neither can
     /// be committed:
-    ///     C:/Users/punko/OneDrive/VAULT/_CODE/posumo-upload.jks
-    ///     C:/Users/punko/OneDrive/VAULT/_CODE/posumo-upload.pass  (password, one line)
+    ///     %USERPROFILE%/OneDrive/VAULT/_CODE/posumo-upload.jks
+    ///     %USERPROFILE%/OneDrive/VAULT/_CODE/posumo-upload.pass  (password, one line)
+    /// (POSUMO_KEYSTORE overrides the .jks path; no absolute path is committed.)
     ///
     /// The folder moved from Downloads/PoSumo-Release/ to the OneDrive vault on
     /// 2026-08-26 — that is where the files actually were, and a copy would have
@@ -34,7 +35,11 @@ namespace PoSumo.EditorTools
         private const string APP_ID = "com.punkoutersoftware.posumo";
         // internal, not private: BuildAndroid signs its test APK with the same
         // upload key. One copy of these facts, so the two builders cannot diverge.
-        internal const string KEYSTORE_PATH = "C:/Users/punko/OneDrive/VAULT/_CODE/posumo-upload.jks";
+        internal static readonly string KEYSTORE_PATH =
+            !string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("POSUMO_KEYSTORE"))
+                ? System.Environment.GetEnvironmentVariable("POSUMO_KEYSTORE")
+                : Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile),
+                               "OneDrive", "VAULT", "_CODE", "posumo-upload.jks").Replace('\\', '/');
         internal const string KEYALIAS = "posumo-upload";
 
         // Google Play requires new apps and updates to target API 36 from 2026-08-31.

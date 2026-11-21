@@ -56,14 +56,25 @@ namespace PoSumo
         /// Loaded foot slip this step, sum over both feet of load share x |vx|
         /// (m/s). See Reward_FootSlip.
         public readonly float Slip;
+        /// Mean over the powered joints of (applied motor torque / torque cap)^2.
+        public readonly float JointTorque2;
+        /// Mean over the powered joints of (joint angular speed / 600 deg/s)^2.
+        public readonly float JointVelocity2;
+        /// Mean over the motors of the squared action change, (a_t - a_{t-1})^2.
+        public readonly float ActionRate2;
 
         public Reward_Context(float facingSign, float arenaGroundY, Vector2 torsoPosition,
                               Vector2 torsoVelocity, float lastTorsoY, float upright,
                               float kneeBend, float energy, float effort, float jerk,
                               float pendingImpact, bool isDown, bool hasOpponent,
                               float opponentX, float edgeBehind = float.MaxValue,
-                              float jerk2 = 0f, float slip = 0f)
+                              float jerk2 = 0f, float slip = 0f,
+                              float jointTorque2 = 0f, float jointVelocity2 = 0f,
+                              float actionRate2 = 0f)
         {
+            JointTorque2 = jointTorque2;
+            JointVelocity2 = jointVelocity2;
+            ActionRate2 = actionRate2;
             EdgeBehind = edgeBehind;
             Jerk2 = jerk2;
             Slip = slip;

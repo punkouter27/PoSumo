@@ -23,9 +23,18 @@ namespace PoSumo.EditorTools
 
         public void OnPreprocessBuild(BuildReport report)
         {
-            string stamp = System.DateTime.Now.ToString(PoSumo.Systems_BuildStamp.FORMAT,
-                                                         CultureInfo.InvariantCulture);
-            // The WebGL page template prints v{PRODUCT_VERSION} bottom-right: same YYMMDD there.
+            // ONE stamp: scripts/publish_webgl.ps1 computes the UTC yyMMdd once and
+            // hands it over as PO_BUILD_VERSION, so the player, index.html and
+            // diag.html all carry the same value. A menu build without the script
+            // falls back to today's UTC date.
+            string stamp = System.Environment.GetEnvironmentVariable("PO_BUILD_VERSION");
+            if (string.IsNullOrWhiteSpace(stamp))
+            {
+                stamp = System.DateTime.UtcNow.ToString(PoSumo.Systems_BuildStamp.FORMAT,
+                                                        CultureInfo.InvariantCulture);
+            }
+            stamp = stamp.Trim();
+            // The WebGL page template prints v{PRODUCT_VERSION} in its footer: same YYMMDD there.
             if (report.summary.platform == BuildTarget.WebGL)
             {
                 PlayerSettings.bundleVersion = stamp;

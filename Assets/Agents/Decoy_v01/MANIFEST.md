@@ -7,7 +7,7 @@ tournament bracket until Decoy is trained.
 |---|---|
 | Brain | Decoy.onnx <- decoy_unique01 (Decoy-1649523.onnx, 1,649,523 steps, style feint artist) |
 | Body | Nick's, mass ×0.98, torso width ×0.98 |
-| Face | `Assets/Art/Faces/Decoy_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Decoy_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Decoy_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Decoy_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 120 Hz, tract 0.97) until real `Decoy_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Nick's body, so this fighter fights like a slightly

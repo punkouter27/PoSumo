@@ -688,6 +688,8 @@ namespace PoSumo
 
         public override void CollectObservations(VectorSensor sensor)
         {
+            // This step runs a policy: the TAB overlay's inference latency samples it.
+            Systems_InferenceClock.NoteDecisionRequested();
             BeginObservationGuard();
             _obsCount = 0;
             Vector2 tp = Torso.position;
@@ -926,6 +928,7 @@ namespace PoSumo
 
         public override void OnActionReceived(ActionBuffers actions)
         {
+            Systems_InferenceClock.NoteActed();
             if (!actionsEnabled)
             {
                 for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
@@ -938,7 +941,7 @@ namespace PoSumo
                 return;
             }
             var a = actions.ContinuousActions;
-            float energy = 0f, jerk = 0f, effort = 0f, jerk2 = 0f;
+            float energy = 0f, jerk = 0f, effort = 0f, jerk2 = 0f, actionRate2 = 0f;
             for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
             {
                 float raw = a[actionIndex];
@@ -949,6 +952,8 @@ namespace PoSumo
                 energy += Mathf.Abs(clamped);
                 effort += clamped * clamped;
                 jerk += Mathf.Abs(clamped - _prevActions[actionIndex]);
+                float delta = clamped - _prevActions[actionIndex];
+                actionRate2 += delta * delta;
                 // Second difference: a(t) - 2a(t-1) + a(t-2). Large for a command
                 // that flips back and forth, ~0 for one ramping smoothly.
                 if (_actionHistory >= 2)
@@ -969,6 +974,7 @@ namespace PoSumo
             // of the 13 motors sat above |0.9| with a mean magnitude of 0.75-0.91.
             effort /= MotorCount;
             jerk /= MotorCount;
+            actionRate2 /= MotorCount;
             LastLungeIntent = Mathf.Clamp(a[LUNGE_ACTION], -1f, 1f);
             _b.ClampAngularVelocities();
 
@@ -1016,7 +1022,7 @@ namespace PoSumo
                 Fs, arenaGroundY, Torso.position, Torso.linearVelocity, _lastTorsoY,
                 upright, KneeBendFactor(), energy, effort, jerk, _pendingImpact,
                 IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f, edgeBehind,
-                jerk2, slip);
+                jerk2, slip, JointTorque2(), JointVelocity2(), actionRate2);
 
             if (mode == Mode.Walk && _gettingUp)
             {
@@ -1090,6 +1096,37 @@ namespace PoSumo
 
         private Systems_WalkObstacles _obstacles;
 
+        /// Mean over the powered joints of (applied motor torque / cap)^2, from the
+        /// torque the solver actually applied last step (Agent_BipedBody.JointLoad01).
+        private float JointTorque2()
+        {
+            int count = Agent_BipedBody.JointCount, powered = 0;
+            float sum = 0f;
+            for (int j = 0; j < count; j++)
+            {
+                if (!Agent_BipedBody.JointPowered(j)) continue;
+                float load = _b.JointLoad01(j);
+                sum += load * load;
+                powered++;
+            }
+            return powered > 0 ? San(sum / powered) : 0f;
+        }
+
+        /// Mean over the powered joints of (joint angular speed / 600 deg/s)^2.
+        private float JointVelocity2()
+        {
+            int count = Agent_BipedBody.JointCount, powered = 0;
+            float sum = 0f;
+            for (int j = 0; j < count; j++)
+            {
+                if (!Agent_BipedBody.JointPowered(j)) continue;
+                float speed = _b.JointSpeedNorm(j);
+                sum += speed * speed;
+                powered++;
+            }
+            return powered > 0 ? San(sum / powered) : 0f;
+        }
+
         private void BeginTrainingEpisode()
         {
             _obsDelay = 0;
@@ -1102,6 +1139,10 @@ namespace PoSumo
             _sumoObjective.OverrideSmoothness(
                 ep.GetWithDefault("slip_penalty", _sumoObjective.SheetSlipPenalty),
                 ep.GetWithDefault("jerk2_penalty", _sumoObjective.SheetJerk2Penalty));
+            _sumoObjective.OverridePenalties(
+                ep.GetWithDefault("joint_torque_penalty", _sumoObjective.SheetJointTorquePenalty),
+                ep.GetWithDefault("joint_velocity_penalty", _sumoObjective.SheetJointVelocityPenalty),
+                ep.GetWithDefault("action_rate_penalty", _sumoObjective.SheetActionRatePenalty));
             _walkObjective.OverrideSmoothness(
                 ep.GetWithDefault("walk_slip_penalty", _walkObjective.SheetSlipPenalty),
                 ep.GetWithDefault("walk_jerk2_penalty", _walkObjective.SheetJerk2Penalty));
@@ -1158,7 +1199,7 @@ namespace PoSumo
         //
         // Success is the school's own terminal: a walker graduating, a wrestler
         // winning the round (Systems_SumoMatchManager calls NoteEpisodeOutcome). A
-        // timeout, a draw or a fall is a failure. Tools/graduation_gate.py reads
+        // timeout, a draw or a fall is a failure. scripts/graduation_gate.py reads
         // the two Gate series and passes a run only when the trailing windows hold
         // at least 100 episodes with zero failures: the 100-straight-episodes rule.
         private const string STAT_HIGH_FREQ = "Realism/HighFreqShare";

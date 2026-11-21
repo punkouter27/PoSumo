@@ -1296,7 +1296,7 @@ namespace PoSumo
         /// The head is NOT a separate body: it is a compound CircleCollider2D and a
         /// sprite parented to Chest, with its 6 kg folded into Chest's 13. Giving it
         /// a real rigidbody and neck hinge up front would redistribute mass on every
-        /// fighter and invalidate all eight trained brains — CLAUDE.md is explicit
+        /// fighter and invalidate all eight trained brains — docs/project-notes.md is explicit
         /// that changing mass does that.
         ///
         /// So the split happens only at the moment of decapitation: an intact
@@ -1798,7 +1798,7 @@ namespace PoSumo
         ///
         /// So this does not pay the fighter to stand. It makes standing cheaper, by
         /// supplying part of the postural tone a real trunk has and this ragdoll
-        /// does not. `CLAUDE.md` nominates exactly this after gait01: "a stability
+        /// does not. `docs/project-notes.md` nominates exactly this after gait01: "a stability
         /// aid the policy cannot opt out of (a torso-height constraint enforced in
         /// physics rather than paid for in reward)".
         ///

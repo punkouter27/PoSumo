@@ -100,6 +100,12 @@ namespace PoSumo
         public float slipPenalty = 0f;
         [Tooltip("Per-step cost of the SECOND difference of the motor commands, mean |a(t) - 2a(t-1) + a(t-2)|. jerkPenalty charges how much a command changes; this charges how much the change changes, which is what a buzzing, alternating command looks like. 0 = off. Override: jerk2_penalty environment parameter.")]
         public float jerk2Penalty = 0f;
+        [Tooltip("Per-step cost of JOINT TORQUE squared: mean over the powered joints of (motor torque the solver applied / that joint's torque cap)^2. 0 = off (every brain before 2026-11-20). Override: joint_torque_penalty environment parameter.")]
+        public float jointTorquePenalty = 0f;
+        [Tooltip("Per-step cost of JOINT ANGULAR VELOCITY squared: mean over the powered joints of (joint speed / 600 deg/s)^2. 0 = off (every brain before 2026-11-20). Override: joint_velocity_penalty environment parameter.")]
+        public float jointVelocityPenalty = 0f;
+        [Tooltip("Per-step cost of the ACTION RATE squared: mean over the motors of (a_t - a_{t-1})^2. jerkPenalty is the L1 version of the same change. 0 = off (every brain before 2026-11-20). Override: action_rate_penalty environment parameter.")]
+        public float actionRatePenalty = 0f;
         [Range(0f, 1f)]
         [Tooltip("Fraction of movement rewards earned with straight legs; deep stance earns 100%.")]
         public float straightLegEarnFraction = 0.3f;

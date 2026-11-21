@@ -7,7 +7,7 @@ tournament bracket until Maya is trained.
 |---|---|
 | Brain | Maya.onnx <- maya_unique01 (Maya-1549964.onnx, 1,549,964 steps, style technician) |
 | Body | Grandma's, mass ×0.97, torso width ×0.97 |
-| Face | `Assets/Art/Faces/Maya_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Maya_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Maya_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Maya_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 310 Hz, tract 0.70) until real `Maya_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Grandma's body, so this fighter fights like a slightly

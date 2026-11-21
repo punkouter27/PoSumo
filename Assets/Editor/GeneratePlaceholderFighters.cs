@@ -26,7 +26,7 @@ namespace PoSumo.EditorTools
     ///   * a small body change (+-4% mass / width) so it is not a carbon copy, kept
     ///     small because the borrowed policy was fitted to the donor's physique.
     ///
-    /// They are RL fighters, so the "no heuristic fighter" rule (CLAUDE.md,
+    /// They are RL fighters, so the "no heuristic fighter" rule (docs/project-notes.md,
     /// 2026-10-04) holds. To promote one to a real fighter: train it, deploy its
     /// own .onnx to its folder, and clear `borrowedBrainFrom`.
     ///
@@ -37,7 +37,7 @@ namespace PoSumo.EditorTools
     ///   * gives the four trained fighters the voice identities the old WAV
     ///     generator used, if they have none yet.
     ///
-    /// Face art comes from `python Tools/make_placeholder_faces.py` (run first).
+    /// Face art comes from `python scripts/make_placeholder_faces.py` (run first).
     public static class GeneratePlaceholderFighters
     {
         private const string AGENTS_DIR = "Assets/Agents";
@@ -203,7 +203,7 @@ namespace PoSumo.EditorTools
             WriteManifest(folder, spec, donor);
             report.AppendLine($"  {(created ? "created" : "updated")} {spec.Name} (brain {spec.Donor}, " +
                               $"mass x{character.massScale:F2}, width x{character.widthScale:F2}" +
-                              (character.headSprite == null ? ", NO FACE — run Tools/make_placeholder_faces.py" : "") + ")");
+                              (character.headSprite == null ? ", NO FACE — run scripts/make_placeholder_faces.py" : "") + ")");
         }
 
         private static void WriteManifest(string folder, Spec spec, Agent_CharacterDefinition donor)
@@ -218,7 +218,7 @@ tournament bracket until {spec.Name} is trained.
 |---|---|
 | Brain | **borrowed** from **{spec.Donor}** (`{AssetDatabase.GetAssetPath(donor.inferenceModel)}`) |
 | Body | {spec.Donor}'s, mass ×{1f + spec.MassTweak:F2}, torso width ×{1f + spec.WidthTweak:F2} |
-| Face | `Assets/Art/Faces/{spec.Name}_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `{spec.Name}_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/{spec.Name}_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `{spec.Name}_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, {spec.VoiceHz:F0} Hz, tract {spec.Tract:F2}) until real `{spec.Name}_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on {spec.Donor}'s body, so this fighter fights like a slightly

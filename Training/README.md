@@ -2,7 +2,7 @@
 
 2D ragdoll-biped reinforcement learning for the PoSumo Unity project
 (Unity 6000.5.6f1, ML-Agents Release 23). Version pins and local patches are
-documented in the repo-root `CLAUDE.md` — do not upgrade anything in here.
+documented in the repo-root `docs/project-notes.md` — do not upgrade anything in here.
 `ProjectSettings/ProjectVersion.txt` is authoritative for the editor version; this
 line said 6000.5.4f1 until 2026-08-02, after the editor had already moved.
 
@@ -207,7 +207,7 @@ tall-vs-crawl per-step advantage of **0.0063**. Break-even is an extra fall prob
 of 0.16% per step — one extra fall per ~13 s of walking. Crouching is correct play, and
 no reasonable coefficient changes that. Raising the shaping further just re-runs
 `tall01`. The lever is a walk curriculum that lowers the fall penalty, or far more
-training — not reward coefficients. `CLAUDE.md` carries the long version.
+training — not reward coefficients. `docs/project-notes.md` carries the long version.
 
 ### The fatigue-corrective pass (`*_fatigue01`, resumed 2026-08-06)
 
@@ -603,7 +603,7 @@ saying to restart it afterward is necessary but not sufficient.
 `SCN_TRAIN_GRANDMA` contains **zero** references to `Grandma_Character.asset` (8 fields
 sit at `character: {fileID: 0}`), while the other seven training scenes reference
 theirs correctly. Verified by GUID-grepping the saved `.unity` files, which is the
-check CLAUDE.md mandates.
+check docs/project-notes.md mandates.
 
 It is currently harmless *by coincidence*: Grandma's sheet is byte-identical to
 `Agent_Biped`'s code defaults (massScale/widthScale/torqueScale 1, uprightReward
@@ -624,7 +624,7 @@ that point and write the unnumbered `<Behavior>.onnx`.
 An earlier note here said they would be stopped at 3M. That was a wall-clock
 decision, not a training one — at the measured ~100 steps/s with four self-play
 runs plus four walk runs sharing the machine, 6M was ~15 h. 3M would still have
-been defensible, since CLAUDE.md's documented corrective window is "1-3M steps
+been defensible, since docs/project-notes.md's documented corrective window is "1-3M steps
 against trunks of 12-45M". With more time available the cut was reverted, and the
 early-stop watcher removed, so nothing truncates them now.
 
@@ -656,7 +656,7 @@ per-pass obs table near the top). ML-Agents rejects the mismatch at model load.
 
 Why it was turned on: muscle fatigue has applied to the body since 2026-08-05, but the
 policy could not perceive it. A fighter got quietly weaker through a round with no way
-to learn to pace itself, or to time a push against a tiring opponent. `CLAUDE.md` has
+to learn to pace itself, or to time a push against a tiring opponent. `docs/project-notes.md` has
 listed this as "turn on for the next run" ever since.
 
 Why it costs a **cold** run: 45 → 46 changes the input layer shape, so no existing

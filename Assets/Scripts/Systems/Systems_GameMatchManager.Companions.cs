@@ -7,7 +7,7 @@ namespace PoSumo
     /// Split out of the referee on 2026-08-25. The manager had reached 2294 lines
     /// holding the round state machine, scoring, the countdown, the ceremony camera
     /// beats, the HUD AND the construction of every presentation system, and both
-    /// `.claude/rules/architecture.md` and `CLAUDE.md` call out separating the
+    /// `.claude/rules/architecture.md` and `docs/project-notes.md` call out separating the
     /// referee from the presentation spawning as the wanted refactor.
     ///
     /// It is a PARTIAL of the same class rather than a new one, deliberately:

@@ -16,7 +16,7 @@ namespace PoSumo
     /// > acceptable here for the same reason — porting it into
     /// > `Systems_SumoMatchManager` would mean the policy learns to farm the
     /// > comeback bonus by deliberately losing ground early, which is the exact
-    /// > shaping-exploit failure `CLAUDE.md` warns about. Keep `MAX_BOOST` small
+    /// > shaping-exploit failure `docs/project-notes.md` warns about. Keep `MAX_BOOST` small
     /// > enough to swing a close round and too small to rescue a bad one.
     ///
     /// Spawned by `Systems_GameMatchManager` behind `enableCrowdMomentum`; never

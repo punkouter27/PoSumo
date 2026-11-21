@@ -19,7 +19,7 @@ Set-Location $repoRoot
 $venvPython = Join-Path $repoRoot 'Training/venv/Scripts/python.exe'
 $startTime = Get-Date
 $deadline = $startTime.AddHours($TotalHours)
-$logMd = Join-Path $repoRoot 'DOCS/20261110/extended_8h_log.md'
+$logMd = Join-Path $repoRoot 'docs/20261110/extended_8h_log.md'
 
 function Write-CampaignLog([string]$msg) {
     $line = "- **[$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))]** $msg"
@@ -52,5 +52,5 @@ while ((Get-Date) -lt $deadline) {
     $cycle++
 }
 
-& $venvPython Tools/generate_training_report.py
-Write-CampaignLog "Extended 8-hour optimization loop finished. Final HTML report written to DOCS/20261110/training_status.html and DOCS/training_report.html."
+& $venvPython scripts/generate_training_report.py
+Write-CampaignLog "Extended 8-hour optimization loop finished. Final HTML report written to docs/20261110/training_status.html and docs/training_report.html."

@@ -31,11 +31,11 @@
 # was tracked for months holding a stale Matt brain that looked current.
 /Matt_v01/
 
-# Python training environment (rebuild from Training/ml-agents source; see CLAUDE.md pins)
+# Python training environment (rebuild from Training/ml-agents source; see docs/project-notes.md pins)
 /Training/venv/
-# Tooling venv for Tools/play_publish.py. Reproducible from
-# Tools/requirements-publish.txt, so it is disposable like every other venv here.
-/Tools/publish-venv/
+# Tooling venv for scripts/play_publish.py. Reproducible from
+# scripts/requirements-publish.txt, so it is disposable like every other venv here.
+/scripts/publish-venv/
 
 # Training run outputs (checkpoints/TensorBoard; deployed models live in Assets/Agents/)
 /Training/results/
@@ -50,7 +50,7 @@
 Thumbs.db
 .DS_Store
 
-# Python bytecode. Tools/unity.py is run directly, so its cache was getting
+# Python bytecode. scripts/unity.py is run directly, so its cache was getting
 # committed as a binary blob on every edit.
 __pycache__/
 *.pyc
@@ -106,3 +106,11 @@ Training/*.log
 
 # Generated Unity C# project files
 /*.csproj
+
+# Trainer console logs (machine-local paths, rewritten every run; write-ups go to docs/<date>/)
+/Training/logs_*.txt
+# CLI probe output, never source
+/.tools.json
+# pytest / ruff caches
+.pytest_cache/
+.ruff_cache/

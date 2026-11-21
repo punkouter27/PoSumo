@@ -14,7 +14,7 @@ namespace PoSumo.Tests
     /// technique it should. What they do NOT and cannot cover: whether
     /// `Systems_KimariteCaller` measures those numbers correctly off a live
     /// ragdoll. That half is behavioural and is verified with a harness run, per
-    /// `CLAUDE.md`. A green run here is not evidence the call is right on screen.
+    /// `docs/project-notes.md`. A green run here is not evidence the call is right on screen.
     public sealed class KimariteTests
     {
         private const float RING = 3.5f;

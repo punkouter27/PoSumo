@@ -113,7 +113,7 @@ namespace PoSumo
         /// Unity last made current — the Simulator's 960x2658 with its 92 px
         /// cutout, while a Game view capture is 1080x2400. In Play mode the
         /// Simulator simply owns `Screen` (device type Handheld) and the HUD is
-        /// laid out for it, correctly; `Tools/unity.py shot` now photographs
+        /// laid out for it, correctly; `scripts/unity.py shot` now photographs
         /// that view rather than the Game view beside it.
         /// Fed through the maths below the mismatched pair insets the right edge by
         /// 120 of 1080 px: the whole HUD was laid out in the left 89% of the

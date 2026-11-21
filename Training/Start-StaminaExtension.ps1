@@ -95,9 +95,9 @@ param(
     # invocation launches a config whose own first line says not to.
     [switch]$AllowSuperseded,
 
-    # The -InitializeFromPhase trunk was widened with Tools/onnx_warmstart.py
+    # The -InitializeFromPhase trunk was widened with scripts/onnx_warmstart.py
     # --new-obs, so its input width is expected to differ from the deployed brain.
-    # Passed through to Tools/preflight.py as --widened.
+    # Passed through to scripts/preflight.py as --widened.
     [switch]$WidenedTrunk
 )
 
@@ -224,7 +224,7 @@ foreach ($fighter in $Fighters) {
     }
     # PREFLIGHT (2026-11-10): refuse a run whose vector, env build or physics
     # settings disagree, and stamp the interface/physics versions it trains on.
-    $preArgs = @((Join-Path $repoRoot 'Tools/preflight.py'), $config, "--run-id=$runId",
+    $preArgs = @((Join-Path $repoRoot 'scripts/preflight.py'), $config, "--run-id=$runId",
                  "--env=$envExe")
     if ($InitializeFromPhase) { $preArgs += "--initialize-from=$source" }
     if ($WidenedTrunk) { $preArgs += '--widened' }

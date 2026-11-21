@@ -618,7 +618,7 @@ namespace PoSumo
         /// The bottom-left telemetry stream on the bracket: what is driving the
         /// roster and how far the draw has got, e.g.
         /// "16 brains · 4 own · 12 borrowed · bout 3/15". A fighter with no model
-        /// is counted as missing — the silent-heuristic failure CLAUDE.md warns of.
+        /// is counted as missing — the silent-heuristic failure docs/project-notes.md warns of.
         private void AppendBrainTelemetry(System.Text.StringBuilder sb)
         {
             if (_roster == null)
@@ -1677,7 +1677,7 @@ namespace PoSumo
             }
         }
 
-        /// TAB toggles the fighter debug panel — the DBG chip's own Toggle, as in
+        /// F3 toggles the fighter debug panel — the DBG chip's own Toggle, as in
         /// the arena — and Escape (the Android back key) closes an open settings
         /// sheet: back dismisses what the menu button opened. The static keyboard
         /// device, like Systems_GameMatchManager; there is no action asset.
@@ -1689,7 +1689,8 @@ namespace PoSumo
             {
                 return;
             }
-            if (keyboard.tabKey.wasPressedThisFrame && _agentDebug != null)
+            // F3, as in the arena: TAB is the diagnostics overlay's (Systems_DiagOverlay).
+            if (keyboard.f3Key.wasPressedThisFrame && _agentDebug != null)
             {
                 _agentDebug.Toggle();
             }
@@ -1749,6 +1750,27 @@ namespace PoSumo
             {
                 Systems_Log.Info($"[TOURNAMENT] resumed saved bracket at bout " +
                                  $"{Systems_TournamentState.BoutsPlayed + 1}/{Systems_TournamentState.BoutCount}");
+            }
+        }
+
+        /// Demo mode (Systems_DemoMode): the bracket plays itself. Auto-play goes
+        /// on, an open settings sheet closes, and an idle or finished bracket is
+        /// started exactly as START would — so the showcase is real bouts.
+        public void BeginDemo()
+        {
+            if (_settingsOpen)
+            {
+                ToggleSettings();
+            }
+            if (!_autoPlay)
+            {
+                _autoPlay = true;
+                _autoTimer = 0f;
+                Refresh();
+            }
+            if (!Systems_TournamentState.Active || Systems_TournamentState.IsComplete)
+            {
+                OnAction();
             }
         }
 

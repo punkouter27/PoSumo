@@ -5,7 +5,7 @@ using UnityEngine.UIElements;
 namespace PoSumo.EditorTools
 {
     /// The overflow audit over every UIDocument's live visual tree — the C# twin
-    /// of the walk in Tools/portrait_check.py — PLUS the five-corners contract.
+    /// of the walk in scripts/portrait_check.py — PLUS the corner contract.
     ///
     /// Why a second copy of the walk: the python tool audits at chosen Game-view
     /// sizes across the bracket and a live round, but it cannot reach the states
@@ -23,11 +23,11 @@ namespace PoSumo.EditorTools
     /// consolidation removed every ScrollView the player can reach, the Flow
     /// harness additionally asserts ZERO visible ScrollViews (see its Audit).
     ///
-    /// The CORNER findings enforce checklist #4 — TL Title | TC FPS | TR Menu |
-    /// BL agent telemetry (DebugToggle) | BR build date YYMMDD (ChromeVersion) —
-    /// as a PASS/FAIL check rather than a convention:
-    /// Systems_ScreenChrome names its layer and its five children, and this
-    /// asserts they exist together, are exactly five (nothing else may draw into
+    /// The CORNER findings enforce the corner contract — TC FPS | TR Menu |
+    /// BL agent telemetry (DebugToggle); the title and the build date are drawn by
+    /// the web page outside the canvas since 2026-11-20 — as a PASS/FAIL check:
+    /// Systems_ScreenChrome names its layer and its three children, and this
+    /// asserts they exist together, are exactly three (nothing else may draw into
     /// a corner), and sit in the right quadrants of the layer. A screen with no
     /// named chrome layer (enableScreenChrome off) is skipped — there is no
     /// contract to violate when chrome is deliberately absent.
@@ -36,11 +36,11 @@ namespace PoSumo.EditorTools
         /// Slack below which sub-pixel rounding is not a finding.
         private const float TOLERANCE_POINTS = 1.5f;
 
-        /// The five corner elements, in TL/TC/TR/BL/BR order.
+        /// The three corner elements, in TC/TR/BL order.
         private static readonly string[] CORNER_NAMES =
-            { "ChromeTitle", "ChromeFps", "MenuButton", "DebugToggle", "ChromeVersion" };
+            { "ChromeFps", "MenuButton", "DebugToggle" };
 
-        /// Corner index per element: 0 title, 1 fps, 2 menu, 3 debug, 4 version.
+        /// Corner index per element: 0 fps, 1 menu, 2 debug.
         private static readonly string[] LAYER_NAME = { "ScreenChromeLayer" };
 
         public static string Run()
@@ -128,11 +128,9 @@ namespace PoSumo.EditorTools
                 // (top band, horizontally centred by design).
                 bool ok = nameIndex switch
                 {
-                    0 => left && top,                     // TL title
-                    1 => top && Mathf.Abs(centerX - midX) < bounds.width * 0.2f, // TC fps
-                    2 => right && top,                    // TR menu
-                    3 => left && bottom,                  // BL debug
-                    _ => right && bottom,                 // BR version
+                    0 => top && Mathf.Abs(centerX - midX) < bounds.width * 0.2f, // TC fps
+                    1 => right && top,                    // TR menu
+                    _ => left && bottom,                  // BL debug
                 };
                 if (!ok)
                 {

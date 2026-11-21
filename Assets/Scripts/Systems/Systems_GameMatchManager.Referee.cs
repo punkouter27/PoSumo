@@ -19,7 +19,7 @@ namespace PoSumo
     // Update/FixedUpdate; this file only contains what those transitions CALL to
     // decide a round or a match. `Systems_SumoMatchManager` is the training
     // twin — losing conditions changed here must change there too or the brains
-    // never learn the new rule (see CLAUDE.md).
+    // never learn the new rule (see docs/project-notes.md).
     //
     // No behaviour changed in the extraction: the bodies moved verbatim, and
     // they may freely touch private fields/methods of the manager (same class).

@@ -86,7 +86,7 @@ namespace PoSumo
         public VisualElement Overlay { get; private set; }
         /// The safe-area-inset layer everything in-flow is laid out through.
         /// Read-only surface for layout audits (the editor FlowTestHarness and
-        /// Tools/portrait_check.py assert on its resolved padding when a fake
+        /// scripts/portrait_check.py assert on its resolved padding when a fake
         /// device cutout is active) — the HUD stays the only writer.
         public VisualElement ContentLayer { get; private set; }
 

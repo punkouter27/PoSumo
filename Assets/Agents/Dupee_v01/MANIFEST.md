@@ -7,7 +7,7 @@ tournament bracket until Dupee is trained.
 |---|---|
 | Brain | Dupee.onnx <- dupee_unique01 (Dupee-1674698.onnx, 1,674,698 steps, style bulldozer) |
 | Body | Kim's, mass ×0.97, torso width ×0.97 |
-| Face | `Assets/Art/Faces/Dupee_Neutral.png` — a FAKE right-facing profile cut from a front photo by `Tools/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Dupee_<Mood>_<1-5>.png` art exists |
+| Face | `Assets/Art/Faces/Dupee_Neutral.png` — a FAKE right-facing profile cut from a front photo by `scripts/make_placeholder_faces.py`; every mood/level is drawn procedurally from it until real `Dupee_<Mood>_<1-5>.png` art exists |
 | Voice | fully synthesised (`Systems_VoiceSynth`, 112 Hz, tract 1.00) until real `Dupee_<Mood>_L<level>_<variant>.wav` lines exist |
 
 The brain was trained on Kim's body, so this fighter fights like a slightly

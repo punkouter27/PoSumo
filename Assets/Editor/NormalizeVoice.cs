@@ -90,7 +90,7 @@ namespace PoSumo.EditorTools
                 // between them by design; measured full-clip they asked for up to
                 // 5.8 dB more gain than the held groans, which is exactly backwards.
                 //
-                // Tools/normalize_voice_wavs.py levels the WAV FILES on this same
+                // scripts/normalize_voice_wavs.py levels the WAV FILES on this same
                 // definition and the same 8% floor. The two must agree: if this
                 // tool measured loudness differently it would re-introduce, at
                 // playback, the differences that one removed on disk.

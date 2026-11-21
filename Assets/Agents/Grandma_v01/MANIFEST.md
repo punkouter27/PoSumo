@@ -34,7 +34,7 @@ game. She also trained the longest against an unbroken opponent pool.
 `SCN_TRAIN_GRANDMA` contains **zero** references to `Grandma_Character.asset` —
 eight fields sit at `character: {fileID: 0}`, while the other three training
 scenes reference theirs correctly. Verified by GUID-grepping the saved `.unity`
-file, which is the check CLAUDE.md mandates.
+file, which is the check docs/project-notes.md mandates.
 
 It is harmless *by coincidence*: Grandma's sheet is byte-identical to
 `Agent_Biped`'s code defaults (build scales 1/1/1, uprightReward 0.0005,

@@ -64,7 +64,7 @@ namespace PoSumo
         /// are reading the same ruler.
         private const float MAT_REFERENCE = 3.5f;
 
-        /// Torso height above the mat in the standing pose (CLAUDE.md, measured).
+        /// Torso height above the mat in the standing pose (docs/project-notes.md, measured).
         private const float STANDING_HEIGHT = 1.06f;
         /// Below this smoothed torso height a fighter is on its knees or lower.
         /// A real crouch still carries the torso at ~0.8 m; the shipped crawl was
@@ -338,7 +338,7 @@ namespace PoSumo
                 content.Add(engine);
             }
 
-            Label hint = Systems_UiKit.Text("Tap the green telemetry line or press TAB to close.",
+            Label hint = Systems_UiKit.Text("Tap the green telemetry line or press F3 to close.",
                                             Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow);
             content.Add(hint);
 
@@ -518,7 +518,7 @@ namespace PoSumo
         /// height is 1.06 m and the shipped fighters were measured fighting at
         /// 0.26-0.62 m, so anything under KNEES_BELOW is the crawl, not a crouch.
         /// The round share is the "what fraction of rounds end before
-        /// shrinkStartSeconds" measurement CLAUDE.md asks to be re-run before
+        /// shrinkStartSeconds" measurement docs/project-notes.md asks to be re-run before
         /// touching the fight — it was 6% — now simply kept running.
         private void RefreshAttention()
         {
