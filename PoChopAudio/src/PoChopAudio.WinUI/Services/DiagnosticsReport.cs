@@ -62,6 +62,7 @@ public static class DiagnosticsReport
         ArgumentNullException.ThrowIfNull(settings);
 
         return
+        (DiagnosticSection[])
         [
             new DiagnosticSection("Application", BuildApplication()),
             new DiagnosticSection("Audio", BuildAudio()),

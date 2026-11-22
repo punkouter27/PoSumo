@@ -227,7 +227,7 @@ public partial class SettingsViewModel : ObservableObject
     public void CopyDiagnostics()
     {
         var package = new DataPackage();
-        package.SetText(DiagnosticsReport.ToText([.. Diagnostics]));
+        package.SetText(DiagnosticsReport.ToText(Diagnostics.ToArray()));
         Clipboard.SetContent(package);
 
         StatusMessage = "Diagnostics copied to the clipboard.";

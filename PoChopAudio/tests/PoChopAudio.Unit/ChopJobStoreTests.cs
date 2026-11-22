@@ -70,11 +70,14 @@ public sealed class ChopJobStoreTests
     public void ScratchBytes_CountsWhatTheStoreHasWritten()
     {
         using var store = new ChopJobStore();
-        var before = ChopJobStore.ScratchBytes();
 
         var job = store.Create("take.wav");
         File.WriteAllBytes(job.CanonicalPath, new byte[4096]);
 
-        Assert.True(ChopJobStore.ScratchBytes() >= before + 4096);
+        // Not a before/after delta: the parent directory is shared with every other store, and
+        // tests running in parallel (and the integration suite's process) sweep and dispose theirs
+        // between the two reads, which made the delta fail now and then. This store's own 4 KB
+        // is still there while it is alive, so the total must include it.
+        Assert.True(ChopJobStore.ScratchBytes() >= 4096);
     }
 }
