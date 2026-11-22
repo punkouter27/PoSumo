@@ -142,6 +142,21 @@ every publish. Tests never write into tracked files.
   Engine) instead of the project's `UnityDefaultRuntimeTheme.tss`; that theme drags in App UI's TextMate grammar
   assets, whose script types do not exist in the WebGL player. The panel now uses the project theme.
 
+#### Deliberate deviations
+
+| Deviation | Why | Commit sha / date | How to undo |
+|---|---|---|---|
+| Layout moved to `Assets/_Project/...`, overriding the old `Assets/Scripts` four-folder tree in AGENTS.md and `.claude/rules/architecture.md` | the v3 layout rule is newer; `git mv` with `.meta`, GUIDs kept | `2f9a3d7` 2026-11-22 | `git revert 2f9a3d7` |
+| `PoChopAudio/` (WinUI 3 desktop tool) stays tracked here, checked by the one workflow; its nested `ci.yml` was folded in | this repo's own copy (no shared code); the old "moved to its own repo" note was wrong | `2f9a3d7` 2026-11-22 | — |
+| `PoChopAudio/Directory.Build.props` restored (TargetFramework, TreatWarningsAsErrors), `AnalysisLevel` dropped, undoing part of owner commit `4df87b2` | `4df87b2` left the solution unable to restore | `2f9a3d7` 2026-11-22 | `git revert 2f9a3d7` (props part) |
+| Unity build and tests run locally only; CI runs Python + PoChopAudio checks and deploys the locally built release | Unity cannot be licensed in CI (owner design) | `2f9a3d7` 2026-11-22 | — |
+| Shipped character sheets keep the four Po penalty weights at 0; the PlayMode test sets them to 1 at runtime | brains were trained without them | `2f9a3d7` 2026-11-22 | set the weights when retraining |
+| The benchmark borrows `Time.timeScale` for 3 s and restores it (`Systems_MatchPresentation` owns it) | one owner of timeScale by design | `2f9a3d7` 2026-11-22 | — |
+| No neck joint or gaze; no BC/AMP stage | a neck joint invalidates every brain; no mocap data exists | — | owner decision |
+
+**Hosting:** Azure Static Web App `posumo`, Free tier. Never run test suites against the live site; live checks = at
+most 6 page loads + /diag + X-Commit.
+
 #### CI/CD and Azure (this repo)
 - WebGL is built **locally** and deployed by CI: `pwsh -File scripts/publish_webgl.ps1` runs the EditMode tests,
   builds `Builds/WebGL` with the exact pinned editor (build method from `scripts/webgl.json`), writes `diag.html`,
@@ -853,7 +868,9 @@ it works.
 
 ## 3. Verify the repo
 
-Run from the repo root in PowerShell. Everything must pass with 0 warnings.
+The one command sequence below verifies the repo; run it from the repo root in PowerShell. Everything must pass with
+0 warnings. Last full run (2026-11-22): pytest 18 passed; PoChopAudio Unit 100/100, Integration 18/18; EditMode 50/50;
+PlayMode 3/3.
 
 ```powershell
 # Python (scripts/ and tests/)
