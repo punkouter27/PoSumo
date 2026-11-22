@@ -169,7 +169,7 @@ The New Input System package is **mandatory**. Legacy `Input.GetKey`/`Input.GetA
 
 ### Generated C# Class (Preferred Approach)
 
-1. Create `Assets/Input/PlayerControls.inputactions` — define all action maps
+1. Create `Assets/_Project/Core/Input/PlayerControls.inputactions` — define all action maps
 2. Enable "Generate C# Class" in the asset inspector → generates `PlayerControls.cs`
 3. Use the generated class in InputView (see architecture rules)
 
