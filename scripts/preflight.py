@@ -17,7 +17,7 @@ Checks, per behavior in the config:
   * the deployed .onnx input width against that vector - a mismatch is fine for a
     cold run or a widened warm start, so it is reported, and an ERROR only when
     --initialize-from is given without --widened;
-  * the env build exists and is NEWER than every script under Assets/Scripts
+  * the env build exists and is NEWER than every script under Assets/_Project
     (an env older than the code trains the old code);
 and project-wide:
   * fixed timestep 0.02 s, gravity -9.81, solver iterations 16 / 14.
@@ -37,9 +37,9 @@ import sys
 from datetime import datetime, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-AGENT_CS = os.path.join(ROOT, "Assets", "Scripts", "Agent", "Agent_Biped.cs")
-BODY_CS = os.path.join(ROOT, "Assets", "Scripts", "Agent", "Agent_BipedBody.cs")
-TUNING = os.path.join(ROOT, "Assets", "Settings", "GameTuning.asset")
+AGENT_CS = os.path.join(ROOT, "Assets", "_Project", "Agents", "Agent", "Agent_Biped.cs")
+BODY_CS = os.path.join(ROOT, "Assets", "_Project", "Agents", "Agent", "Agent_BipedBody.cs")
+TUNING = os.path.join(ROOT, "Assets", "_Project", "Data", "Settings", "GameTuning.asset")
 TIME = os.path.join(ROOT, "ProjectSettings", "TimeManager.asset")
 PHYS2D = os.path.join(ROOT, "ProjectSettings", "Physics2DSettings.asset")
 STAMPS = os.path.join(ROOT, "Training", "stamps")
@@ -91,7 +91,7 @@ def code_contract():
 
 
 def sheet(behavior):
-    path = os.path.join(ROOT, "Assets", "Agents", f"{behavior}_v01", f"{behavior}_Character.asset")
+    path = os.path.join(ROOT, "Assets", "_Project", "RL_Models", f"{behavior}_v01", f"{behavior}_Character.asset")
     if not os.path.exists(path):
         return None, path
     text = read(path)
@@ -145,7 +145,10 @@ def physics_version():
 
 
 def newest_script_mtime():
-    files = glob.glob(os.path.join(ROOT, "Assets", "Scripts", "**", "*.cs"), recursive=True)
+    files = glob.glob(os.path.join(ROOT, "Assets", "_Project", "**", "*.cs"), recursive=True)
+    # Runtime code only: the Editor and Tests assemblies never reach an env build.
+    skip = (os.sep + "Editor" + os.sep, os.sep + "Tests" + os.sep)
+    files = [path for path in files if not any(part in path for part in skip)]
     return max(os.path.getmtime(path) for path in files)
 
 
@@ -206,7 +209,7 @@ def main():
             )
         elif env_build_mtime(exe) < newest_script_mtime():
             errors.append(
-                f"{behavior}: env build is OLDER than Assets/Scripts - it would train the old code. Rebuild it."
+                f"{behavior}: env build is OLDER than Assets/_Project - it would train the old code. Rebuild it."
             )
 
         behaviors[behavior] = {

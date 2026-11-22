@@ -9,6 +9,13 @@
       "section": "Services",
       "name": "Static Web App serving the game page (/index.html)",
       "url": "index.html"
+    },
+    {
+      "section": "Services",
+      "name": "Deployed commit (X-Commit header on the page)",
+      "url": "index.html",
+      "method": "HEAD",
+      "header": "x-commit"
     }
   ]
 }

@@ -130,7 +130,7 @@ There are four **trained** fighters — **Matt**, **Grandma** (renamed from `Sta
 on 2026-09-22; behavior name, folder, asset, ONNX, faces, live config and env all
 follow the new name, the training scene keeps its legacy `SCN_TRAIN_GRANDMA`
 name), **Nick**, **Kim** — each
-with an `.onnx`, a `*_Character.asset` and a `MANIFEST.md`. `Assets/Agents/ROSTER.md` is
+with an `.onnx`, a `*_Character.asset` and a `MANIFEST.md`. `Assets/_Project/RL_Models/ROSTER.md` is
 the roster overview; there is no code mirror of it.
 
 **There is no fifth entry any more.** `Bot_v01` — a hand-coded heuristic fighter
@@ -145,7 +145,7 @@ the shipped `.onnx` files. They had predated the walk+fight merge. The character
 fighter rather than trusting it.
 
 `Training/results/` is gitignored **and is not present in a fresh clone** — the deployed
-`.onnx` files under `Assets/Agents/` are the only brains that ship. Anything in this file
+`.onnx` files under `Assets/_Project/RL_Models/` are the only brains that ship. Anything in this file
 about resuming, `--initialize-from` or `DeployLatestCheckpoint` assumes you have first
 re-run training locally to recreate that directory.
 
@@ -381,7 +381,7 @@ each live in *Editor menu tools* and *Training workflow* below.
 There is no lint step; the hooks in `.claude/hooks/` are the static checks, and they run
 on edit rather than on demand.
 
-There **is** a small EditMode unit suite (`Assets/Tests/EditMode`, 23 tests, added
+There **is** a small EditMode unit suite (`Assets/_Project/Core/Tests/EditMode`, 23 tests, added
 2026-08-07) — but read what it covers before assuming a green run means anything. It
 tests `Systems_CareerLadder` and `Reward_Context.San`, which are the only pure functions
 in the project: no MonoBehaviour, no physics, no disk. Everything this game is actually
@@ -598,7 +598,7 @@ to add these mid-project. Episode **terminals** stay hardcoded (walk: fall −1,
 (`[DefaultExecutionOrder(-500)]`, must run before the agents' `Awake`) assigns the two
 characters for a scene, or defers to `Tournament_State` when a bracket is active.
 
-### Reward providers (`Assets/Scripts/Reward/`)
+### Reward providers (`Assets/_Project/Agents/Reward/`)
 Shaping was extracted out of `Agent_Biped.OnActionReceived` on 2026-08-05 into
 `Reward_SumoObjective` and `Reward_WalkObjective` — plain C# classes that hold the
 per-character coefficients, are handed the body and a `Reward_Context`, and **return a
@@ -1011,7 +1011,7 @@ fraction of rounds end before `shrinkStartSeconds`". It was 6%.
 None of this is retroactive: **every currently shipped brain was trained before the port**
 and has never seen either rule. They take effect on the next training run.
 
-Shared numbers live in `Assets/Settings/GameTuning.asset` (`Systems_GameTuning`); scene
+Shared numbers live in `Assets/_Project/Data/Settings/GameTuning.asset` (`Systems_GameTuning`); scene
 components copy from it in `Start`, so tune the asset, not serialized scene values — the
 scenes still hold stale copies (SCN_SUMO serializes `ringHalfWidth: 1.68`,
 `neutralGapHalf: 1.2`) that are overwritten at runtime and will mislead anyone grepping
@@ -1052,7 +1052,7 @@ build here:
   and wraps them one per line.
 
 ### The look: one shader, and switches that must move together
-`Assets/Resources/Shaders/PoSumo_BodyLit.shader` is the **only authored shader in the
+`Assets/_Project/Data/Resources/Shaders/PoSumo_BodyLit.shader` is the **only authored shader in the
 project** — everything else is a runtime `new Material` on a stock URP sprite shader, and
 there are no `.mat` assets and no Shader Graph files at all. It is a 3-pass copy of
 `Sprite-Lit-Default` (all three passes must declare an IDENTICAL `UnityPerMaterial` CBUFFER
@@ -1145,7 +1145,7 @@ the project, no `.uxml` and no `.uss`. `Systems_UiKit` holds the tokens and the
 builders; `Systems_HudRoot` is the single `UIDocument` the match screen draws
 through (three components used to add their own at equal sorting order, which has
 no defined draw or pick order, and taps aimed at REMATCH were being swallowed).
-`Assets/UI Toolkit/README.md` is the working reference — read it before touching
+`Assets/_Project/UI/README.md` is the working reference — read it before touching
 UI, it carries the pending font-asset work and three gotchas that each cost a bug.
 
 The three that matter most here:
@@ -1187,7 +1187,7 @@ DBG bottom-left, build version bottom-right** (`enableScreenChrome`). Since 2026
 > debug is open), menu TR, a **live agent telemetry line** BL that is also the debug
 > button (still named `DebugToggle`), and the **build date `YYMMDD`** BR
 > (`Systems_BuildStamp`, written into `Resources/BuildStamp.txt` by
-> `Assets/Editor/WriteBuildStamp.cs` before every build; gitignored). The version moved
+> `Assets/_Project/Core/Editor/WriteBuildStamp.cs` before every build; gitignored). The version moved
 > to Settings › DISPLAY › BUILD. The arena Dock is a bottom sheet (`Systems_HudSheet`,
 > gated on `enableScreenChrome`) carrying a MENU › TACHIAI › FIGHT › RESULT strip polled
 > from `ScoringLive` / `ResultShowing`; the bracket footer draws the same strip.
@@ -1347,7 +1347,7 @@ The training referee has no equivalent, so no brain has ever trained against it.
 Four small things, none of which touches the observation vector, the action count, a
 mass or a collider — so **no brain is invalidated and no retraining is implied.**
 
-- **`Systems_FeelFx` + `Systems_Haptics`** (`enableFeelFx` on `GameTuning`). `Assets/Scripts/`
+- **`Systems_FeelFx` + `Systems_Haptics`** (`enableFeelFx` on `GameTuning`). `Assets/_Project/`
   contained **zero** haptic calls before this. Android only, across all three vibration
   generations (`VibratorManager` 31+, `VibrationEffect` 26+, legacy `vibrate(long)`), a
   no-op everywhere else including the Editor. `Handheld.Vibrate()` was rejected: it is a
@@ -1397,7 +1397,7 @@ whoever set them intended.
 **`Systems_Kimarite` is pure logic on purpose.** It takes a struct of measurements
 and returns a name — no MonoBehaviour, no physics, no disk — which makes it the third
 thing in this project that is genuinely unit-testable (with `Systems_CareerLadder` and
-`Reward_Context.San`). `Assets/Tests/EditMode/KimariteTests.cs` covers it; the suite is
+`Reward_Context.San`). `Assets/_Project/Core/Tests/EditMode/KimariteTests.cs` covers it; the suite is
 now **38 tests**, not the 23 this file used to claim. `Systems_KimariteCaller` does the
 measuring off a live ragdoll and is verified only by a harness run — a green unit run
 says nothing about whether the call on screen is right.
@@ -1647,7 +1647,7 @@ and climb six. Measured: against equal opposition a fighter promotes at matches
   like every static here) so the bracket announces it exactly once on return.
 
 `Systems_CareerScreen` is a full-screen overlay **inside the bracket's UIDocument**,
-not a second one — see `Assets/UI Toolkit/README.md`. It replaced a collapsed
+not a second one — see `Assets/_Project/UI/README.md`. It replaced a collapsed
 four-column table that used to be built inline in the bracket's scroll column;
 there is now one career UI, not two.
 
@@ -1736,12 +1736,12 @@ After any change to the walk lane, assert every walker spawns at `xLocal < -0.3`
 - Scene hierarchy rule: every environment root has exactly 7 groups
   (Agents/Obstacles/Goals/SpawnPoints/Cameras/UI/Systems).
 - Naming schema, enforced across the whole tree: script prefixes are exactly
-  `Agent_`, `Sensor_`, `Reward_`, `Systems_` (four folders under `Assets/Scripts/`,
+  `Agent_`, `Sensor_`, `Reward_`, `Systems_` (four folders under `Assets/_Project/`,
   no others — `Reward/` was added 2026-08-05, and this line said three until then);
   scenes `SCN_*` with training scenes as `SCN_TRAIN_<NAME>`; env builds as
   `Builds/<Name>Env/` matching their scene; configs as `<Name><Phase><NN>.yaml` paired
-  1:1 with run-id `<name>_<phase><nn>`; agent assets in `Assets/Agents/<Name>_v<NN>/`
-  with a `MANIFEST.md`; face art as `Assets/Art/Faces/<Name>_{Neutral,Happy_1-3,Sad_1-3}.png`,
+  1:1 with run-id `<name>_<phase><nn>`; agent assets in `Assets/_Project/RL_Models/<Name>_v<NN>/`
+  with a `MANIFEST.md`; face art as `Assets/_Project/Environments/Art/Faces/<Name>_{Neutral,Happy_1-3,Sad_1-3}.png`,
   packed by `Resources/Atlases/FaceAtlas` and loaded through `Systems_FaceArt.Load(name)` —
   **never put a face back under `Resources/`: a sprite in a Resources folder is never
   atlased** (measured 2026-08-26, `sprite.packed` false on all 21 while they lived there).
@@ -1788,7 +1788,7 @@ After any change to the walk lane, assert every walker spawns at `xLocal < -0.3`
 > foreground haze at 20. Raise a part's `sorting` past 3 and this constant has to move too.
 
 - **Atlas source textures are UNCOMPRESSED, deliberately.** Every PNG packed by
-  `Resources/Atlases/FaceAtlas` (the whole `Assets/Art/Faces` folder, 21 files) and by
+  `Resources/Atlases/FaceAtlas` (the whole `Assets/_Project/Environments/Art/Faces` folder, 21 files) and by
   `Art/Atlases/ArenaAtlas` (`Box`, `Circle`, `SpotCone`, `WallGradient`) carries
   `textureCompression: 0`. Packing a *compressed* source into an atlas throws away pixel
   detail before the atlas is built, and the Editor says so once per sprite on every import.
@@ -1946,7 +1946,7 @@ Killing only the env worker EXEs does nothing — the trainer auto-respawns them
 disconnect the trainer saves a final checkpoint before exiting, so close it rather than
 hard-killing it and give the write time to land.
 
-Deployed models are always **overwritten in place** at `Assets/Agents/<Name>_v01/<Name>.onnx`
+Deployed models are always **overwritten in place** at `Assets/_Project/RL_Models/<Name>_v01/<Name>.onnx`
 so the `.meta` GUID (and every reference to it) survives; `DeployBrain` does this and also
 sets the character asset's `inferenceModel`. Copying a checkpoint does not require stopping
 a headless run.
@@ -2005,7 +2005,7 @@ dumping ground. Everything else goes elsewhere —
 > runs that produced the shipped brains were pruned long ago.
 >
 > **Consequence worth stating plainly: the four shipped `.onnx` files are NOT reproducible
-> from anything on disk.** They exist only as the committed copies under `Assets/Agents/`.
+> from anything on disk.** They exist only as the committed copies under `Assets/_Project/RL_Models/`.
 > Treat those four files as irreplaceable artefacts, not as build output — and never
 > `git checkout`/overwrite one without knowing where the replacement comes from.
 
@@ -2021,7 +2021,7 @@ dumping ground. Everything else goes elsewhere —
 
 `Training/README.md` maps every kept config to the run and deployed brain it produced.
 
-## Editor menu tools (`Assets/Editor/`, all under the **PoSumo** menu)
+## Editor menu tools (`Assets/_Project/Core/Editor/`, all under the **PoSumo** menu)
 
 | Tool | Purpose |
 |---|---|
@@ -2098,7 +2098,7 @@ scene rather than fighting `SCN_SUMO`'s own listener.
 > `NuGetPluginConfigurator.ConfigureAll` (called from `NuGetDependencyResolver` on every
 > restore/reload) re-applies `includeInBuild: true` from its hardcoded `NuGetConfig`, and
 > was measured reverting the fix within one refresh, twice. The durable fix is
-> `Assets/Editor/ExcludeMcpPluginsFromPlayer.cs`, an `IPreprocessBuildWithReport` that
+> `Assets/_Project/Core/Editor/ExcludeMcpPluginsFromPlayer.cs`, an `IPreprocessBuildWithReport` that
 > switches every DLL in that folder to Editor-only INSIDE the build, after the last
 > refresh. It logs `PLUGIN PLATFORM RESULT (preprocess Android): excluded N …`; if that
 > line is missing from a build log, this is the first thing to suspect.
@@ -2135,7 +2135,7 @@ entry, so retire a build by deleting the folder rather than keeping it around.
 Judge a character by the harness tally, not by one eyeballed round. The build/deploy tools
 print a `BUILD RESULT:` / `AAB BUILD RESULT:` / `DEPLOY RESULT:` line — that is how their
 outcome is read back. `MatchTestHarness` and the Game-view screenshot flow below are the
-verification tools for anything behavioural; the EditMode suite in `Assets/Tests/EditMode`
+verification tools for anything behavioural; the EditMode suite in `Assets/_Project/Core/Tests/EditMode`
 covers only the two pure-logic corners described under *Commands at a glance*.
 
 ## Unity Editor automation — `scripts/unity.py` FIRST
@@ -2466,7 +2466,7 @@ above that contradict this are stale.
 ### Later on 2026-10-04 — a scene play-through, and the heuristic Bot removed
 
 - **Heuristic Bot removed** (user: "i want only rl trained creatures"). Deleted:
-  `Assets/Agents/Bot_v01/`, `Agent_Bot.cs`, the `useBot` field on `Agent_Biped` /
+  `Assets/_Project/RL_Models/Bot_v01/`, `Agent_Bot.cs`, the `useBot` field on `Agent_Biped` /
   `Agent_CharacterDefinition`, `Systems_BotLadderState` / `Systems_BotLadderReporter`, the
   ladder card and `PressLadder`, `torqueMultiplier`, `SCN_BOT`, the 15 `Bot_*` voice clips.
   `Systems_TournamentState` is now **4 seeds / 3 matches** (`FIRST_ROUND_MATCHES`); the
@@ -2615,7 +2615,7 @@ stdio bridge; POST JSON-RPC to `http://127.0.0.1:8080/mcp` instead.
 ## Session of 2026-11-10 — 16-fighter bracket, 4 moods x 5 levels, placeholder fighters
 
 Supersedes every "four fighters", "4-slot bracket", "Happy/Sad/Insult" and "Happy_1-3 /
-Sad_1-3" statement above. `Assets/Agents/ROSTER.md` has the roster table.
+Sad_1-3" statement above. `Assets/_Project/RL_Models/ROSTER.md` has the roster table.
 
 - **Bracket: 16 slots, 15 matches** (`Systems_TournamentState.SEED_COUNT`; R16 0-7, QF
   8-11, SF 12-13, final 14). `Systems_TournamentBracket` draws it as a tree — seeds 0-7
@@ -2662,7 +2662,7 @@ character sheets carry the flag, so the placeholders still match their donors.
 `docs/20261110/intent01.md` lists the policies touched and the run.
 
 - **#3 Fighter outline.** `Systems_FighterOutlineFeature` is a URP renderer feature on
-  `Assets/Settings/Renderer2D.asset` (installed by *PoSumo → Install Fighter Outline
+  `Assets/_Project/Data/Settings/Renderer2D.asset` (installed by *PoSumo → Install Fighter Outline
   Feature*; the first `ScriptableRendererFeature` in the project). Two render-graph
   passes: fighters' sprites, filtered by rendering-layer bits 1 (A) / 2 (B) that
   `Systems_FighterOutline` sets, into a half-res mask; then an edge blit over the camera

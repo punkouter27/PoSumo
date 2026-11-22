@@ -1,0 +1,1197 @@
+using System.Collections.Generic;
+using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+namespace PoSumo
+{
+    /// Builds a raised dohyo at this object's position: a small elevated clay
+    /// platform (top surface at local y=0) with tawara bales and shikiri-sen,
+    /// a lower arena floor with a seated crowd on both sides (where pushed-off
+    /// wrestlers land), a warm gridded backdrop, and the hanging tsuriyane roof.
+    ///
+    /// Scenes are BAKED: an editor pass calls Build() once and saves the
+    /// children into the scene (sprites/materials become assets under
+    /// Assets/_Project/Environments/Art/Generated), so every piece can be inspected and moved in the
+    /// editor. At runtime Awake() only rebinds references when children
+    /// already exist; an empty arena object still builds itself as before.
+    public sealed class Systems_SumoArena : MonoBehaviour
+    {
+        // Widths doubled with the fighting ring. The dressing built from these
+        // (roof, ridge, arena floor, crowd) is BAKED into the scene, so changing
+        // them requires re-running Build() and re-saving — SetPlatformHalfWidth
+        // only rescales the platform, surface, lip and tawara at runtime.
+        public float ringHalfWidth = 4.9f;   // tawara position
+        public float groundWidth = 11f;      // platform width (edge = +/- groundWidth/2)
+        public float platformDrop = 0.6f;    // how far down the crowd floor sits
+        public float floorWidth = 34f;       // lower arena floor span
+        public bool showPosts = true;        // tawara + dressing on/off
+        public bool deluxe = false;          // full-stadium dressing (SCN_SUMO)
+        [Tooltip("Dohyo top-surface friction. Clay is 0.9; the training referee still randomises this per round.")]
+        public float surfaceFriction = 0.9f;
+
+        // Tawara bales, kept so width changes reposition them: (transform, side, index).
+        private struct TawaraRef { public Transform t; public int side; public int index; }
+
+        /// The crowd-level floor below the dohyo. Both referees hand it to each
+        /// fighter's Sensor_HeadContact: a head landing on THIS collider is the
+        /// ring-out (2026-08-26). Bound by Build() and by RebindBaked() by name.
+        public Collider2D FloorCollider { get; private set; }
+        private readonly List<TawaraRef> _tawara = new List<TawaraRef>();
+        private Transform _platform, _surface, _baseLip;
+        private Transform _shikiriLeft, _shikiriRight;
+        private float _currentHalf = -1f;
+
+        /// The dohyo's CURRENT half-width in metres. Anything drawn against the
+        /// mat edge has to read this rather than keep its own copy: the manager
+        /// sizes the mat from GameTuning after the fighters are built, the
+        /// walk-in widens it, and the engage contracts it again.
+        public float CurrentHalfWidth => _currentHalf > 0f ? _currentHalf : groundWidth * 0.5f;
+
+        private static readonly Dictionary<string, Sprite> RuntimeSprites = new Dictionary<string, Sprite>();
+
+        /// Physically resizes the dohyo to the given half-width: platform
+        /// visuals AND collider change together, and the tawara ride the
+        /// moving edge. Used by the training referee's per-round platform
+        /// width randomization.
+        /// Below this half-width (metres) the mat is WITHDRAWN outright instead
+        /// of surviving as a clamp-sized sliver: the platform collider is
+        /// disabled and the clay visuals hidden, so anything still balanced on
+        /// it drops onto the arena floor and the existing ring-out rules —
+        /// foot-below-mat and any-part-floor-contact — end the round physically.
+        ///
+        /// WHY. The old floor clamp at 0.1 left a 20 cm pillar, and OutOfRing is
+        /// purely vertical: two fighters clinched on top of it form a stable
+        /// arch, nobody's foot ever goes below the mat surface, the clock is
+        /// off, and the round simply cannot end. Measured in play as a permanent
+        /// stall with both fighters "floating" over the crowd.
+        private const float VANISH_HALF = 0.12f;
+
+        // Shikiri-sen: the two start lines, metres from ring centre / long / deep.
+        private const float SHIKIRI_OFFSET = 0.35f;
+        private const float SHIKIRI_WIDTH = 0.25f;
+        private const float SHIKIRI_DEPTH = 0.03f;
+
+        public void SetPlatformHalfWidth(float half)
+        {
+            half = Mathf.Clamp(half, 0f, groundWidth * 0.5f);
+            bool vanishNow = half < VANISH_HALF;
+            bool vanishWas = _currentHalf >= 0f && _currentHalf < VANISH_HALF;
+            // Skip only when the change is invisible AND does not cross the
+            // vanish boundary — the boundary itself is always applied.
+            if (vanishNow == vanishWas && Mathf.Abs(half - _currentHalf) < 0.0005f) return;
+            _currentHalf = half;
+
+            float width = Mathf.Max(0.02f, half * 2f);
+            if (_platform != null)
+            {
+                _platform.localScale = new Vector3(width, platformDrop, 1f);
+                // THE SUPPORT. Disabled when the clay is gone — that is the whole
+                // mechanic: withdraw the floor, let gravity be the referee. Every
+                // caller that re-widens the mat (round reset, walk-in widen,
+                // training randomization) comes back through here above the
+                // threshold, so the floor re-arms itself for free.
+                var support = _platform.GetComponent<BoxCollider2D>();
+                if (support != null) support.enabled = !vanishNow;
+                var supportRenderer = _platform.GetComponent<SpriteRenderer>();
+                if (supportRenderer != null) supportRenderer.enabled = !vanishNow;
+            }
+            if (_surface != null)
+            {
+                _surface.localScale = new Vector3(width, 0.08f, 1f);
+                _surface.gameObject.SetActive(!vanishNow);
+            }
+            if (_baseLip != null)
+            {
+                _baseLip.localScale = new Vector3(width + 0.7f, 0.16f, 1f);
+                _baseLip.gameObject.SetActive(!vanishNow);
+            }
+
+            // The start lines are paint on the clay, so they go when the clay
+            // under them does. Renderer-only objects: nothing physical changes.
+            bool linesOnClay = half >= SHIKIRI_OFFSET + SHIKIRI_WIDTH * 0.5f;
+            if (_shikiriLeft != null) _shikiriLeft.gameObject.SetActive(linesOnClay);
+            if (_shikiriRight != null) _shikiriRight.gameObject.SetActive(linesOnClay);
+
+            EnsureTawaraBands(half);
+            if (vanishNow) return;   // no clay left — the bales went with it
+
+            float tawaraHalf = half - 0.3f; // bales stay on the clay, at the edge
+            for (int tawaraIndex = 0; tawaraIndex < _tawara.Count; tawaraIndex++)
+            {
+                var r = _tawara[tawaraIndex];
+                var p = r.t.localPosition;
+                r.t.localPosition = new Vector3(r.side * (tawaraHalf - r.index * 0.24f), p.y, p.z);
+            }
+        }
+
+        // --- Sprite / material sources ------------------------------------
+        // Edit mode: every generated texture is written to Assets/_Project/Environments/Art/Generated
+        // and referenced as a real asset, so baked scenes survive reload.
+        // Play mode (unbaked fallback): generated in memory and cached.
+
+        private static Sprite SourceSprite(string name, float ppu, bool repeat, Vector2 pivot, System.Func<Texture2D> gen)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                const string dir = "Assets/_Project/Environments/Art/Generated";
+                string path = $"{dir}/{name}.png";
+                var existing = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+                if (existing != null) return existing;
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.File.WriteAllBytes(path, gen().EncodeToPNG());
+                AssetDatabase.ImportAsset(path);
+                var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spritePixelsPerUnit = ppu;
+                importer.wrapMode = repeat ? TextureWrapMode.Repeat : TextureWrapMode.Clamp;
+                importer.mipmapEnabled = false;
+                var settings = new TextureImporterSettings();
+                importer.ReadTextureSettings(settings);
+                settings.spriteMeshType = SpriteMeshType.FullRect;
+                settings.spriteAlignment = (int)SpriteAlignment.Custom;
+                settings.spritePivot = pivot;
+                importer.SetTextureSettings(settings);
+                importer.SaveAndReimport();
+                return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            }
+#endif
+            if (RuntimeSprites.TryGetValue(name, out var cached) && cached != null) return cached;
+            var tex = gen();
+            if (repeat) tex.wrapMode = TextureWrapMode.Repeat;
+            var sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), pivot, ppu,
+                                       0, SpriteMeshType.FullRect);
+            RuntimeSprites[name] = sprite;
+            return sprite;
+        }
+
+        private static PhysicsMaterial2D SourcePhysMat(string name, float friction, float bounciness)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                const string dir = "Assets/_Project/Environments/Art/Generated";
+                string path = $"{dir}/{name}.physicsMaterial2D";
+                var existing = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>(path);
+                if (existing != null) return existing;
+                System.IO.Directory.CreateDirectory(dir);
+                var created = new PhysicsMaterial2D(name) { friction = friction, bounciness = bounciness };
+                AssetDatabase.CreateAsset(created, path);
+                return created;
+            }
+#endif
+            return new PhysicsMaterial2D(name) { friction = friction, bounciness = bounciness };
+        }
+
+        // Runtime-owned copy of the platform material. Created on first use and
+        // reused, so repeated friction changes cost nothing and leak nothing.
+        private PhysicsMaterial2D _platformMatInstance;
+
+        /// Sets the dohyo top-surface friction: the training referee's per-round
+        /// domain randomization, and the game's one-time apply from GameTuning.
+        ///
+        /// Mutates an INSTANCE, never the material it was given. In a baked scene
+        /// col.sharedMaterial is the project asset Ground_Clay.physicsMaterial2D,
+        /// and writing through to it edited the asset itself — during Play mode,
+        /// where asset edits are not reverted on exit. That is not theoretical:
+        /// Build() writes that asset at the component default 0.9, yet it is
+        /// committed at 0.55, which is GameTuning.surfaceFriction, arrived at via
+        /// this method.
+        public void SetSurfaceFriction(float friction)
+        {
+            surfaceFriction = friction;
+            if (_platform == null) return;
+            var col = _platform.GetComponent<BoxCollider2D>();
+            if (col == null) return;
+#if UNITY_EDITOR
+            // Edit mode keeps the shared asset on the collider: Build() bakes that
+            // reference into the scene, and swapping in a scene-local instance
+            // here would leave the saved scene pointing at nothing after reload.
+            // Only Build() authors the material outside Play mode.
+            if (!Application.isPlaying) return;
+#endif
+
+            if (_platformMatInstance == null)
+            {
+                _platformMatInstance = new PhysicsMaterial2D("Ground_Clay_Runtime")
+                {
+                    bounciness = col.sharedMaterial != null ? col.sharedMaterial.bounciness : 0f,
+                };
+            }
+            _platformMatInstance.friction = friction;
+            col.sharedMaterial = _platformMatInstance;
+        }
+
+        private void OnDestroy()
+        {
+            // Script-created, so nothing else will ever collect it.
+            if (_platformMatInstance != null) Destroy(_platformMatInstance);
+            if (_tawaraMatInstance != null) Destroy(_tawaraMatInstance);
+        }
+
+        [Tooltip("Width in metres of the slick tawara band at each rim. 0 disables it.")]
+        public float tawaraBandWidth = 0.7f;
+        [Tooltip("Friction inside the tawara band.")]
+        public float tawaraFriction = 0.18f;
+        [Tooltip("Metres the band's top stands above the clay. Written by both referees from GameTuning.tawaraHeight.")]
+        public float tawaraHeight = 0.005f;
+
+        private Transform _bandLeft, _bandRight;
+        private PhysicsMaterial2D _tawaraMatInstance;
+
+        /// The band material, resolved once. In edit mode this is the shared
+        /// project asset (so a baked scene keeps referencing it); at runtime it is
+        /// a single owned instance whose friction tracks tawaraFriction.
+        private PhysicsMaterial2D TawaraMaterial()
+        {
+            if (_tawaraMatInstance != null)
+            {
+                _tawaraMatInstance.friction = tawaraFriction;
+                return _tawaraMatInstance;
+            }
+            PhysicsMaterial2D material = SourcePhysMat("Ground_Tawara", tawaraFriction, 0f);
+#if UNITY_EDITOR
+            if (!Application.isPlaying) return material;   // the shared asset
+#endif
+            _tawaraMatInstance = material;
+            return _tawaraMatInstance;
+        }
+
+        /// The bales, as physics rather than decoration.
+        ///
+        /// A fighter driven to the rim used to plant on the same 0.9-friction clay
+        /// as the middle of the ring and simply stop, which is a large part of why
+        /// ring-outs never happened. These two strips sit 5 mm proud of the clay at
+        /// each edge, so a foot that reaches them contacts the slick material first
+        /// and the fighter slides out instead of gripping.
+        public void EnsureTawaraBands(float half)
+        {
+            // No clay, no bales: the vanish path hides them with the mat, and
+            // they come back on the next call above the threshold.
+            if (half < VANISH_HALF)
+            {
+                if (_bandLeft != null) _bandLeft.gameObject.SetActive(false);
+                if (_bandRight != null) _bandRight.gameObject.SetActive(false);
+                return;
+            }
+            if (tawaraBandWidth <= 0.001f)
+            {
+                if (_bandLeft != null) _bandLeft.gameObject.SetActive(false);
+                if (_bandRight != null) _bandRight.gameObject.SetActive(false);
+                return;
+            }
+            _bandLeft = Band(_bandLeft, "TawaraBandLeft", -1f, half);
+            _bandRight = Band(_bandRight, "TawaraBandRight", 1f, half);
+        }
+
+        private Transform Band(Transform existing, string name, float side, float half)
+        {
+            Transform t = existing;
+            if (t == null)
+            {
+                Transform found = transform.Find(name);
+                if (found != null)
+                {
+                    t = found;
+                }
+                else
+                {
+                    var go = new GameObject(name);
+                    go.transform.SetParent(transform, false);
+                    var col = go.AddComponent<BoxCollider2D>();
+                    col.size = Vector2.one;
+                    t = go.transform;
+                }
+            }
+            t.gameObject.SetActive(true);
+
+            var box = t.GetComponent<BoxCollider2D>();
+            if (box != null)
+            {
+                // Resolved ONCE and cached. At runtime SourcePhysMat takes the
+                // `new PhysicsMaterial2D` branch, so calling it per band per call
+                // allocated two native objects every time the referee randomized
+                // the platform width — every round, per arena, per worker, none of
+                // them ever collected in a headless env that never reloads a scene.
+                box.sharedMaterial = TawaraMaterial();
+            }
+            // Centred on the outer band, top edge 5 mm above the clay so it wins the
+            // contact against the platform collider it overlaps.
+            float centre = side * (half - tawaraBandWidth * 0.5f);
+            t.localScale = new Vector3(tawaraBandWidth, 0.08f, 1f);
+            t.localPosition = new Vector3(centre, tawaraHeight - 0.04f, 0.01f);
+            return t;
+        }
+
+        private static Sprite Box() => SourceSprite("Box", 4f, false, new Vector2(0.5f, 0.5f), () =>
+        {
+            var tex = new Texture2D(4, 4, TextureFormat.RGBA32, false);
+            var px = new Color[16];
+            for (int index = 0; index < 16; index++) px[index] = Color.white;
+            tex.SetPixels(px);
+            tex.Apply();
+            return tex;
+        });
+
+        private static Sprite Circle() => SourceSprite("Circle", 64f, false, new Vector2(0.5f, 0.5f), () =>
+        {
+            const int S = 64;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+            float r = S / 2f - 1f;
+            for (int rowIndex = 0; rowIndex < S; rowIndex++)
+                for (int columnIndex = 0; columnIndex < S; columnIndex++)
+                {
+                    float d = Vector2.Distance(new Vector2(columnIndex + 0.5f, rowIndex + 0.5f), new Vector2(S / 2f, S / 2f));
+                    tex.SetPixel(columnIndex, rowIndex, d <= r ? Color.white : Color.clear);
+                }
+            tex.Apply();
+            return tex;
+        });
+
+        private Sprite NoiseSprite(Color baseColor, float amount) =>
+            SourceSprite("Noise_Clay", 256f, true, new Vector2(0.5f, 0.5f), () =>
+        {
+            const int S = 256;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+            for (int rowIndex = 0; rowIndex < S; rowIndex++)
+                for (int columnIndex = 0; columnIndex < S; columnIndex++)
+                {
+                    float n = Mathf.PerlinNoise(columnIndex * 0.11f, rowIndex * 0.11f)
+                            + 0.5f * Mathf.PerlinNoise(columnIndex * 0.31f, rowIndex * 0.31f);
+                    float v = 1f + (n / 1.5f - 0.5f) * 2f * amount;
+                    tex.SetPixel(columnIndex, rowIndex, new Color(baseColor.r * v, baseColor.g * v, baseColor.b * v, 1f));
+                }
+            tex.Apply();
+            return tex;
+        });
+
+        /// Back-wall gradient, brightened on 2026-08-25 from (0.09,0.06,0.07) top /
+        /// (0.25,0.17,0.13) bottom.
+        ///
+        /// The old values made the hall read as a black void behind a lit ring, and
+        /// no light setting could rescue it: the wall's own texture was 0.06-0.25,
+        /// so even a global of 1.05 left it under a quarter brightness. A tint
+        /// cannot fix it either — `SpriteRenderer.color` is a multiplier capped at
+        /// 1, and the wall was already tinted ~0.97 white.
+        ///
+        /// Kept clearly darker than the fighters (whose limbs sit around 0.6-0.9)
+        /// so the eye still goes to the bout, and warm rather than neutral so it
+        /// reads as a wooden hall under lantern light.
+        private static readonly Color WALL_TOP = new Color(0.20f, 0.16f, 0.17f);
+        private static readonly Color WALL_BOTTOM = new Color(0.46f, 0.36f, 0.29f);
+
+        private static Sprite GradientSprite(Color top, Color bottom) =>
+            SourceSprite(WALL_SPRITE, 128f, false, new Vector2(0.5f, 0.5f),
+                         () => GradientTexture(top, bottom));
+
+        private const string WALL_SPRITE = "WallGradient";
+
+        private static Texture2D GradientTexture(Color top, Color bottom)
+        {
+            // 4 texels wide: it is a vertical gradient, there is nothing to store
+            // across it. That makes the SPRITE 4/128 = 0.031 units wide, which is
+            // why the wall is sized through SizeToMetres and never by writing a
+            // width straight into localScale.
+            const int S = 128;
+            var tex = new Texture2D(4, S, TextureFormat.RGBA32, false);
+            for (int rowIndex = 0; rowIndex < S; rowIndex++)
+            {
+                var c = Color.Lerp(bottom, top, (float)rowIndex / (S - 1));
+                for (int columnIndex = 0; columnIndex < 4; columnIndex++) tex.SetPixel(columnIndex, rowIndex, c);
+            }
+            tex.Apply();
+            return tex;
+        }
+
+        /// Scales a renderer's transform so its sprite covers `width` x `height`
+        /// metres, whatever size the sprite itself is.
+        ///
+        /// Every Box-style piece of dressing here is a one-unit sprite, so writing
+        /// metres into localScale is right for all of them — and wrong for the
+        /// wall, whose gradient is 0.031 units wide. Scaled to `floorWidth` (34)
+        /// that way, the "back wall" rendered as a strip **1.06 m wide**
+        /// (measured live 2026-10-04: bounds 1.06 x 12.0): one hard-edged column
+        /// of warm light behind the fighters, with the camera's clear colour
+        /// either side of it. That is the real reason the hall read as a void,
+        /// and why the placeholder grid was the only thing that appeared to be
+        /// behind the fight at all.
+        private static void SizeToMetres(SpriteRenderer renderer, float width, float height)
+        {
+            Vector2 unit = renderer.sprite != null ? (Vector2)renderer.sprite.bounds.size : Vector2.one;
+            renderer.transform.localScale = new Vector3(
+                width / Mathf.Max(0.0001f, unit.x), height / Mathf.Max(0.0001f, unit.y), 1f);
+        }
+
+#if UNITY_EDITOR
+        /// Editor-only: rewrite the baked `WallGradient.png` from the current
+        /// constants, in place.
+        ///
+        /// SourceSprite hands back an EXISTING asset untouched, so a change to
+        /// WALL_TOP / WALL_BOTTOM never reaches disk on its own.
+        /// The bytes are overwritten rather than the file re-created so the
+        /// `.meta` — GUID, sprite import settings, atlas membership — survives
+        /// and every baked reference keeps resolving. Called by
+        /// PoSumo -> Rebuild Arena (FULL) before it rebuilds.
+        public static void RegenerateWallGradient()
+        {
+            string path = $"Assets/_Project/Environments/Art/Generated/{WALL_SPRITE}.png";
+            if (!System.IO.File.Exists(path))
+            {
+                return;   // first bake: SourceSprite will create and import it
+            }
+            Texture2D tex = GradientTexture(WALL_TOP, WALL_BOTTOM);
+            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+            DestroyImmediate(tex);
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+        }
+#endif
+
+        private static Sprite ConeSprite() =>
+            SourceSprite("SpotCone", 128f, false, new Vector2(0.5f, 0f), () =>
+        {
+            const int S = 128;
+            var tex = new Texture2D(S, S, TextureFormat.RGBA32, false);
+            for (int rowIndex = 0; rowIndex < S; rowIndex++)
+                for (int columnIndex = 0; columnIndex < S; columnIndex++)
+                {
+                    // Triangle widening toward the bottom, soft edges, fades upward.
+                    float ny = (float)rowIndex / (S - 1);              // 0 bottom, 1 top
+                    float halfW = Mathf.Lerp(0.5f, 0.06f, ny);  // wide at bottom
+                    float dx = Mathf.Abs((float)columnIndex / (S - 1) - 0.5f);
+                    float a = dx < halfW ? (1f - dx / halfW) * (1f - ny) : 0f;
+                    tex.SetPixel(columnIndex, rowIndex, new Color(1f, 0.95f, 0.8f, a * 0.16f));
+                }
+            tex.Apply();
+            return tex;
+        });
+
+        private Sprite GridSprite() =>
+            SourceSprite(deluxe ? "Grid_Deluxe" : "Grid_Plain", 100f, true, new Vector2(0.5f, 0.5f), () =>
+        {
+            const int PX = 500;
+            var tex = new Texture2D(PX, PX, TextureFormat.RGBA32, false);
+            var bg = deluxe ? new Color(0f, 0f, 0f, 0f) : new Color(0.17f, 0.13f, 0.12f, 1f);
+            var thin = deluxe ? new Color(0.62f, 0.54f, 0.45f, 0.38f) : new Color(0.24f, 0.19f, 0.17f, 1f);
+            var heavy = deluxe ? new Color(0.75f, 0.65f, 0.52f, 0.55f) : new Color(0.36f, 0.29f, 0.25f, 1f);
+            for (int rowIndex = 0; rowIndex < PX; rowIndex++)
+                for (int columnIndex = 0; columnIndex < PX; columnIndex++)
+                {
+                    bool heavyLine = columnIndex < 3 || rowIndex < 3 || columnIndex >= PX - 3 || rowIndex >= PX - 3;
+                    bool thinLine = (columnIndex % 100) < 2 || (rowIndex % 100) < 2;
+                    tex.SetPixel(columnIndex, rowIndex, heavyLine ? heavy : (thinLine ? thin : bg));
+                }
+            tex.Apply();
+            return tex;
+        });
+
+        private void Awake()
+        {
+            // Baked scene: the children already exist in the editor — only
+            // rebind the references SetVisualRing needs.
+            if (transform.childCount > 0)
+            {
+                RebindBaked();
+                ApplyLitMaterial();
+                ApplyPaintedLightVisibility();
+                return;
+            }
+            Build();
+            ApplyLitMaterial();
+            ApplyPaintedLightVisibility();
+        }
+
+        /// Painted-on light: the two "Spotlight" cone sprites over the ring and the
+        /// five "LanternHalo" glows under the roof. They are scenery, not lights —
+        /// soft alpha quads that stand in for a beam and a bulb bloom.
+        ///
+        /// The two Spotlight cones are RETIRED — hidden unconditionally, the rig's
+        /// real lights replace them. Together with the key volumetric they were the
+        /// "giant light in the middle of the scene": 3.4 x 6.2 alpha quads at
+        /// sortingOrder -2, cast from a roof the gameplay framing never actually
+        /// shows, washing out the mat and the crowd behind them. The five
+        /// LanternHalo glows stay — they are small, they sit on the lantern sprites
+        /// that justify them, and they are not what was complained about.
+        ///
+        /// Disabled rather than destroyed, and matched by NAME rather than by a
+        /// flag, because the arena scenes are BAKED: these children are saved into
+        /// SCN_SUMO, so gating them inside Build() would do nothing — Build does not
+        /// run on a baked scene. Same reason the switch has to be applied after
+        /// RebindBaked as well as after Build.
+        private void ApplyPaintedLightVisibility()
+        {
+            foreach (Transform child in transform)
+            {
+                if (child.name == "Spotlight")
+                {
+                    // Retired painted cones — see above. Never shown.
+                    child.gameObject.SetActive(false);
+                }
+                else if (child.name == "LanternHalo")
+                {
+                    child.gameObject.SetActive(true);
+                }
+            }
+        }
+
+        /// Put every renderer the ARENA owns onto the lit material so the 2D light
+        /// rig reaches the dohyo, crowd and backdrop.
+        ///
+        /// Systems_ArenaLighting used to do this by sweeping every SpriteRenderer in
+        /// the scene, which meant it also claimed renderers it did not own — the
+        /// wrestlers' body materials and the light shafts both got overwritten, and
+        /// each needed an exception carved out. Scoped to this subtree, the arena
+        /// owns its own look and nothing else has to defend against it.
+        private void ApplyLitMaterial()
+        {
+            Material lit = Systems_ArenaLighting.LitSpriteMaterial();
+            if (lit == null)
+            {
+                return;
+            }
+            var renderers = GetComponentsInChildren<SpriteRenderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                renderers[rendererIndex].sharedMaterial = lit;
+            }
+        }
+
+        private void RebindBaked()
+        {
+            _tawara.Clear();
+            _currentHalf = groundWidth * 0.5f;
+            foreach (Transform child in transform)
+            {
+                string n = child.name;
+                if (n.StartsWith("TawaraLeft"))
+                {
+                    _tawara.Add(new TawaraRef { t = child, side = -1, index = n[n.Length - 1] - '0' });
+                }
+                else if (n.StartsWith("TawaraRight"))
+                {
+                    _tawara.Add(new TawaraRef { t = child, side = 1, index = n[n.Length - 1] - '0' });
+                }
+                else if (n == "ArenaFloor") FloorCollider = child.GetComponent<Collider2D>();
+                else if (n == "DohyoPlatform") _platform = child;
+                else if (n == "ClaySurface") _surface = child;
+                else if (n == "DohyoBase") _baseLip = child;
+                else if (n == "ShikiriLeft") _shikiriLeft = child;
+                else if (n == "ShikiriRight") _shikiriRight = child;
+                // The wall is NOT re-assigned here any more. It used to be handed
+                // a runtime-generated gradient on every load so that WALL_TOP /
+                // WALL_BOTTOM were editable without a re-bake — which took the
+                // wall out of ArenaAtlas (a draw call of its own) for a colour
+                // that changes about once a quarter. The baked sprite is the
+                // atlas one; RegenerateWallGradient + Rebuild Arena (FULL) is how
+                // a colour change reaches it.
+                //
+                // The grid still is: only the non-deluxe arenas carry one now,
+                // and those are the training scenes nobody re-bakes.
+                else if (n == "Grid")
+                {
+                    var gridRenderer = child.GetComponent<SpriteRenderer>();
+                    if (gridRenderer != null) gridRenderer.sprite = GridSprite();
+                }
+            }
+        }
+
+        /// Creates the full arena as child objects. Called by Awake() when the
+        /// scene isn't baked, and by the editor bake pass (which then saves
+        /// the children into the scene).
+        public void Build()
+        {
+            var clay = new Color(0.72f, 0.57f, 0.4f);
+            var clayLight = new Color(0.8f, 0.66f, 0.47f);
+            var clayDark = new Color(0.55f, 0.42f, 0.3f);
+
+            // --- Dohyo platform: top surface at y=0, sides slightly stepped.
+            float half = groundWidth * 0.5f;
+            _currentHalf = half;
+            var platform = new GameObject("DohyoPlatform");
+            _platform = platform.transform;
+            platform.transform.SetParent(transform, false);
+            platform.transform.localPosition = new Vector3(0f, -platformDrop * 0.5f, 0f);
+            platform.transform.localScale = new Vector3(groundWidth, platformDrop, 1f);
+            var psr = platform.AddComponent<SpriteRenderer>();
+            psr.sprite = deluxe ? NoiseSprite(clay, 0.06f) : Box();
+            psr.color = deluxe ? Color.white : clay;
+            psr.sortingOrder = -5;
+            var pcol = platform.AddComponent<BoxCollider2D>();
+            pcol.sharedMaterial = SourcePhysMat("Ground_Clay", surfaceFriction, 0f);
+
+            // Slightly wider base lip to suggest the mound shape.
+            var lip = new GameObject("DohyoBase");
+            _baseLip = lip.transform;
+            lip.transform.SetParent(transform, false);
+            lip.transform.localPosition = new Vector3(0f, -platformDrop + 0.08f, 0f);
+            lip.transform.localScale = new Vector3(groundWidth + 0.7f, 0.16f, 1f);
+            var lsr0 = lip.AddComponent<SpriteRenderer>();
+            lsr0.sprite = Box();
+            lsr0.color = clayDark;
+            lsr0.sortingOrder = -4;
+
+            // Packed-clay surface highlight.
+            var surface = new GameObject("ClaySurface");
+            _surface = surface.transform;
+            surface.transform.SetParent(transform, false);
+            surface.transform.localPosition = new Vector3(0f, -0.04f, 0f);
+            surface.transform.localScale = new Vector3(groundWidth, 0.08f, 1f);
+            var ssr = surface.AddComponent<SpriteRenderer>();
+            ssr.sprite = Box();
+            ssr.color = clayLight;
+            ssr.sortingOrder = -4;
+
+            // --- Lower arena floor (crowd level) + collider so fallers land.
+            var floor = new GameObject("ArenaFloor");
+            floor.transform.SetParent(transform, false);
+            floor.transform.localPosition = new Vector3(0f, -platformDrop - 0.5f, 0f);
+            floor.transform.localScale = new Vector3(floorWidth, 1f, 1f);
+            var fsr = floor.AddComponent<SpriteRenderer>();
+            fsr.sprite = Box();
+            fsr.color = new Color(0.24f, 0.18f, 0.15f);
+            fsr.sortingOrder = -6;
+            var fcol = floor.AddComponent<BoxCollider2D>();
+            fcol.sharedMaterial = SourcePhysMat("Floor", 0.8f, 0f);
+            FloorCollider = fcol;
+
+            // --- Shikiri-sen: the two white starting lines at ring center.
+            for (int s = -1; s <= 1; s += 2)
+            {
+                var line = new GameObject(s < 0 ? "ShikiriLeft" : "ShikiriRight");
+                line.transform.SetParent(transform, false);
+                // INLAID, top edge flush with the clay. They used to be centred
+                // 1.5 cm ABOVE the mat and 3.5 cm tall — and this is a side view,
+                // so a line painted on the ground was being drawn as a white slab
+                // standing on it. Two of them, bright white, at the middle of the
+                // ring: reported as "white fragments lying on the mat" by someone
+                // looking for a severed limb (2026-10-04). Sunk into the surface
+                // band and toned toward the clay they read as paint.
+                line.transform.localPosition =
+                    new Vector3(s * SHIKIRI_OFFSET, -SHIKIRI_DEPTH * 0.5f, 0f);
+                line.transform.localScale = new Vector3(SHIKIRI_WIDTH, SHIKIRI_DEPTH, 1f);
+                var lsr = line.AddComponent<SpriteRenderer>();
+                lsr.sprite = Box();
+                lsr.color = new Color(0.90f, 0.85f, 0.74f);
+                lsr.sortingOrder = -3;
+                if (s < 0) _shikiriLeft = line.transform; else _shikiriRight = line.transform;
+            }
+
+            // --- Deluxe: gradient arena wall behind everything.
+            if (deluxe)
+            {
+                var wall = new GameObject("ArenaWall");
+                wall.transform.SetParent(transform, false);
+                wall.transform.localPosition = new Vector3(0f, 4.4f, 0f);
+                var wsr = wall.AddComponent<SpriteRenderer>();
+                wsr.sprite = GradientSprite(WALL_TOP, WALL_BOTTOM);
+                wsr.sortingOrder = -12;
+                SizeToMetres(wsr, floorWidth, 12f);
+
+                // Below the wall: the dark well the front tiers stand in. The
+                // wall stops at y = -1.6 and the tiers leave gaps between their
+                // faces, so without this the camera's clear colour shows through
+                // them and under the last tier in every wide shot.
+                var pit = new GameObject("ArenaPit");
+                pit.transform.SetParent(transform, false);
+                pit.transform.localPosition = new Vector3(0f, -7.6f, 0f);
+                pit.transform.localScale = new Vector3(floorWidth, 12f, 1f);
+                var pitRenderer = pit.AddComponent<SpriteRenderer>();
+                pitRenderer.sprite = Box();
+                pitRenderer.color = new Color(0.115f, 0.09f, 0.085f);
+                pitRenderer.sortingOrder = -12;
+
+                // Timber frame: posts and one head rail, a shade darker than the
+                // wall behind them. This is ALL the wall carries. The placeholder
+                // grid is gone, and so are the four saturated banners — at
+                // gameplay framing the top of frame cut each banner off a short
+                // way up, so what reached the screen was an unexplained ochre
+                // block with a cream square in one corner. A post cropped by the
+                // frame still reads as a post.
+                var timber = new Color(0.25f, 0.19f, 0.165f);
+                for (int postIndex = -3; postIndex <= 3; postIndex++)
+                {
+                    if (postIndex == 0)
+                    {
+                        continue;   // nothing dead centre behind the bout
+                    }
+                    var post = new GameObject("ArenaPost");
+                    post.transform.SetParent(transform, false);
+                    post.transform.localPosition = new Vector3(postIndex * 4.6f, 4.4f, 0f);
+                    post.transform.localScale = new Vector3(0.26f, 12f, 1f);
+                    var postRenderer = post.AddComponent<SpriteRenderer>();
+                    postRenderer.sprite = Box();
+                    postRenderer.color = timber;
+                    postRenderer.sortingOrder = -11;
+                }
+                var headRail = new GameObject("ArenaRail");
+                headRail.transform.SetParent(transform, false);
+                headRail.transform.localPosition = new Vector3(0f, 3.3f, 0f);
+                headRail.transform.localScale = new Vector3(floorWidth, 0.16f, 1f);
+                var headRailRenderer = headRail.AddComponent<SpriteRenderer>();
+                headRailRenderer.sprite = Box();
+                headRailRenderer.color = timber;
+                headRailRenderer.sortingOrder = -11;
+            }
+
+            // --- Warm gridded backdrop (1 m cells, heavy line each 5 m).
+            //
+            // Spans y = -8.8 to 11.2. It used to be centred at 4.4 with a height of
+            // 12, i.e. it stopped at y = -1.6 — barely below the crowd floor at
+            // -1.1. That is the source of the black band under the dohyo: at the
+            // portrait aspect the camera sits near y = 0 with an ortho around 5-7,
+            // so it sees down to roughly y = -7, and everything past -1.6 was
+            // simply nothing being drawn.
+            //
+            // Extending DOWN rather than tightening the camera is the fix that
+            // works — see the measured dead end recorded on
+            // Systems_CameraFollow.feetDrop. It costs one tiled sprite's worth of
+            // extra area on a renderer that is already in the scene, behind
+            // everything at sortingOrder -10.
+            //
+            // PLAIN ARENAS ONLY since 2026-10-04. The grid is a placeholder: in the
+            // deluxe arena it was a 1 m graph-paper lattice drawn over the back of
+            // the hall, and it only looked like the backdrop because the real wall
+            // was a 1 m strip (see SizeToMetres). With the wall the right size the
+            // deluxe arena is covered top to bottom by wall + pit and needs none.
+            if (!deluxe)
+            {
+                var grid = new GameObject("Grid");
+                grid.transform.SetParent(transform, false);
+                grid.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+                var gsr2 = grid.AddComponent<SpriteRenderer>();
+                gsr2.sprite = GridSprite();
+                gsr2.drawMode = SpriteDrawMode.Tiled;
+                gsr2.size = new Vector2(floorWidth, 20f);
+                gsr2.sortingOrder = -10;
+            }
+
+            if (!showPosts) return;
+
+            // --- Back gallery: a full-width row of darkened spectators behind
+            // the fight so the portrait crop doesn't read as an empty wall.
+            var galleryKimono = new[]
+            {
+                new Color(0.25f, 0.18f, 0.28f), new Color(0.17f, 0.24f, 0.3f),
+                new Color(0.3f, 0.2f, 0.17f), new Color(0.2f, 0.27f, 0.21f),
+                new Color(0.28f, 0.25f, 0.18f)
+            };
+            var galleryShade = new Color(0.34f, 0.27f, 0.235f);
+            const float GALLERY_BODY_W = 0.40f;
+            const float GALLERY_BODY_H = 0.52f;
+            int gallerySeats = Mathf.FloorToInt(floorWidth / 0.6f);
+            for (int gallerySeatIndex = 0; gallerySeatIndex < gallerySeats; gallerySeatIndex++)
+            {
+                float gx = -floorWidth * 0.5f + 0.4f + gallerySeatIndex * 0.6f;
+                float jitter = ((gallerySeatIndex * 13) % 5) * 0.025f;
+                var c = galleryKimono[(gallerySeatIndex * 7) % galleryKimono.Length];
+
+                // Rounded shoulders, not a box, and pulled most of the way toward
+                // the wall colour. These sit directly behind the fighters at head
+                // and chest height: as saturated kimono-coloured rectangles they
+                // were the busiest thing in the frame and read as blocks. A figure
+                // here only has to say "people are watching"; the eye belongs on
+                // the bout. Opaque as well — the old 0.85 alpha bought nothing over
+                // a flat wall and cost a blended layer across the whole width.
+                var gbody = new GameObject("GallerySpectator");
+                gbody.transform.SetParent(transform, false);
+                gbody.transform.localPosition = new Vector3(gx, 0.18f + jitter, 0f);
+                gbody.transform.localScale = new Vector3(GALLERY_BODY_W, GALLERY_BODY_H, 1f);
+                var gsr = gbody.AddComponent<SpriteRenderer>();
+                gsr.sprite = Circle();
+                gsr.color = new Color(Mathf.Lerp(c.r, galleryShade.r, 0.62f),
+                                      Mathf.Lerp(c.g, galleryShade.g, 0.62f),
+                                      Mathf.Lerp(c.b, galleryShade.b, 0.62f), 1f);
+                gsr.sortingOrder = -9;
+
+                var ghead = new GameObject("Head");
+                ghead.transform.SetParent(gbody.transform, false);
+                ghead.transform.localScale =
+                    new Vector3(0.2f / GALLERY_BODY_W, 0.2f / GALLERY_BODY_H, 1f);
+                ghead.transform.localPosition = new Vector3(0f, 0.6f, 0f);
+                var ghsr = ghead.AddComponent<SpriteRenderer>();
+                ghsr.sprite = Circle();
+                ghsr.color = new Color(0.44f, 0.36f, 0.31f, 1f);
+                ghsr.sortingOrder = -9;
+            }
+
+            // --- Tawara: straw bales at the ring edges.
+            var straw = new Color(0.78f, 0.68f, 0.42f);
+            var strawDark = new Color(0.62f, 0.53f, 0.3f);
+            for (int s = -1; s <= 1; s += 2)
+            {
+                for (int b = 0; b < 2; b++)
+                {
+                    var bale = new GameObject((s < 0 ? "TawaraLeft" : "TawaraRight") + b);
+                    bale.transform.SetParent(transform, false);
+                    bale.transform.localPosition =
+                        new Vector3(s * (ringHalfWidth - b * 0.24f), 0.08f, 0f);
+                    bale.transform.localScale = new Vector3(0.3f, 0.17f, 1f);
+                    var bsr = bale.AddComponent<SpriteRenderer>();
+                    bsr.sprite = Box();
+                    bsr.color = b == 0 ? strawDark : straw;
+                    bsr.sortingOrder = -3 + b;
+                    _tawara.Add(new TawaraRef { t = bale.transform, side = s, index = b });
+                }
+            }
+
+            // --- Crowd: two seated rows each side at floor level, plus a raised
+            // back row on step blocks. Deterministic palette by seat index.
+            var kimono = new[]
+            {
+                new Color(0.45f, 0.3f, 0.5f), new Color(0.3f, 0.42f, 0.55f),
+                new Color(0.55f, 0.35f, 0.28f), new Color(0.35f, 0.5f, 0.38f),
+                new Color(0.5f, 0.45f, 0.3f), new Color(0.42f, 0.28f, 0.32f)
+            };
+            var skin = new Color(0.92f, 0.78f, 0.62f);
+            float floorTop = -platformDrop;
+            for (int s = -1; s <= 1; s += 2)
+            {
+                for (int row = 0; row < 2; row++)
+                {
+                    float rowY = floorTop + row * 0.3f;
+                    float startX = half + 0.9f + row * 0.28f;
+                    int seats = 6;
+                    if (row == 1)
+                    {
+                        // Step block the back row sits on.
+                        var step = new GameObject(s < 0 ? "StepLeft" : "StepRight");
+                        step.transform.SetParent(transform, false);
+                        step.transform.localPosition =
+                            new Vector3(s * (startX + seats * 0.55f * 0.5f), rowY - 0.15f, 0f);
+                        step.transform.localScale = new Vector3(seats * 0.55f + 0.6f, 0.3f, 1f);
+                        var stsr = step.AddComponent<SpriteRenderer>();
+                        stsr.sprite = Box();
+                        stsr.color = new Color(0.2f, 0.15f, 0.13f);
+                        stsr.sortingOrder = -8;
+                    }
+                    for (int seatIndex = 0; seatIndex < seats; seatIndex++)
+                    {
+                        float px = s * (startX + seatIndex * 0.55f);
+                        int idx = (s + 1) * 7 + row * 13 + seatIndex * 5;
+                        var c = kimono[idx % kimono.Length];
+                        if (row == 1) c *= 0.75f;
+
+                        var body = new GameObject("Spectator");
+                        body.transform.SetParent(transform, false);
+                        body.transform.localPosition = new Vector3(px, rowY + 0.19f, 0f);
+                        body.transform.localScale = new Vector3(0.34f, 0.38f, 1f);
+                        var bsr2 = body.AddComponent<SpriteRenderer>();
+                        bsr2.sprite = Box();
+                        bsr2.color = new Color(c.r, c.g, c.b, 1f);
+                        bsr2.sortingOrder = row == 0 ? -6 : -7;
+
+                        var head = new GameObject("Head");
+                        head.transform.SetParent(body.transform, false);
+                        head.transform.localScale = new Vector3(0.2f / 0.34f, 0.2f / 0.38f, 1f);
+                        head.transform.localPosition = new Vector3(0f, 0.75f, 0f);
+                        var hsr = head.AddComponent<SpriteRenderer>();
+                        hsr.sprite = Circle();
+                        hsr.color = row == 1 ? skin * 0.8f : skin;
+                        hsr.sortingOrder = bsr2.sortingOrder;
+                    }
+                }
+            }
+
+            // --- Deluxe stadium dressing.
+            if (deluxe)
+            {
+                // Spotlight pools on the ring.
+                var cone = ConeSprite();
+                foreach (float sx in new[] { -1.2f, 1.2f })
+                {
+                    var spot = new GameObject("Spotlight");
+                    spot.transform.SetParent(transform, false);
+                    spot.transform.localPosition = new Vector3(sx, 0f, 0f);
+                    spot.transform.localScale = new Vector3(3.4f, 6.2f, 1f);
+                    var ssr2 = spot.AddComponent<SpriteRenderer>();
+                    ssr2.sprite = cone;
+                    ssr2.sortingOrder = -2;
+                }
+
+                // Lantern row under the roof.
+                for (int index = 0; index < 5; index++)
+                {
+                    float lx = Mathf.Lerp(-(half + 1.2f), half + 1.2f, index / 4f);
+                    var halo = new GameObject("LanternHalo");
+                    halo.transform.SetParent(transform, false);
+                    halo.transform.localPosition = new Vector3(lx, 5.55f, 0f);
+                    halo.transform.localScale = new Vector3(0.55f, 0.55f, 1f);
+                    var hsr2 = halo.AddComponent<SpriteRenderer>();
+                    hsr2.sprite = Circle();
+                    hsr2.color = new Color(1f, 0.8f, 0.45f, 0.18f);
+                    hsr2.sortingOrder = -6;
+                    var lamp = new GameObject("Lantern");
+                    lamp.transform.SetParent(transform, false);
+                    lamp.transform.localPosition = new Vector3(lx, 5.55f, 0f);
+                    lamp.transform.localScale = new Vector3(0.2f, 0.26f, 1f);
+                    var lsr2 = lamp.AddComponent<SpriteRenderer>();
+                    lsr2.sprite = Circle();
+                    lsr2.color = new Color(1f, 0.85f, 0.55f, 0.95f);
+                    lsr2.sortingOrder = -5;
+                }
+
+                // No wall banners — see the timber frame above for why.
+
+                // Distant back-row crowd silhouettes on both sides.
+                for (int s = -1; s <= 1; s += 2)
+                {
+                    for (int index = 0; index < 8; index++)
+                    {
+                        float px = s * (half + 0.7f + index * 0.42f);
+                        var sil = new GameObject("CrowdSilhouette");
+                        sil.transform.SetParent(transform, false);
+                        sil.transform.localPosition = new Vector3(px, -platformDrop + 0.62f, 0f);
+                        sil.transform.localScale = new Vector3(0.3f, 0.34f, 1f);
+                        var ssr3 = sil.AddComponent<SpriteRenderer>();
+                        ssr3.sprite = Circle();
+                        ssr3.color = new Color(0.1f, 0.08f, 0.08f, 0.9f);
+                        ssr3.sortingOrder = -9;
+                    }
+                }
+            }
+
+            // --- Tsuriyane: hanging roof with the four traditional fusa tassels.
+            var roof = new GameObject("Tsuriyane");
+            roof.transform.SetParent(transform, false);
+            roof.transform.localPosition = new Vector3(0f, 6.4f, 0f);
+            roof.transform.localScale = new Vector3(groundWidth + 3.5f, 0.5f, 1f);
+            var rsr = roof.AddComponent<SpriteRenderer>();
+            rsr.sprite = Box();
+            rsr.color = new Color(0.3f, 0.17f, 0.13f);
+            rsr.sortingOrder = -6;
+            var ridge = new GameObject("TsuriyaneRidge");
+            ridge.transform.SetParent(transform, false);
+            ridge.transform.localPosition = new Vector3(0f, 6.77f, 0f);
+            ridge.transform.localScale = new Vector3(groundWidth + 4.3f, 0.16f, 1f);
+            var rid = ridge.AddComponent<SpriteRenderer>();
+            rid.sprite = Box();
+            rid.color = new Color(0.2f, 0.11f, 0.09f);
+            rid.sortingOrder = -6;
+            var fusa = new[]
+            {
+                new Color(0.12f, 0.12f, 0.12f), new Color(0.2f, 0.5f, 0.28f),
+                new Color(0.75f, 0.2f, 0.16f), new Color(0.92f, 0.9f, 0.85f)
+            };
+            for (int index = 0; index < 4; index++)
+            {
+                float fx = Mathf.Lerp(-(half + 1.4f), half + 1.4f, index / 3f);
+                var tassel = new GameObject("Fusa" + index);
+                tassel.transform.SetParent(transform, false);
+                tassel.transform.localPosition = new Vector3(fx, 5.9f, 0f);
+                tassel.transform.localScale = new Vector3(0.12f, 0.5f, 1f);
+                var tsr = tassel.AddComponent<SpriteRenderer>();
+                tsr.sprite = Box();
+                tsr.color = fusa[index];
+                tsr.sortingOrder = -5;
+            }
+
+            BuildForegroundTiers();
+        }
+
+        /// Descending tiers of masu-seki box seating in FRONT of and below the
+        /// dohyo, filling the screen between the crowd floor and the bottom of
+        /// frame.
+        ///
+        /// **This exists to pay for `GameTuning.enableArenaBand`.** Confining the
+        /// camera to a band raises the aspect the orthographic maths divides by,
+        /// which is the only lever that shrinks the portrait dead space rather
+        /// than moving it around — but it opens up vertical view that the arena
+        /// had nothing to put in. Measured before this existed: the band rendered
+        /// the fighters far larger and simultaneously looked WORSE, because the
+        /// space it bought was filled with backdrop grid and nothing else.
+        ///
+        /// The dressing stopped at `ArenaFloor` (y = -platformDrop - 0.5, about
+        /// -1.1). With the band on, ortho lands near 5.3 and the camera sits close
+        /// to y = 0, so the frame runs to roughly y = -5.2. Everything between was
+        /// empty. These four tiers cover exactly that gap.
+        ///
+        /// They are a LIT crowd since 2026-10-04: muted kimono colours on warm
+        /// timber steps, darkening tier by tier toward the viewer. They started
+        /// as near-black silhouettes on the reasoning that a hall's front rows
+        /// sit between the viewer and the lit dohyo — true, and the result was
+        /// that the lower third of every portrait frame, which the enlarged band
+        /// never ended up needing, was a flat dark slab with black cut-outs in it
+        /// that read as nothing being drawn. Same quads, same shared lit material
+        /// and the same two atlas sprites, so the cost has not moved.
+        ///
+        /// **Sorting stays BELOW the fighters (negative orders).** A wrestler
+        /// thrown off the dohyo lands on `ArenaFloor` at about y = -1.1, which
+        /// overlaps the first tier. Drawing the crowd over him would hide the
+        /// fighter at the most dramatic moment available; a small depth
+        /// inconsistency is much the cheaper error.
+#if UNITY_EDITOR
+        /// Editor-only re-bake of JUST the foreground tiers.
+        ///
+        /// The arena is BAKED — an editor pass ran Build() once and the children
+        /// were saved into the scene — and Build() does NOT clear what is already
+        /// there, so re-running it on a baked scene duplicates the entire arena.
+        /// Changing a tier colour therefore cannot be done by editing the constants
+        /// alone; something has to replace the serialized objects. This removes the
+        /// one subtree it owns and rebuilds it, which is the whole reason it exists
+        /// rather than a call to Build().
+        /// Public rather than internal because PoSumo.Editor is a SEPARATE
+        /// assembly and `internal` is assembly-scoped, so the menu tool cannot
+        /// see it otherwise. The `#if UNITY_EDITOR` above is what keeps it out
+        /// of a player build.
+        public void RebuildForegroundTiers()
+        {
+            Transform existing = transform.Find("ForegroundTiers");
+            if (existing != null)
+            {
+                DestroyImmediate(existing.gameObject);
+            }
+
+            BuildForegroundTiers();
+        }
+#endif
+
+        private void BuildForegroundTiers()
+        {
+            if (!deluxe)
+            {
+                return;
+            }
+
+            // Tier fronts, descending toward the viewer. Each is wider than the
+            // one behind it so the tiers read as steps rather than as stripes.
+            // The first tier starts exactly where ArenaFloor ends (-platformDrop
+            // - 1 = -1.6); at -1.65 a 5 cm slot of the pit showed between them as
+            // a dark hairline right across the frame.
+            float[] tierY = { -1.6f, -2.5f, -3.5f, -4.7f };
+            // Sized off the DOHYO, not off floorWidth. floorWidth is 34 m, and
+            // with the band on the camera shows roughly 8 m across — so building
+            // tiers to the floor's full span put ~500 spectator renderers outside
+            // the frustum, six times the arena's entire existing crowd, for
+            // nothing visible. These spans still overhang the widest shot
+            // (wideOrtho 14 shows about 21 m) without paying for the rest.
+            float baseSpan = groundWidth * 1.9f;
+            float[] tierWidth = { baseSpan, baseSpan * 1.12f,
+                                  baseSpan * 1.26f, baseSpan * 1.42f };
+            // Darkening toward the viewer: the nearest tier is closest to pure
+            // silhouette. Never fully black — a flat 0 reads as a hole in the
+            // render rather than as a near object.
+            // RAISED 2026-09-06. The old ramp (0.115 down to 0.042) was chosen so
+            // the nearest tier sat close to pure silhouette, and against the lit
+            // dohyo it read as an unlit void rather than as a stand with people in
+            // it — measured on a live portrait capture, roughly a quarter of the
+            // frame between the dohyo base and the dock was flat near-black. These
+            // values keep the same darkening-toward-the-viewer gradient and stay
+            // far below the dohyo's own brightness, so the tiers remain background;
+            // they simply stop reading as a hole.
+            float[] tierValue = { 0.20f, 0.155f, 0.115f, 0.082f };
+            // Brightness of the people on each tier, as a multiplier on the
+            // palette below. Still a ramp toward the viewer — that is the soft
+            // gradient down the frame — but it ends at "dim", not at "black".
+            float[] crowdValue = { 0.74f, 0.62f, 0.51f, 0.42f };
+            // Muted on purpose: enough spread that the stand reads as individual
+            // people, not enough to compete with two team colours on the dohyo.
+            var tierKimono = new[]
+            {
+                new Color(0.50f, 0.36f, 0.44f), new Color(0.36f, 0.44f, 0.54f),
+                new Color(0.56f, 0.42f, 0.32f), new Color(0.40f, 0.50f, 0.42f),
+                new Color(0.55f, 0.50f, 0.38f), new Color(0.46f, 0.38f, 0.36f),
+                new Color(0.62f, 0.58f, 0.52f)
+            };
+            var tierSkin = new Color(0.80f, 0.66f, 0.54f);
+
+            var tierRoot = new GameObject("ForegroundTiers");
+            tierRoot.transform.SetParent(transform, false);
+
+            for (int tierIndex = 0; tierIndex < tierY.Length; tierIndex++)
+            {
+                float y = tierY[tierIndex];
+                float width = tierWidth[tierIndex];
+                float value = tierValue[tierIndex];
+                // -2 nearest, -5 furthest: above ArenaFloor (-6) and the backdrop
+                // (-12), below every body part.
+                int sorting = -2 - (tierY.Length - 1 - tierIndex);
+
+                // The step face itself.
+                var step = new GameObject("Tier" + tierIndex);
+                step.transform.SetParent(tierRoot.transform, false);
+                // Each face runs down to the top of the next tier, so the stand is
+                // one continuous surface. They were a fixed 0.9 m against spacings
+                // of 0.9, 1.0 and 1.2, which left slots of pit between tiers.
+                float faceHeight = tierIndex + 1 < tierY.Length
+                    ? y - tierY[tierIndex + 1] + 0.04f
+                    : 1.4f;
+                step.transform.localPosition = new Vector3(0f, y - faceHeight * 0.5f, 0f);
+                step.transform.localScale = new Vector3(width, faceHeight, 1f);
+                var stepRenderer = step.AddComponent<SpriteRenderer>();
+                stepRenderer.sprite = Box();
+                // Warm timber, lifted well clear of the pit behind it.
+                stepRenderer.color = new Color(value * 1.55f, value * 1.22f, value * 1.02f, 1f);
+                stepRenderer.sortingOrder = sorting;
+
+                // A slightly lighter rail along the top edge, which is what makes
+                // a step read as a step instead of as a band of flat colour.
+                var rail = new GameObject("TierRail" + tierIndex);
+                rail.transform.SetParent(tierRoot.transform, false);
+                rail.transform.localPosition = new Vector3(0f, y, 0f);
+                rail.transform.localScale = new Vector3(width, 0.07f, 1f);
+                var railRenderer = rail.AddComponent<SpriteRenderer>();
+                railRenderer.sprite = Box();
+                railRenderer.color = new Color(value * 2.5f, value * 2.05f, value * 1.65f, 1f);
+                railRenderer.sortingOrder = sorting;
+
+                // Seated silhouettes along the tier. Deterministic spacing and
+                // jitter from the index — no Random, so the arena is identical
+                // every time it is built and a screenshot diff stays meaningful.
+                // Seat COUNT is derived from the tier's width at a fixed human
+                // pitch, never chosen as a constant. floorWidth is 34 m, so the
+                // first pass's flat "10 seats" spread ten figures over 35 m — one
+                // person every 3.5 metres, which rendered as two lonely
+                // silhouettes in an empty stand. 0.6 m matches the pitch the
+                // existing floor-level crowd is built at.
+                const float SEAT_PITCH = 0.42f;
+                int seats = Mathf.Max(4, Mathf.RoundToInt(width / SEAT_PITCH));
+                float spacing = width / seats;
+                for (int seatIndex = 0; seatIndex < seats; seatIndex++)
+                {
+                    // Deterministic pseudo-jitter: a hash of the seat index, not
+                    // Random.value, so rebuilding the arena reproduces it exactly.
+                    int hash = (seatIndex * 37 + tierIndex * 101) % 17;
+                    float jitter = (hash / 17f - 0.5f) * spacing * 0.5f;
+                    float px = -width * 0.5f + spacing * (seatIndex + 0.5f) + jitter;
+                    // Shoulders overlap at this pitch, which is the point: a crowd
+                    // is a continuous mass with heads on top, not a row of evenly
+                    // spaced blocks. The first pass used a 0.34 body on a 0.6
+                    // pitch and read as fence posts.
+                    float scale = 0.26f + (hash % 5) * 0.022f;
+                    // Vertical stagger as well as horizontal, so the head line is
+                    // broken up — an even head line is what makes a crowd read as
+                    // a repeated sprite.
+                    float lift = ((hash % 7) / 7f - 0.5f) * 0.05f;
+
+                    // Colour from a second hash so it does not march in step with
+                    // the size and stagger above, and a small per-seat brightness
+                    // wobble so a row is not one flat value.
+                    Color kimono = tierKimono[(seatIndex * 5 + tierIndex * 3 + hash) % tierKimono.Length];
+                    float light = crowdValue[tierIndex] * (0.9f + (hash % 4) * 0.05f);
+
+                    // Shoulders as an ellipse resting on the rail: the Circle
+                    // sprite, so the whole stand is still two atlas sprites.
+                    var body = new GameObject("TierSpectator");
+                    body.transform.SetParent(tierRoot.transform, false);
+                    body.transform.localPosition = new Vector3(px, y + scale * 0.44f + lift, 0f);
+                    body.transform.localScale = new Vector3(scale * 1.3f, scale, 1f);
+                    var bodyRenderer = body.AddComponent<SpriteRenderer>();
+                    bodyRenderer.sprite = Circle();
+                    bodyRenderer.color = new Color(kimono.r * light, kimono.g * light, kimono.b * light, 1f);
+                    bodyRenderer.sortingOrder = sorting;
+
+                    var head = new GameObject("TierHead");
+                    head.transform.SetParent(tierRoot.transform, false);
+                    head.transform.localPosition =
+                        new Vector3(px, y + scale + scale * 0.1f + lift, 0f);
+                    head.transform.localScale = new Vector3(scale * 0.42f, scale * 0.42f, 1f);
+                    var headRenderer = head.AddComponent<SpriteRenderer>();
+                    headRenderer.sprite = Circle();
+                    headRenderer.color = new Color(tierSkin.r * light, tierSkin.g * light, tierSkin.b * light, 1f);
+                    headRenderer.sortingOrder = sorting;
+                }
+            }
+        }
+    }
+}

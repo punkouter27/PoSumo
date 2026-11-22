@@ -2,7 +2,7 @@
 
     python scripts/make_placeholder_faces.py [--src DIR] [--out DIR] [--sheet PNG]
 
-Writes ONE image per fighter, `<Name>_Neutral.png`, into Assets/Art/Faces/.
+Writes ONE image per fighter, `<Name>_Neutral.png`, into Assets/_Project/Environments/Art/Faces/.
 Every other expression (Happy / Angry / Hurt / Insult, levels 1-5) is derived at
 runtime from that neutral by `Systems_FaceMood` - tint, squash and head tilt -
 unless a real image exists at `<Name>_<Mood>_<Level>.png`, which always wins.
@@ -35,7 +35,9 @@ import sys
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 DEFAULT_SRC = r"G:\My Drive\VAULT\_2DGFX\2DGFX_REFS"
-DEFAULT_OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "Assets", "Art", "Faces")
+DEFAULT_OUT = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "Assets", "_Project", "Environments", "Art", "Faces"
+)
 
 THUMB = 300
 WORK = 512  # crop is resampled to this square before the cut

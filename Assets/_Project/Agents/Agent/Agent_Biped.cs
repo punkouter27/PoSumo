@@ -1,0 +1,1283 @@
+using Unity.MLAgents;
+using Unity.MLAgents.Actuators;
+using Unity.MLAgents.Policies;
+using Unity.MLAgents.Sensors;
+using UnityEngine;
+
+namespace PoSumo
+{
+    /// ML-Agents brain for one sumo biped. Observations are mirrored by facing
+    /// sign so a single policy works facing left or right. All observations are
+    /// sanitized against NaN/Inf before submission.
+    ///
+    /// The vector is composed from four blocks, and the ORDER IS THE INPUT LAYER'S
+    /// LAYOUT — it must never be reordered once a brain has trained on it:
+    ///     base (43) -> contact (+4) -> stamina (+1) -> extended (+3).
+    /// All four fighters run the full 51.
+    ///
+    /// It has been 41, 42 and 44 in earlier generations; every one of those moves
+    /// invalidated every brain that preceded it, so treat a change here as a cold
+    /// retrain of the whole roster and nothing less.
+    [RequireComponent(typeof(Agent_BipedBody))]
+    public sealed class Agent_Biped : Agent
+    {
+        public enum Mode { Walk, Sumo }
+
+        [Tooltip("Character sheet; when set, overrides behavior name, brain generation, and reward shaping at Awake.")]
+        public Agent_CharacterDefinition character;
+
+        public Mode mode = Mode.Walk;
+        public int teamId;
+        public Agent_Biped opponent;         // null in Walk mode
+        public float ringHalfWidth = 7f;
+        public float arenaCenterX = 0f;
+        [Tooltip("World Y of the mat surface. Only used by the sumo stance shaping to tell a planted foot from a raised one, so both referees must set it or that reward reads against the wrong plane.")]
+        public float arenaGroundY = 0f;
+
+        [Tooltip("Adds 3 opponent-state observations (uprightness, down flag, edge distance). Must match the assigned model's input size.")]
+        public bool extendedObservations = false;
+        [Tooltip("Adds 4 proprioceptive observations: per-foot ground contact and normalised load. OFF for every shipped brain — it changes the vector length, so it can only be switched on together with a retrain.")]
+        public bool contactObservations = false;
+        [Tooltip("Adds 1 observation: whole-body stamina (1 fresh, 0 spent). OFF for every shipped brain — it changes the vector length, so it can only be switched on together with a retrain. Turn it on for the next run so the policy can perceive the fatigue that Agent_BipedBody now applies to it.")]
+        public bool staminaObservation = false;
+        [Tooltip("Adds 2 observations, appended LAST: the opponent's lunge intent (-1..1, the 14th action he last sent) and how much of his lunge cooldown remains (0 ready .. 1 just lunged). Lets a fighter read a lunge coming. Changes the vector length — only with a retrain.")]
+        public bool intentObservations = false;
+        [Tooltip("Adds 2 observations, appended LAST (after intent): centre of mass and capture point, each relative to the middle of the feet. Changes the vector length — only with a retrain. Forced on in a training env by -posumoBalanceObs.")]
+        public bool balanceObservations = false;
+        [Tooltip("ML-Agents DecisionRequester period. Legacy brains trained at 5; the extended Matt brain at 3.")]
+        public int decisionPeriod = 5;
+
+        [Tooltip("Sparring dummy: run the assigned model locally and never contact a connected trainer.")]
+        public bool inferenceOnly = false;
+
+        [Tooltip("Optional trained model for in-editor inference playback (no Python needed).")]
+        public Unity.InferenceEngine.ModelAsset inferenceModel;
+
+        public int NanInfCount { get; private set; }
+        public void ResetTelemetry() => NanInfCount = 0;
+
+        /// Appends tail observations into a pre-sized zero-initialized buffer without reordering prefix features.
+        public static void AppendZeroInitInputs(float[] src, int baseCount, float[] dst)
+        {
+            if (dst == null || baseCount < 0 || dst.Length <= baseCount) return;
+            System.Array.Clear(dst, baseCount, dst.Length - baseCount);
+            if (src == null) return;
+            int copy = System.Math.Min(src.Length, dst.Length - baseCount);
+            if (copy > 0) System.Array.Copy(src, 0, dst, baseCount, copy);
+        }
+
+        /// Hot-swaps the active Sentis model at runtime or toggles fallback motor enablement if none supplied.
+        public bool HotSwapPolicy(Unity.InferenceEngine.ModelAsset nextModel = null)
+        {
+            if (nextModel != null)
+            {
+                inferenceModel = nextModel;
+                var bp = GetComponent<BehaviorParameters>();
+                if (bp != null) bp.Model = nextModel;
+                SetModel(behaviorName, nextModel);
+                actionsEnabled = true;
+                return true;
+            }
+            actionsEnabled = !actionsEnabled;
+            return true;
+        }
+
+
+        /// While true, OnActionReceived only drives motors — no rewards, no
+        /// episode termination. Used while the presentation layer (walk-in)
+        /// borrows the body.
+        [System.NonSerialized] public bool suppressEpisodeControl;
+
+        [HideInInspector] public int NonFootGroundContacts;
+
+        /// When false the brain still runs but all motors are cut — the body
+        /// goes limp (used between rounds and after the match).
+        [HideInInspector] public bool actionsEnabled = true;
+
+        /// Scales every motor command. The referee ramps this from a fraction back
+        /// up to 1 over the first moment of a round: released from a dead stop the
+        /// fight brain fires a full-power lunge on frame one and throws itself over,
+        /// because it learned to act on a body that was already moving. Easing the
+        /// first commands in lets the body take its own weight first.
+        /// Observations and reward are untouched — only the torque that reaches the
+        /// joints is scaled.
+        [System.NonSerialized] public float actionScale = 1f;
+
+        [Tooltip("ML-Agents behavior name; must exactly match the YAML config key.")]
+        public string behaviorName = "Matt";
+
+        /// Scoreboard name when set. Set by nothing except `Systems_MatchRoster` on
+        /// the second side of a MIRROR match, where both fighters share one
+        /// character asset and the scorebug otherwise reads "NICK 1 : 1 NICK".
+        ///
+        /// Deliberately SEPARATE from `behaviorName`, which must keep matching the
+        /// YAML key exactly — it is what `BehaviorParameters` resolves the policy
+        /// through, so suffixing it would leave that fighter with no brain at all.
+        /// This is presentation only.
+        [System.NonSerialized] public string displayNameOverride;
+        // 43 = 5 body + 26 joints + 4 feet + 1 task flag + 4 opponent/target
+        //      + 2 edges + 1 mat width.
+        // Was 41; the task flag was added when the walk and fight brains were merged
+        // into one policy per fighter. Was 42 until the LIVE MAT fix below took the
+        // edge block from two slots to three. Either change invalidates every brain
+        // trained before it — there is no way to feed a 43-slot vector to a
+        // 42-input model.
+        public const int ObservationCount = 43;
+
+        /// Reference half-width the edge observations are scaled by, in metres.
+        ///
+        /// It is a CONSTANT and `ringHalfWidth` is not — that separation is the whole
+        /// point. The edge slots used to divide by `ringHalfWidth`, which made them a
+        /// FRACTION of whatever mat was current; combined with a `ringHalfWidth` that
+        /// never moved, the policy could read neither the absolute distance to the rim
+        /// nor the fact that the rim was closing. Scaling by a fixed reference instead
+        /// keeps the slots proportional to real metres, so "1.2 m of mat ahead" reads
+        /// the same whether the mat started at 3.5 m or was randomised to 1.7.
+        ///
+        /// 3.5 is `GameTuning.ringHalfWidth`, i.e. a full mat maps to 1.0.
+        private const float RING_REFERENCE_HALF = 3.5f;
+
+        /// Height of the virtual walk target above the mat, in metres — roughly a
+        /// standing torso (1.06). Added to `arenaGroundY`, never used as a world Y:
+        /// see the walk branch of CollectObservations.
+        private const float WALK_TARGET_HEIGHT = 1.2f;
+        public const int MotorCount = 13;       // hips, knees, ankles, 3 spine, shoulders, elbows
+        /// What the brain outputs: the 13 motors plus ONE lunge intent (2026-10-05).
+        /// Every joint loop uses MotorCount; only the ActionSpec uses this. Changing
+        /// it is a new output layer for every brain.
+        public const int ActionCount = MotorCount + 1;
+        private const int LUNGE_ACTION = MotorCount;
+        /// Intent above this fires the lunge, if it is available.
+        private const float LUNGE_THRESHOLD = 0.5f;
+        /// Whole-body launch speed, m/s. Was the referee's random stand-off lunge.
+        // 2.6 -> 3.6 (2026-10-05): at 2.6 the lunger won only 7 of 16 bouts that ended
+        // within 3 s of his lunge, and nobody was ever driven out of the ring.
+        private const float LUNGE_SPEED = 3.6f;
+        /// Seconds before the same fighter can lunge again.
+        private const float LUNGE_COOLDOWN = 3f;
+        private float _nextLungeTime;
+        /// For Systems_ActionLog: the last lunge intent the policy sent, and how many
+        /// lunges this fighter has actually thrown since the scene loaded.
+        [System.NonSerialized] public float LastLungeIntent;
+        [System.NonSerialized] public int LungesThrown;
+        /// The body part that most recently went from nothing-down to something-down.
+        /// Set by Sensor_BodyPartContact; read by Systems_ActionLog to describe a fall.
+        [System.NonSerialized] public string FirstDownPart;
+
+        /// Last motor commands as sent to the joints (for HUD display).
+        [System.NonSerialized] public float[] LastActions = new float[MotorCount];
+
+        private Agent_BipedBody _b;
+        private Agent_BipedBody _opponentBody;
+        /// Resolved once — the ragdoll is built in Awake and never gains or loses a
+        /// part, so re-fetching this every episode only allocated a fresh array.
+        private Sensor_BodyPartContact[] _contactSensors;
+        private readonly float[] _prevActions = new float[MotorCount];
+        /// The command two steps back, for the second-difference (Jerk2) cost.
+        private readonly float[] _prevActions2 = new float[MotorCount];
+        /// Steps since the episode began, capped at 2: the second difference is
+        /// meaningless until two real commands exist.
+        private int _actionHistory;
+        private float _pendingImpact;
+        private float _lastTorsoY;
+
+        /// Objective / penalty providers, one per school. Every reward coefficient
+        /// lives inside these; the agent owns only the terminals and the episode.
+        ///
+        /// Constructed as fields rather than resolved per step — an agent's school
+        /// changes (BeginWalkIn switches mode mid-round) but its providers do not,
+        /// and both carry configured state that must survive the switch.
+        private readonly Reward_SumoObjective _sumoObjective = new Reward_SumoObjective();
+
+        /// The sumo-school reward provider, read by the PlayMode penalty test.
+        public Reward_SumoObjective SumoObjective => _sumoObjective;
+        private readonly Reward_WalkObjective _walkObjective = new Reward_WalkObjective();
+        /// Shared by both schools on purpose — see Reward_StepCadence.
+        private readonly Reward_StepCadence _cadence = new Reward_StepCadence();
+
+        protected override void Awake()
+        {
+            _b = GetComponent<Agent_BipedBody>();
+            // Training-only: `-posumoFighter <Name>` swaps the fighter. Inert in the game.
+            character = Systems_TrainingFighter.Resolve(character);
+
+            if (character != null)
+            {
+                behaviorName = character.behaviorName;
+                extendedObservations = character.extendedObservations;
+                contactObservations = character.contactObservations;
+                staminaObservation = character.staminaObservation;
+                intentObservations = character.intentObservations;
+                balanceObservations = character.balanceObservations;
+                decisionPeriod = character.decisionPeriod;
+                if (inferenceModel == null) inferenceModel = character.inferenceModel;
+            }
+
+            // Training env asked for the wider vector (see Systems_TrainingFlags).
+            if (Systems_TrainingFlags.ForceBalanceObservations) balanceObservations = true;
+
+            // Both are configured unconditionally, including when `character` is
+            // null: Configure no-ops on null and leaves the provider on the
+            // pre-per-character constants, which is what an unassigned fighter has
+            // always trained against.
+            _sumoObjective.Configure(character);
+            _walkObjective.Configure(character);
+
+            var bp = GetComponent<BehaviorParameters>();
+            if (bp == null) bp = gameObject.AddComponent<BehaviorParameters>();
+            bp.BehaviorName = behaviorName;
+            bp.TeamId = teamId;
+            int vectorSize = ResolvedObservationCount;
+            bp.BrainParameters.VectorObservationSize = vectorSize;
+            AssertVectorSizeMatchesBehavior(vectorSize);
+            bp.BrainParameters.NumStackedVectorObservations = 1;
+            bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(ActionCount);
+
+            if (inferenceModel != null)
+            {
+                bp.Model = inferenceModel;
+                bp.InferenceDevice = Unity.MLAgents.Policies.InferenceDevice.Burst;
+            }
+            if (inferenceOnly) bp.BehaviorType = BehaviorType.InferenceOnly;
+
+            if (GetComponent<DecisionRequester>() == null)
+            {
+                var dr = gameObject.AddComponent<DecisionRequester>();
+                dr.DecisionPeriod = Mathf.Clamp(decisionPeriod, 1, 20);
+                dr.TakeActionsBetweenDecisions = true;
+            }
+
+            MaxStep = mode == Mode.Walk ? 1500 : 0;
+
+            base.Awake();
+        }
+
+        /// The vector length this fighter's flags actually produce.
+        public int ResolvedObservationCount =>
+            ObservationCount + (contactObservations ? 4 : 0) + (staminaObservation ? 1 : 0)
+            + (extendedObservations ? 3 : 0) + (intentObservations ? 2 : 0)
+            + (balanceObservations ? 2 : 0);
+
+        /// First observation size seen for each behavior name this session, and the
+        /// GameObject that established it.
+        ///
+        /// Cleared on SubsystemRegistration like every other static holding game state
+        /// here — Enter Play Mode domain reload is disabled in this project, so without
+        /// it the registry would carry a previous Play session's agents and report
+        /// mismatches against objects that no longer exist.
+        private static readonly System.Collections.Generic.Dictionary<string, (int size, string owner)>
+            _vectorSizeByBehavior = new System.Collections.Generic.Dictionary<string, (int, string)>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetVectorSizeRegistry() => _vectorSizeByBehavior.Clear();
+
+        /// ONE behavior name is ONE policy, so every agent carrying that name must
+        /// build the SAME observation vector. Nothing enforced that, and the flags
+        /// come from three places that can disagree — the character sheet, the
+        /// serialized scene values it overwrites, and the per-agent Inspector.
+        ///
+        /// This is not hypothetical: a character sheet shipping `staminaObservation: 1`
+        /// beside ones shipping `0` under one behavior name has one agent feeding
+        /// 47 slots where the other feeds 46 (the since-removed Bot sheet once
+        /// differed from the four trained fighters in exactly that flag). The
+        /// failure mode is not an exception — ML-Agents pads or truncates and the
+        /// policy simply receives garbage in the slots after the disagreement, which
+        /// is indistinguishable from a fighter that trained badly.
+        ///
+        /// ML-Agents' own SentisModelParamLoader already catches a mismatch between an
+        /// assigned .onnx and the vector, so this deliberately checks the other axis:
+        /// agent-against-agent, which nothing else looks at, and which is live during
+        /// training when there is no .onnx to check against at all.
+        private void AssertVectorSizeMatchesBehavior(int vectorSize)
+        {
+            if (string.IsNullOrEmpty(behaviorName)) return;
+
+            if (_vectorSizeByBehavior.TryGetValue(behaviorName, out var first))
+            {
+                if (first.size != vectorSize)
+                {
+                    Debug.LogError(
+                        $"[OBS] Behavior '{behaviorName}' is building TWO different observation " +
+                        $"vectors: '{first.owner}' feeds {first.size} slots and '{name}' feeds " +
+                        $"{vectorSize}. One behavior name is one policy, so one of them is " +
+                        $"receiving garbage. Flags on '{name}': extended={extendedObservations} " +
+                        $"contact={contactObservations} stamina={staminaObservation} " +
+                        $"intent={intentObservations} balance={balanceObservations} " +
+                        $"(character='{(character != null ? character.name : "none")}').", this);
+                }
+                return;
+            }
+
+            _vectorSizeByBehavior[behaviorName] = (vectorSize, name);
+            AssertModelMatchesVector(vectorSize);
+            Systems_Log.Info(
+                $"[OBS] {behaviorName}: {vectorSize} slots " +
+                $"(base {ObservationCount}{(contactObservations ? " +4 contact" : "")}" +
+                $"{(staminaObservation ? " +1 stamina" : "")}" +
+                $"{(extendedObservations ? " +3 extended" : "")}" +
+                $"{(intentObservations ? " +2 intent" : "")}" +
+                $"{(balanceObservations ? " +2 balance" : "")}), " +
+                $"{ActionCount} actions, decision period {decisionPeriod}.");
+        }
+
+        /// Input width of each `.onnx` seen this session, so the model is loaded once
+        /// per asset rather than once per agent — a training scene is 10 agents sharing
+        /// one model.
+        private static readonly System.Collections.Generic.Dictionary<Unity.InferenceEngine.ModelAsset, int>
+            _modelInputSize = new System.Collections.Generic.Dictionary<Unity.InferenceEngine.ModelAsset, int>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetModelSizeCache() => _modelInputSize.Clear();
+
+        /// A STALE BRAIN IS SILENT, AND THAT IS THE WHOLE REASON THIS EXISTS.
+        ///
+        /// Feed a 51-slot vector to a model trained on 45 and nothing throws, nothing is
+        /// logged, and the console stays clean. ML-Agents rejects the model and the
+        /// policy falls back to `Heuristic`, which is "write 0 to all 13 motors" — so the failure renders as two ragdolls standing
+        /// limp at the stand-off while the round never starts. Measured exactly that way
+        /// on 2026-09-05 after the vector went 45 -> 51: `MatchTestHarness.Run(2)` ran
+        /// for four minutes without completing a single round, max |action| 0.000 on
+        /// both fighters, and ZERO console entries of any severity.
+        ///
+        /// That is indistinguishable from a physics bug, a referee bug, or a brain that
+        /// simply trained badly, and it is the single most expensive way to lose an
+        /// afternoon in this project. So it is an explicit Error naming both numbers.
+        ///
+        /// Deliberately NOT stripped from release builds: a shipped APK carrying a stale
+        /// `.onnx` has exactly this symptom, and a player-facing "the fighters do not
+        /// move" bug is worth one log line.
+        /// True when the assigned model was trained on a different vector size than
+        /// this agent builds — the STALE BRAIN case above. The console line is the
+        /// record; this is the same verdict held where the debug panel can read it,
+        /// so it can be said on the phone, where there is no console.
+        public bool BrainStale { get; private set; }
+
+        private void AssertModelMatchesVector(int vectorSize)
+        {
+            BrainStale = false;
+            if (inferenceModel == null) return;
+            // A training env launched with -posumoBalanceObs widens the vector ON
+            // PURPOSE and is driven by the trainer, not by this file: the sheet's
+            // shipped .onnx is one input block short by design. Not stale.
+            if (Systems_TrainingFlags.ForceBalanceObservations) return;
+
+            if (!_modelInputSize.TryGetValue(inferenceModel, out int modelSize))
+            {
+                modelSize = -1;
+                try
+                {
+                    var loaded = Unity.InferenceEngine.ModelLoader.Load(inferenceModel);
+                    if (loaded != null && loaded.inputs != null && loaded.inputs.Count > 0)
+                    {
+                        var shape = loaded.inputs[0].shape;
+                        // ML-Agents' vector input is (batch, size) — e.g. "(d0, 45)", the
+                        // leading axis dynamic. Read the TRAILING dimension rather than
+                        // assuming index 1, and go through Get(): DynamicTensorShape has
+                        // no indexer. A dynamic axis reports a non-positive value, which
+                        // is why the comparison below requires modelSize > 0.
+                        if (!shape.isRankDynamic && shape.rank > 0)
+                        {
+                            modelSize = shape.Get(shape.rank - 1);
+                        }
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    // A model that cannot even be inspected is ML-Agents' problem to
+                    // report, not ours; do not turn a diagnostic into a second failure.
+                    Debug.LogWarning($"[OBS] could not inspect '{inferenceModel.name}' " +
+                                     $"to verify its input size: {e.GetType().Name}.");
+                }
+                _modelInputSize[inferenceModel] = modelSize;
+            }
+
+            if (modelSize > 0 && modelSize != vectorSize)
+            {
+                BrainStale = true;
+                Debug.LogError(
+                    $"[OBS] STALE BRAIN: '{inferenceModel.name}' takes {modelSize} inputs " +
+                    $"but '{behaviorName}' now builds {vectorSize}. This fighter will NOT " +
+                    $"move — ML-Agents rejects the model and falls back to a limp heuristic, " +
+                    $"silently. Retrain against the current vector " +
+                    $"(Training/configs/{behaviorName}Rebuild01.yaml) and redeploy, or put " +
+                    $"back the observation flags the model was trained with.", this);
+            }
+        }
+
+        /// Cost of falling in Mode.Walk, as a POSITIVE magnitude.
+        ///
+        /// A CONSTANT again, and it must stay one. It was briefly a curriculum dial
+        /// (`walk_fall_penalty`, ramped 0.05 -> 1.0 over 16M steps in the `gait01`
+        /// runs) on the reasoning that the tall-vs-crawl shaping advantage of 0.0063
+        /// per step cannot cross a ~-4 fall, so the gap had to be closed from the
+        /// penalty side instead.
+        ///
+        /// MEASURED, AND IT MADE THE GAIT DRAMATICALLY WORSE: torso height fell to
+        /// 0.16-0.20 m against the 0.55-0.76 m it was trying to raise, on a 1.06 m
+        /// standing pose. The fighters stopped crawling and started dragging flat.
+        /// The reason is worth keeping, because it is not obvious: cheap falls do not
+        /// buy exploration, because A BODY ALREADY ON THE GROUND CANNOT FALL. Once the
+        /// policy found the floor the terminal simply stopped firing, so there was no
+        /// gradient left pointing up, and ramping the penalty back to 1.0 over the
+        /// final 4M steps did not recover it.
+        ///
+        /// So the dial is removed rather than defaulted, because leaving it wired
+        /// invites a seventh attempt at a lever that has been measured backwards.
+        /// Both remaining routes are structural, not reward-shaped: a torso-height
+        /// constraint the policy cannot opt out of, or a walk-only trunk that does not
+        /// share capacity with self-play sumo.
+        private const float WALK_FALL_PENALTY = 1f;
+
+        public override void OnEpisodeBegin()
+        {
+            _b.ResetPose();
+            if (_contactSensors == null) _contactSensors = GetComponentsInChildren<Sensor_BodyPartContact>();
+            for (int sensorIndex = 0; sensorIndex < _contactSensors.Length; sensorIndex++)
+            {
+                _contactSensors[sensorIndex].Clear();
+            }
+            NonFootGroundContacts = 0;
+            FirstDownPart = null;
+            if (_b.FloorSensors != null)
+            {
+                for (int floorIndex = 0; floorIndex < _b.FloorSensors.Length; floorIndex++)
+                {
+                    _b.FloorSensors[floorIndex].Clear();
+                }
+            }
+            _pendingImpact = 0f;
+            _lastTorsoY = _b.Torso.position.y;
+            _cadence.Reset();
+            for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
+            {
+                _prevActions[actionIndex] = 0f;
+                _prevActions2[actionIndex] = 0f;
+            }
+            _actionHistory = 0;
+            FlushEpisodeStats();
+            BeginTrainingEpisode();
+
+            _nextLungeTime = 0f;   // the tachiai charge is available at once
+            // GET-UP TRAINING. A share of walk-lane episodes open flat on the
+            // clay; see the walk branch of OnActionReceived. `get_up_chance` is
+            // absent from every config before *Sumo01, so they train what they
+            // always did.
+            _gettingUp = false;
+            if (mode == Mode.Walk && !suppressEpisodeControl && Academy.IsInitialized)
+            {
+                float chance = Academy.Instance.EnvironmentParameters.GetWithDefault("get_up_chance", 0f);
+                if (Random.value < chance)
+                {
+                    _b.LieDown(Random.value < 0.5f);
+                    _gettingUp = true;
+                    _lastTorsoY = _b.Torso.position.y;
+                }
+            }
+        }
+
+        /// True from a flat start until the fighter is back on its feet.
+        private bool _gettingUp;
+        /// Torso height above the clay that counts as standing (upright pose is 1.06).
+        private const float GET_UP_HEIGHT = 0.85f;
+        /// Paid once for standing up. Walk terminals are fall -1 / graduation +3.
+        private const float GET_UP_BONUS = 1f;
+        /// Per metre of torso height gained while getting up. Paid on the CHANGE,
+        /// so it sums to at most ~0.4 and cannot be farmed by lying still.
+        private const float GET_UP_RISE_REWARD = 0.5f;
+
+        private float Fs => _b.facingSign;
+        public Rigidbody2D Torso => _b.Torso;
+        public float TorsoX => Torso.position.x;
+        public bool IsDown => NonFootGroundContacts > 0;
+
+        /// ANY body part is on the arena floor below the dohyo — the ring-out since
+        /// 2026-08-26 (ringOutOnFloorContact in both referees). A plain loop over
+        /// 15 sensors, called once per fighter per physics step.
+        public bool OnFloor
+        {
+            get
+            {
+                Sensor_FloorContact[] sensors = _b.FloorSensors;
+                if (sensors == null) return false;
+                for (int floorIndex = 0; floorIndex < sensors.Length; floorIndex++)
+                {
+                    if (sensors[floorIndex].TouchingFloor) return true;
+                }
+                return false;
+            }
+        }
+
+        /// Referees call this once the arena is known: contacts below `floorLevelY`
+        /// (world) count as the floor.
+        public void BindArenaFloor(float floorLevelY)
+        {
+            Sensor_FloorContact[] sensors = _b.FloorSensors;
+            if (sensors == null) return;
+            for (int floorIndex = 0; floorIndex < sensors.Length; floorIndex++)
+            {
+                sensors[floorIndex].floorLevelY = floorLevelY;
+            }
+        }
+
+        /// Called by Sensor_Impact when a body part hits the opponent.
+        public void ReportOpponentImpact(float relativeSpeed)
+        {
+            _pendingImpact += relativeSpeed;
+        }
+
+        private float _savedCenterX;
+
+        /// Round-opening walk-in: borrow the locomotion brain and walk toward
+        /// targetX (the opponent). The fight brain takes back over via
+        /// EndWalkIn(). No-op when no walk model is assigned.
+        /// Round-opening walk-in: switch the SAME policy to its locomotion task and
+        /// point it at targetX. EndWalkIn switches it back.
+        ///
+        /// There is no model swap any more. Walk and fight are one brain per fighter,
+        /// told apart by the task flag in the observation vector, so this is a mode
+        /// change rather than a SetModel handoff. That removes the whole class of bug
+        /// where the wrong policy was left driving the body — the fight policy fed a
+        /// target metres away used to collapse both fighters within half a second.
+        public void BeginWalkIn(float targetX)
+        {
+            if (mode != Mode.Sumo) return;
+            _savedCenterX = arenaCenterX;
+            mode = Mode.Walk;                 // task flag -> 0, target replaces opponent
+            arenaCenterX = targetX;
+            suppressEpisodeControl = true;
+        }
+
+        public void EndWalkIn()
+        {
+            if (mode != Mode.Walk) return;
+            mode = Mode.Sumo;                 // task flag -> 1
+            arenaCenterX = _savedCenterX;
+            suppressEpisodeControl = false;
+        }
+
+        /// NaN/Inf sanitization guard for every value submitted to the model.
+        private static float San(float v) => float.IsFinite(v) ? v : 0f;
+
+        // ---- Observation range guard (Editor + development builds only) ------
+        //
+        // Every slot in the vector is hand-scaled to sit around [-1, 1]. Twice
+        // already a slot has been wildly outside that for months with nothing
+        // saying so: observation 0 fed -29.5 to the six walk agents (a world Y on
+        // a lane at y = -60), and the mat slots described a mat that did not
+        // exist. Neither raised an error, because a large finite float is a
+        // perfectly valid observation — `San` only catches NaN and Inf — and
+        // `normalize: true` quietly absorbs it into a running variance that then
+        // flattens every in-range reading of the same slot.
+        //
+        // So: warn ONCE per behaviour per slot when |value| leaves the band. It
+        // is a diagnostic and nothing else — the value is submitted unchanged,
+        // and both guard methods are [Conditional], so a release player and a
+        // non-development env build contain no call to them at all.
+
+        /// |value| above this is far outside anything a slot is scaled to produce.
+        /// ~5 rather than ~1 on purpose: several slots legitimately run a little
+        /// past 1 (a fast joint, a foot at full stride) and a guard that fires on
+        /// ordinary motion teaches whoever reads the console to skip it.
+        private const float OBSERVATION_RANGE_LIMIT = 5f;
+
+        /// Slots already reported, per behaviour name. One `bool[]` per behaviour,
+        /// SHARED by every agent of that name, so ten agents in a training scene
+        /// produce one warning per bad slot rather than ten.
+        ///
+        /// Cleared on SubsystemRegistration like the other statics here — Enter
+        /// Play Mode domain reload is off, so without it a slot reported in one
+        /// Play session would stay silent in every later one.
+        private static readonly System.Collections.Generic.Dictionary<string, bool[]>
+            _rangeWarnedByBehavior = new System.Collections.Generic.Dictionary<string, bool[]>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetRangeGuard() => _rangeWarnedByBehavior.Clear();
+
+        /// This agent's view of its behaviour's entry above. Resolved lazily
+        /// inside the guard, so a build that strips the guard never allocates it.
+        private bool[] _rangeWarned;
+        private int _guardSlot;
+
+        /// The ONE place a value enters the vector. Buffers exactly what it is
+        /// given, in the order it is called — the guard after it only reads.
+        /// `EmitObservations` hands the buffer (or a delayed copy) to the sensor.
+        private void Observe(VectorSensor sensor, float value)
+        {
+            if (_obsCount < OBS_CAPACITY) _obsNow[_obsCount++] = value;
+            GuardObservationRange(value);
+        }
+
+        // ---- Sensor delay (training only, 2026-11-10) --------------------------
+        //
+        // A real nervous system acts on what it sensed tens of milliseconds ago.
+        // The obs_delay_max environment parameter (default 0, which the game never
+        // sets) makes each training episode draw a delay of 0..max DECISIONS
+        // (60 ms each at decision period 3) and feed the policy that stale vector.
+        // Same width, same order: only WHEN a value arrives changes, so it can be
+        // turned on and off on one brain freely.
+        private const int OBS_CAPACITY = 64;
+        private const int OBS_DELAY_RING = 3;
+        private readonly float[] _obsNow = new float[OBS_CAPACITY];
+        private readonly float[][] _obsRing =
+        {
+            new float[OBS_CAPACITY], new float[OBS_CAPACITY], new float[OBS_CAPACITY],
+        };
+        private int _obsCount;
+        private int _obsDelay;
+        private int _obsRingHead;
+        private int _obsRingFilled;
+
+        private void EmitObservations(VectorSensor sensor)
+        {
+            float[] source = _obsNow;
+            if (_obsDelay > 0)
+            {
+                System.Array.Copy(_obsNow, _obsRing[_obsRingHead], _obsCount);
+                _obsRingHead = (_obsRingHead + 1) % OBS_DELAY_RING;
+                if (_obsRingFilled < OBS_DELAY_RING) _obsRingFilled++;
+                // Until enough history exists, the oldest vector held is the best
+                // available stand-in — the start of an episode is a static pose.
+                int delay = Mathf.Min(_obsDelay, _obsRingFilled - 1);
+                source = _obsRing[(_obsRingHead - 1 - delay + 2 * OBS_DELAY_RING) % OBS_DELAY_RING];
+            }
+            for (int slotIndex = 0; slotIndex < _obsCount; slotIndex++)
+            {
+                float v = source[slotIndex];
+                if (!float.IsFinite(v)) { NanInfCount++; v = 0f; }
+                sensor.AddObservation(v);
+            }
+        }
+
+        // DEBUG, not DEVELOPMENT_BUILD: this Unity version's analyzer (UAC0009)
+        // deprecates the latter and names DEBUG as the managed-code-variant
+        // replacement. It is defined for a development player and never for a
+        // release one, which is the only direction that matters here — if a
+        // build ever lacked it the guard would be absent, not wrong.
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEBUG")]
+        private void BeginObservationGuard()
+        {
+            _guardSlot = 0;
+        }
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        [System.Diagnostics.Conditional("DEBUG")]
+        private void GuardObservationRange(float value)
+        {
+            int slot = _guardSlot++;
+            // The common path: two compares and out. No allocation, no lookup.
+            if (value <= OBSERVATION_RANGE_LIMIT && value >= -OBSERVATION_RANGE_LIMIT) return;
+
+            if (_rangeWarned == null)
+            {
+                string key = behaviorName ?? string.Empty;
+                if (!_rangeWarnedByBehavior.TryGetValue(key, out _rangeWarned))
+                {
+                    // Sized to the widest vector this class can build (51) with
+                    // room to spare, so a future block cannot index past it.
+                    _rangeWarned = new bool[64];
+                    _rangeWarnedByBehavior[key] = _rangeWarned;
+                }
+            }
+            if (slot >= _rangeWarned.Length || _rangeWarned[slot]) return;
+            _rangeWarned[slot] = true;
+            Debug.LogWarning(
+                $"[OBS] RANGE: '{behaviorName}' slot {slot} = {value:F3} on '{name}' " +
+                $"(mode {mode}), outside +/-{OBSERVATION_RANGE_LIMIT:F0}. Slots are scaled to " +
+                $"sit near [-1, 1]; a reading this far out is usually a scale or a frame " +
+                $"mistake, and with normalize: true it also flattens every in-range reading " +
+                $"of that slot. Reported once per behaviour per slot.", this);
+        }
+
+        public override void CollectObservations(VectorSensor sensor)
+        {
+            // This step runs a policy: the TAB overlay's inference latency samples it.
+            Systems_InferenceClock.NoteDecisionRequested();
+            BeginObservationGuard();
+            _obsCount = 0;
+            Vector2 tp = Torso.position;
+            Vector2 tv = Torso.linearVelocity;
+
+            // ARENA-RELATIVE, not world. `tp.y` is a world coordinate and the walk
+            // lane in every SCN_TRAIN_* scene sits at y = -60, so this slot fed
+            // ~+0.53 for the four sumo agents and ~-29.5 for the six walk agents --
+            // the same input, on the same policy, in two disjoint ranges. It had
+            // been that way since the walk+fight merge.
+            //
+            // This is the identical bug `Reward_StepCadence` documents and was fixed
+            // for ("against absolute world Y this test was meaningless for the walk
+            // lane"). The REWARD side was corrected then; the OBSERVATION side was
+            // missed, which is why it survived five gait retrains -- every one of
+            // them tuned what the policy was PAID while leaving what it could
+            // PERCEIVE broken.
+            //
+            // `arenaGroundY` is written by both referees (Systems_GameMatchManager
+            // ~L394, Systems_SumoMatchManager ~L145), so it is live in game and
+            // training alike. Note the other height-ish observations below are
+            // already relative -- the foot slots are measured against `tp` -- so
+            // this was the only absolute one in the vector.
+            Observe(sensor,San((tp.y - arenaGroundY) / 2f));               // 1
+            Observe(sensor,San(tv.x * Fs / 5f));                           // 1
+            Observe(sensor,San(tv.y / 5f));                                // 1
+            float lean = Vector2.SignedAngle(Vector2.up, _b.Chest.transform.up);
+            Observe(sensor,San(lean * Fs / 180f));                         // 1
+            Observe(sensor,San(_b.Chest.angularVelocity * Fs / 500f));     // 1
+
+            for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)                                 // 26
+            {
+                Observe(sensor,San(_b.JointAngleNorm(actionIndex)));
+                Observe(sensor,San(_b.JointSpeedNorm(actionIndex)));
+            }
+
+            Vector2 fn = _b.FootNear.position - tp;                               // 4
+            Vector2 ff = _b.FootFar.position - tp;
+            Observe(sensor,San(fn.x * Fs / 2f));
+            Observe(sensor,San(fn.y / 2f));
+            Observe(sensor,San(ff.x * Fs / 2f));
+            Observe(sensor,San(ff.y / 2f));
+
+            // TASK FLAG — 1 when this is a real bout, 0 when the four "opponent"
+            // slots below are carrying a virtual target instead.
+            //
+            // This is what lets ONE brain do both jobs. Walk and fight always had an
+            // identical 44-slot vector and an identical 13-action space; the only
+            // difference was what occupied the opponent slots. Without a flag the
+            // network had to infer the task from the constants that appear in
+            // locomotion mode (1,0,1 in the extended block) — an accident, not a
+            // signal. With it, the policy can condition on the task explicitly.
+            bool fighting = mode == Mode.Sumo && opponent != null;
+            Observe(sensor,fighting ? 1f : 0f);                            // 1
+
+            // Opponent torso (or, in Walk mode, a virtual target at ring center).
+            Vector2 op, ov;
+            if (fighting)
+            {
+                op = opponent.Torso.position; ov = opponent.Torso.linearVelocity;
+            }
+            else
+            {
+                // ARENA-RELATIVE, like observation 0 above — and for the same
+                // reason. This was `new Vector2(arenaCenterX, 1.2f)`: a WORLD height,
+                // while the walk lane in every SCN_TRAIN_* scene sits at y = -60. So
+                // the height slot two lines down read (1.2 - (-59)) / 3 = ~20 on the
+                // six training walk agents and ~0.05 in the game's walk-in — one
+                // input, one policy, two disjoint ranges, found by the range guard
+                // on 2026-10-04 (slot 37).
+                //
+                // THE GAME'S VALUE DOES NOT MOVE. Its referee sits at y = 0, so
+                // `arenaGroundY` is exactly 0f there (measured, not assumed) and
+                // 0f + 1.2f is 1.2f bit for bit: the four shipped brains see what
+                // they saw. Only the training walk lane changes, which is why the
+                // `*Rebuild02` runs are the first to train on the corrected slot.
+                op = new Vector2(arenaCenterX, arenaGroundY + WALK_TARGET_HEIGHT); ov = Vector2.zero;
+            }
+            Observe(sensor,San((op.x - tp.x) * Fs / 10f));                 // 1
+            Observe(sensor,San((op.y - tp.y) / 3f));                       // 1
+            Observe(sensor,San((ov.x - tv.x) * Fs / 5f));                  // 1
+            Observe(sensor,San((ov.y - tv.y) / 5f));                       // 1
+
+            // THE MAT, AS IT IS RIGHT NOW — three slots.                         // 3
+            //
+            // `ringHalfWidth` is now written by both referees EVERY physics step, so
+            // it tracks the contraction and the per-round randomisation. It used to
+            // be written once at Start and never again, which made these slots lie in
+            // two separate ways at once:
+            //
+            //   1. THE SHRINK. The mat closes from 3.5 m to 1.8 m and on past it
+            //      toward zero (Systems_*MatchManager.TickShrinkingRing). Measured in
+            //      a bracket: 17 of 17 rounds ended in a ring-out and 16 of them ran
+            //      past shrinkStartSeconds, so the closing mat decides essentially
+            //      every round — and the policy could not see it happening. A fighter
+            //      believed it had 3.5 m of mat while standing on 0.2 m.
+            //   2. THE CURRICULUM. ResetRound randomises the round's start width
+            //      anywhere in 1.7..3.5 m, and the `platform_difficulty` lesson exists
+            //      to "teach edge distance across SCALES". Dividing by a constant
+            //      3.5 made every mat read identically, so that lesson was a no-op
+            //      for the policy's entire history.
+            //
+            // Scaled by RING_REFERENCE_HALF rather than by the live width: dividing by
+            // the live width would give the FRACTION of the mat remaining, which is 1.0
+            // at the centre of a 3.5 m mat and 1.0 at the centre of a 0.2 m sliver.
+            // Metres are what the fighter has to act on.
+            float xLocal = (tp.x - arenaCenterX) * Fs;
+            if (fighting)
+            {
+                Observe(sensor,San((ringHalfWidth - xLocal) / RING_REFERENCE_HALF)); // edge ahead
+                Observe(sensor,San((ringHalfWidth + xLocal) / RING_REFERENCE_HALF)); // edge behind
+                // How much mat exists at all. Without this the two slots above are
+                // ambiguous: "1.0 ahead, 1.0 behind" is a full mat and also a fighter
+                // dead-centre on a mat half that size, and only one of those is safe.
+                Observe(sensor,San(ringHalfWidth / RING_REFERENCE_HALF));
+            }
+            else
+            {
+                // Walk lane and the ceremonial walk-in have no rim. The scenes
+                // serialise ringHalfWidth: 10 on the six walk agents — a mat that does
+                // not exist — and those slots then carried a large constant plus a
+                // duplicate of the target distance the opponent block already gives.
+                // Neutral constants instead, matching how the extended block below
+                // already handles having no opponent.
+                Observe(sensor,1f);
+                Observe(sensor,1f);
+                Observe(sensor,1f);
+            }
+
+            if (contactObservations)                                              // +4
+            {
+                Observe(sensor,_b.FootDownNear ? 1f : 0f);
+                Observe(sensor,San(_b.FootLoadNear));
+                Observe(sensor,_b.FootDownFar ? 1f : 0f);
+                Observe(sensor,San(_b.FootLoadFar));
+            }
+
+            if (staminaObservation)                                               // +1
+            {
+                // Appended AFTER the contact block and BEFORE the extended block is
+                // not arbitrary — the order here IS the input layer's layout, and the
+                // only rule that matters is that it never changes again once a brain
+                // has been trained on it.
+                Observe(sensor,San(_b.Stamina));
+            }
+
+            if (extendedObservations)                                             // +3
+            {
+                if (fighting)
+                {
+                    if (_opponentBody == null) _opponentBody = opponent.GetComponent<Agent_BipedBody>();
+                    float oppUp = _opponentBody != null
+                        ? Vector2.Dot(_opponentBody.Chest.transform.up, Vector2.up) : 1f;
+                    float oppEdge = (ringHalfWidth - Mathf.Abs(opponent.TorsoX - arenaCenterX)) / ringHalfWidth;
+                    Observe(sensor,San(oppUp));
+                    Observe(sensor,opponent.IsDown ? 1f : 0f);
+                    Observe(sensor,San(Mathf.Clamp01(oppEdge)));
+                }
+                else
+                {
+                    Observe(sensor,1f);
+                    Observe(sensor,0f);
+                    Observe(sensor,1f);
+                }
+            }
+
+            if (intentObservations)                                               // +2
+            {
+                // APPENDED LAST (2026-11-10), after every block a shipped brain
+                // already reads, so the 51 trained input columns keep their meaning
+                // and the warm start only has to add two zero-weighted columns.
+                // Reads the opponent's PREVIOUS decision: his intent for this step is
+                // not chosen yet, and reading it would be a race on execution order.
+                if (fighting)
+                {
+                    Observe(sensor,San(opponent.LastLungeIntent));
+                    Observe(sensor,San(opponent.LungeCooldown01));
+                }
+                else
+                {
+                    // No opponent: "no threat" — intent fully off, lunge unavailable.
+                    Observe(sensor,-1f);
+                    Observe(sensor,1f);
+                }
+            }
+
+            if (balanceObservations)                                              // +2
+            {
+                // APPENDED LAST (2026-11-10), after intent, for the same reason
+                // intent went last: every trained column keeps its meaning and a
+                // warm start only adds two zero-weighted inputs.
+                //
+                // Where the body's weight is relative to what holds it up. Both are
+                // measured from the MIDDLE OF THE TWO FEET, facing-mirrored, in
+                // metres / 0.5:
+                //   1. the centre of mass (static balance), and
+                //   2. the capture point x + v / w0, w0 = sqrt(g / CoM height)
+                //      (Hof's extrapolated CoM: where the body WILL be over its
+                //      feet given how fast it is moving — the dynamic version).
+                // Nothing in the vector said either; the policy had to infer them
+                // from 13 joint angles and a torso velocity.
+                Observe(sensor, San(BalanceOffset(false)));
+                Observe(sensor, San(BalanceOffset(true)));
+            }
+
+            EmitObservations(sensor);
+        }
+
+        /// CoM (or capture point) relative to the middle of the feet, facing-local,
+        /// scaled by 0.5 m. Public for the debug panel and the realism stats.
+        public float BalanceOffset(bool capturePoint)
+        {
+            Vector2 com = _b.CenterOfMass;
+            float x = com.x;
+            if (capturePoint)
+            {
+                float height = Mathf.Max(0.3f, com.y - arenaGroundY);
+                x += _b.CenterOfMassVelocity.x / Mathf.Sqrt(9.81f / height);
+            }
+            float mid = (_b.FootNear.position.x + _b.FootFar.position.x) * 0.5f;
+            return (x - mid) * Fs / 0.5f;
+        }
+
+        /// Share of the lunge cooldown still to run: 0 = a lunge is available,
+        /// 1 = this fighter lunged this very step.
+        public float LungeCooldown01 =>
+            Mathf.Clamp01((_nextLungeTime - Time.fixedTime) / LUNGE_COOLDOWN);
+
+        /// Mean knee flexion mapped to 0..1 (1 = both knees bent 60°+).
+        private float KneeBendFactor()
+        {
+            float near = Mathf.Clamp01(_b.JointAngleNorm(1) * 180f / 60f);
+            float far = Mathf.Clamp01(_b.JointAngleNorm(4) * 180f / 60f);
+            return (near + far) * 0.5f;
+        }
+
+        public override void OnActionReceived(ActionBuffers actions)
+        {
+            Systems_InferenceClock.NoteActed();
+            if (!actionsEnabled)
+            {
+                for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
+                {
+                    _b.ApplyMotor(actionIndex, 0f);
+                    LastActions[actionIndex] = 0f;
+                    _prevActions[actionIndex] = 0f;
+                }
+                _pendingImpact = 0f;
+                return;
+            }
+            var a = actions.ContinuousActions;
+            float energy = 0f, jerk = 0f, effort = 0f, jerk2 = 0f, actionRate2 = 0f;
+            for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
+            {
+                float raw = a[actionIndex];
+                if (!float.IsFinite(raw)) { NanInfCount++; raw = 0f; }
+                _b.ApplyMotor(actionIndex, raw * actionScale);
+                float clamped = Mathf.Clamp(raw, -1f, 1f);
+                LastActions[actionIndex] = clamped;
+                energy += Mathf.Abs(clamped);
+                effort += clamped * clamped;
+                jerk += Mathf.Abs(clamped - _prevActions[actionIndex]);
+                float delta = clamped - _prevActions[actionIndex];
+                actionRate2 += delta * delta;
+                // Second difference: a(t) - 2a(t-1) + a(t-2). Large for a command
+                // that flips back and forth, ~0 for one ramping smoothly.
+                if (_actionHistory >= 2)
+                {
+                    jerk2 += Mathf.Abs(clamped - 2f * _prevActions[actionIndex] + _prevActions2[actionIndex]);
+                }
+                _prevActions2[actionIndex] = _prevActions[actionIndex];
+                _prevActions[actionIndex] = clamped;
+            }
+            if (_actionHistory < 2) _actionHistory++;
+            jerk2 /= MotorCount;
+            energy /= MotorCount;
+            // QUADRATIC, unlike `energy`. An L1 cost has a constant gradient, so it
+            // shifts every action down uniformly and a policy can pay it off by
+            // being slightly less lazy everywhere. A squared cost rises steeply
+            // toward the rails, which is what actually discourages slamming a motor
+            // to full torque — and slamming is exactly what was measured: 7 to 12
+            // of the 13 motors sat above |0.9| with a mean magnitude of 0.75-0.91.
+            effort /= MotorCount;
+            jerk /= MotorCount;
+            actionRate2 /= MotorCount;
+            LastLungeIntent = Mathf.Clamp(a[LUNGE_ACTION], -1f, 1f);
+            _b.ClampAngularVelocities();
+
+            // THE LUNGE - the fighter's own choice. A whole-body launch at the
+            // opponent, available in a bout when at least one foot is planted and
+            // the cooldown has run out. It is a gamble under touchDownLoses: miss,
+            // or fall with him, and the lunger is the one on the clay.
+            if (mode == Mode.Sumo && opponent != null && !suppressEpisodeControl
+                && a[LUNGE_ACTION] > LUNGE_THRESHOLD && Time.fixedTime >= _nextLungeTime
+                && !IsDown && (_b.FootDownNear || _b.FootDownFar))
+            {
+                _nextLungeTime = Time.fixedTime + LUNGE_COOLDOWN;
+                LungesThrown++;
+                _b.Launch(Mathf.Sign(opponent.TorsoX - TorsoX), LUNGE_SPEED);
+                Systems_Log.Info($"[DIVE] {name} lunges at {opponent.name}");
+            }
+
+            // Presentation layer owns the body: motors only, no rewards or
+            // episode control (prevents Walk-mode terminations mid-walk-in).
+            if (suppressEpisodeControl)
+            {
+                _lastTorsoY = San(Torso.position.y);
+                return;
+            }
+
+            float slip = Reward_FootSlip.Measure(_b);
+            SampleRealismStats(slip);
+            if (mode == Mode.Walk) ApplyStandAssist();
+
+            float upright = Mathf.Clamp01(Vector2.Dot(_b.Chest.transform.up, Vector2.up));
+            float torsoY = San(Torso.position.y);
+            float xLocal = (Torso.position.x - arenaCenterX) * Fs;
+            bool hasOpponent = opponent != null;
+            // Rim behind = the one on the side away from the opponent. With the
+            // opponent to the right (toward +1) it sits at centre - R, so the gap is
+            // R + (x - centre); mirrored by `toward` for the other side.
+            float edgeBehind = float.MaxValue;
+            if (hasOpponent)
+            {
+                float toward = Mathf.Sign(opponent.TorsoX - Torso.position.x);
+                edgeBehind = San(ringHalfWidth + (Torso.position.x - arenaCenterX) * toward);
+            }
+
+            var ctx = new Reward_Context(
+                Fs, arenaGroundY, Torso.position, Torso.linearVelocity, _lastTorsoY,
+                upright, KneeBendFactor(), energy, effort, jerk, _pendingImpact,
+                IsDown, hasOpponent, hasOpponent ? opponent.TorsoX : 0f, edgeBehind,
+                jerk2, slip, JointTorque2(), JointVelocity2(), actionRate2);
+
+            if (mode == Mode.Walk && _gettingUp)
+            {
+                // On the ground on purpose: no fall terminal, no walk shaping (it
+                // pays forward speed, which down here is a crawl). Only rising
+                // pays, then the bonus, then the ordinary walk rules take over.
+                // MaxStep (1500) bounds a fighter that never makes it.
+                if (torsoY - arenaGroundY >= GET_UP_HEIGHT && upright > 0.8f && !IsDown)
+                {
+                    AddReward(GET_UP_BONUS);
+                    _gettingUp = false;
+                }
+                else
+                {
+                    AddReward(GET_UP_RISE_REWARD * (torsoY - _lastTorsoY));
+                }
+                _lastTorsoY = torsoY;
+                return;
+            }
+
+            if (mode == Mode.Walk)
+            {
+                AddReward(_walkObjective.Evaluate(_b, _cadence, in ctx));
+
+                // Catastrophic posture failure is an absolute episode termination gate.
+                // The two terminals stay hardcoded on purpose: shaping is per-character,
+                // but fall (-1) and graduation (+3) fix the reward scale so different
+                // characters' walk runs remain comparable to each other on TensorBoard.
+                //
+                // They also stay HERE rather than in Reward_WalkObjective, which is
+                // structurally unable to end an episode. Note that SetReward discards
+                // this step's shaping outright — a fall is worth exactly -1 no matter
+                // what was earned on the way down — so the order of these two lines
+                // against the Evaluate above is load-bearing.
+                if (IsDown) { SetReward(-WALK_FALL_PENALTY); EndEpisode(); return; }
+                if (xLocal > -0.3f) { NoteEpisodeOutcome(true); AddReward(3f); EndEpisode(); }
+            }
+            else // Sumo
+            {
+                // Shaping only; win/loss (+1/-1) is assigned by Systems_SumoMatchManager.
+                AddReward(_sumoObjective.Evaluate(_b, _cadence, in ctx));
+                // Consumed by the impact term above. Cleared HERE and not in Walk
+                // mode, exactly as before — a walk-in that brushes the other fighter
+                // banks that momentum for the first sumo step after EndWalkIn.
+                _pendingImpact = 0f;
+            }
+
+            _lastTorsoY = torsoY;
+        }
+
+        // ---- Per-episode training settings (2026-11-10) -------------------------
+        //
+        // Every one of these is read from an ML-Agents ENVIRONMENT PARAMETER with a
+        // default that reproduces the old behaviour exactly: the sheet's own
+        // coefficient for the two smoothness costs, 0 for everything else. The
+        // game never connects a trainer, so it gets the defaults and is untouched.
+        // That is what lets one config stage these (Real01) without editing 16
+        // character sheets or invalidating a single shipped brain.
+
+        /// Walk-lane standing aid strength, fraction of body weight (0..1).
+        private float _standAssist;
+        /// Torso height above the clay at which the standing aid stops pushing,
+        /// and the band below it over which it ramps to full strength. 1.0 sits
+        /// just under the 1.06 m standing pose; at the measured crawl height of
+        /// ~0.6 m the aid is at 80% of its strength.
+        private const float STAND_ASSIST_HEIGHT = 1.0f;
+        private const float STAND_ASSIST_BAND = 0.5f;
+        /// Chest uprightness below which the aid lets go: it holds a body UP, it
+        /// does not right one that is going over.
+        private const float STAND_ASSIST_MIN_UPRIGHT = 0.5f;
+
+        private Systems_WalkObstacles _obstacles;
+
+        /// Mean over the powered joints of (applied motor torque / cap)^2, from the
+        /// torque the solver actually applied last step (Agent_BipedBody.JointLoad01).
+        private float JointTorque2()
+        {
+            int count = Agent_BipedBody.JointCount, powered = 0;
+            float sum = 0f;
+            for (int j = 0; j < count; j++)
+            {
+                if (!Agent_BipedBody.JointPowered(j)) continue;
+                float load = _b.JointLoad01(j);
+                sum += load * load;
+                powered++;
+            }
+            return powered > 0 ? San(sum / powered) : 0f;
+        }
+
+        /// Mean over the powered joints of (joint angular speed / 600 deg/s)^2.
+        private float JointVelocity2()
+        {
+            int count = Agent_BipedBody.JointCount, powered = 0;
+            float sum = 0f;
+            for (int j = 0; j < count; j++)
+            {
+                if (!Agent_BipedBody.JointPowered(j)) continue;
+                float speed = _b.JointSpeedNorm(j);
+                sum += speed * speed;
+                powered++;
+            }
+            return powered > 0 ? San(sum / powered) : 0f;
+        }
+
+        private void BeginTrainingEpisode()
+        {
+            _obsDelay = 0;
+            _obsRingHead = 0;
+            _obsRingFilled = 0;
+            _standAssist = 0f;
+            if (!Academy.IsInitialized) return;
+            var ep = Academy.Instance.EnvironmentParameters;
+
+            _sumoObjective.OverrideSmoothness(
+                ep.GetWithDefault("slip_penalty", _sumoObjective.SheetSlipPenalty),
+                ep.GetWithDefault("jerk2_penalty", _sumoObjective.SheetJerk2Penalty));
+            _sumoObjective.OverridePenalties(
+                ep.GetWithDefault("joint_torque_penalty", _sumoObjective.SheetJointTorquePenalty),
+                ep.GetWithDefault("joint_velocity_penalty", _sumoObjective.SheetJointVelocityPenalty),
+                ep.GetWithDefault("action_rate_penalty", _sumoObjective.SheetActionRatePenalty));
+            _walkObjective.OverrideSmoothness(
+                ep.GetWithDefault("walk_slip_penalty", _walkObjective.SheetSlipPenalty),
+                ep.GetWithDefault("walk_jerk2_penalty", _walkObjective.SheetJerk2Penalty));
+
+            int maxDelay = Mathf.Clamp(Mathf.RoundToInt(ep.GetWithDefault("obs_delay_max", 0f)),
+                                       0, OBS_DELAY_RING - 1);
+            _obsDelay = maxDelay > 0 ? Random.Range(0, maxDelay + 1) : 0;
+
+            _b.RandomizePhysique(ep.GetWithDefault("mass_jitter", 0f),
+                                 ep.GetWithDefault("damping_jitter", 0f));
+
+            if (mode != Mode.Walk || suppressEpisodeControl) return;
+
+            // TRAINING WHEELS, NOT A REFLEX. Unlike the always-on postural torque in
+            // Agent_BipedBody (which the game also runs), this is an upward FORCE
+            // and so is anti-gravity. That is exactly why it is walk-lane only,
+            // training only, and meant to be scheduled down to 0 by a curriculum
+            // (Real01: 0.5 -> 0.25 -> 0). It lets a policy discover a tall gait
+            // while falling from it is still rare, then hands the weight back.
+            _standAssist = Mathf.Clamp01(ep.GetWithDefault("stand_assist", 0f));
+
+            float barHeight = ep.GetWithDefault("walk_obstacle_height", 0f);
+            if (barHeight > 0f || _obstacles != null)
+            {
+                if (_obstacles == null) _obstacles = new Systems_WalkObstacles();
+                int count = Mathf.RoundToInt(ep.GetWithDefault("walk_obstacle_count", 2f));
+                _obstacles.Place(Torso.position.x, arenaCenterX, arenaGroundY,
+                                 barHeight, count, Torso.gameObject.layer);
+            }
+        }
+
+        /// Upward support on the pelvis while the walker carries itself low.
+        /// Called every physics step in Mode.Walk; a no-op unless stand_assist > 0.
+        private void ApplyStandAssist()
+        {
+            if (_standAssist <= 0f || _gettingUp || IsDown) return;
+            if (_b.Chest.transform.up.y < STAND_ASSIST_MIN_UPRIGHT) return;
+            float height = Torso.position.y - arenaGroundY;
+            float deficit = Mathf.Clamp01((STAND_ASSIST_HEIGHT - height) / STAND_ASSIST_BAND);
+            if (deficit <= 0f) return;
+            Torso.AddForce(Vector2.up * (_standAssist * deficit * _b.TotalMass * 9.81f));
+        }
+
+        // ---- Realism and graduation-gate stats ---------------------------------
+        //
+        // Pushed to TensorBoard through StatsRecorder once per EPISODE, and only
+        // while a trainer is connected: with no communicator the side channel is
+        // never drained, so a game session would queue these forever.
+        //
+        //   Realism/HighFreqShare  share of joint motion above ~5 Hz (0 smooth, 1 buzz)
+        //   Realism/FootSlip       mean loaded-foot slip, m/s (Reward_FootSlip)
+        //   Gate/<School>Episodes  episodes finished (summed per summary window)
+        //   Gate/<School>Failures  of those, how many did not succeed (summed)
+        //
+        // Success is the school's own terminal: a walker graduating, a wrestler
+        // winning the round (Systems_SumoMatchManager calls NoteEpisodeOutcome). A
+        // timeout, a draw or a fall is a failure. scripts/graduation_gate.py reads
+        // the two Gate series and passes a run only when the trailing windows hold
+        // at least 100 episodes with zero failures: the 100-straight-episodes rule.
+        private const string STAT_HIGH_FREQ = "Realism/HighFreqShare";
+        private const string STAT_SLIP = "Realism/FootSlip";
+        private const string STAT_WALK_EPISODES = "Gate/WalkEpisodes";
+        private const string STAT_WALK_FAILURES = "Gate/WalkFailures";
+        private const string STAT_SUMO_EPISODES = "Gate/SumoEpisodes";
+        private const string STAT_SUMO_FAILURES = "Gate/SumoFailures";
+
+        /// One-pole low-pass at ~5 Hz on a 50 Hz step: alpha = dt / (RC + dt),
+        /// RC = 1 / (2 pi 5). Whatever the joint does beyond this is buzz.
+        private const float HIGH_FREQ_ALPHA = 0.386f;
+
+        private readonly float[] _jointSpeedLow = new float[MotorCount];
+        private int _epSteps;
+        private float _epHighFreq;
+        private float _epSlip;
+        private bool _epSuccess;
+        private bool _epWasWalk;
+
+        /// Marks the episode about to end as a success (walk graduation, round
+        /// won). Anything not marked counts as a failure for the gate.
+        public void NoteEpisodeOutcome(bool success)
+        {
+            _epSuccess = success;
+        }
+
+        private void SampleRealismStats(float slip)
+        {
+            float highFreq = 0f, total = 0f;
+            for (int jointIndex = 0; jointIndex < MotorCount; jointIndex++)
+            {
+                float speed = _b.JointSpeedNorm(jointIndex);
+                _jointSpeedLow[jointIndex] += HIGH_FREQ_ALPHA * (speed - _jointSpeedLow[jointIndex]);
+                highFreq += Mathf.Abs(speed - _jointSpeedLow[jointIndex]);
+                total += Mathf.Abs(speed);
+            }
+            _epHighFreq += total > 0.01f ? highFreq / total : 0f;
+            _epSlip += slip;
+            _epSteps++;
+            _epWasWalk = mode == Mode.Walk;
+        }
+
+        private void FlushEpisodeStats()
+        {
+            if (_epSteps > 0 && Academy.IsInitialized && Academy.Instance.IsCommunicatorOn)
+            {
+                StatsRecorder stats = Academy.Instance.StatsRecorder;
+                stats.Add(STAT_HIGH_FREQ, _epHighFreq / _epSteps);
+                stats.Add(STAT_SLIP, _epSlip / _epSteps);
+                stats.Add(_epWasWalk ? STAT_WALK_EPISODES : STAT_SUMO_EPISODES, 1f,
+                          StatAggregationMethod.Sum);
+                stats.Add(_epWasWalk ? STAT_WALK_FAILURES : STAT_SUMO_FAILURES,
+                          _epSuccess ? 0f : 1f, StatAggregationMethod.Sum);
+            }
+            _epSteps = 0;
+            _epHighFreq = 0f;
+            _epSlip = 0f;
+            _epSuccess = false;
+            System.Array.Clear(_jointSpeedLow, 0, _jointSpeedLow.Length);
+        }
+
+        /// A limp ragdoll: every motor command zero. This is what a fighter with
+        /// no model does, and several call sites rely on Heuristic being harmless.
+        ///
+        /// It was also the hook for a hand-written rules fighter (`Agent_Bot`,
+        /// switched on by a `useBot` flag that put the agent on
+        /// BehaviorType.HeuristicOnly). That fighter was removed from the game on
+        /// 2026-10-04 at the user's request — PoSumo carries only RL-trained
+        /// fighters — and the controller lives in git history (7835145 and
+        /// earlier) for anyone who wants it back.
+        public override void Heuristic(in ActionBuffers actionsOut)
+        {
+            var a = actionsOut.ContinuousActions;
+            for (int index = 0; index < a.Length; index++) a[index] = 0f;
+        }
+    }
+}

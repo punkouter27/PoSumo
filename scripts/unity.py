@@ -234,7 +234,7 @@ def cmd_ping(_):
 
 def find_scene_dir(name, root):
     """Folder under `root` holding <name>.unity. The training scenes live in
-    Assets/Scenes/Training/, which the bridge's `load` does not search."""
+    Assets/_Project/Scenes/Training/, which the bridge's `load` does not search."""
     import os
 
     for folder, _dirs, files in os.walk(root):
@@ -462,7 +462,7 @@ def main():
 
     p = sub.add_parser("scene", help="load a scene")
     p.add_argument("name")
-    p.add_argument("--path", default="Assets/Scenes")
+    p.add_argument("--path", default="Assets/_Project/Scenes")
     p.set_defaults(fn=cmd_scene)
 
     for action in ("play", "stop", "pause"):

@@ -9,7 +9,7 @@
 #     "ts": "2026-04-24T12:34:56Z",
 #     "project": "<12-char git-remote hash>",
 #     "tool": "Edit|Write|Bash|Read|...",
-#     "file": "Assets/Scripts/Player.cs",   # empty if not file-scoped
+#     "file": "Assets/_Project/Player.cs",   # empty if not file-scoped
 #     "suffix": ".cs",                        # derived
 #     "path_tag": "view|system|model|sobject|mono|editor|test|other",
 #     "warning_count": 0                      # hook warnings at time of capture

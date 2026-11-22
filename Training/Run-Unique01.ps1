@@ -89,7 +89,7 @@ foreach ($row in $roster) {
         }
         throw "Training/results/$run already exists -- delete it or pass -Resume."
     }
-    $sheetPath = "Assets/Agents/${name}_v01/${name}_Character.asset"
+    $sheetPath = "Assets/_Project/RL_Models/${name}_v01/${name}_Character.asset"
     $usesBalance = (Test-Path $sheetPath) -and (Select-String -Path $sheetPath -Pattern '^\s*balanceObservations:\s*1\b' -Quiet)
     $phase = if ($usesBalance -and (Test-Path "Training/results/$($donor.ToLowerInvariant())_real01/$donor/checkpoint.pt")) { 'real01' } else { 'intent01' }
     $src = "Training/results/$($donor.ToLowerInvariant())_${phase}/$donor/checkpoint.pt"
@@ -193,9 +193,9 @@ for ($wave = 0; $wave -lt $waves; $wave++) {
         # Deploy production ONNX weights in-place (preserving .meta GUID) and promote placeholder brain ownership
         $bestOnnx = if ($finalOnnx) { "Training/results/$($r.run)/$($r.name).onnx" } elseif ($numbered) { $numbered[-1].FullName } else { $null }
         if ($bestOnnx -and (Test-Path $bestOnnx)) {
-            $dstOnnx = "Assets/Agents/$($r.name)_v01/$($r.name).onnx"
+            $dstOnnx = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name).onnx"
             Copy-Item -LiteralPath $bestOnnx -Destination $dstOnnx -Force
-            $charAsset = "Assets/Agents/$($r.name)_v01/$($r.name)_Character.asset"
+            $charAsset = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name)_Character.asset"
             if (Test-Path $charAsset) {
                 $raw = [System.IO.File]::ReadAllText((Resolve-Path $charAsset))
                 $updated = [regex]::Replace($raw, '(?m)^([ \t]*borrowedBrainFrom:)[ \t]*\S+', '$1 ')

@@ -4,15 +4,15 @@
 Enforces the conventions docs/project-notes.md mandates across the tree:
 
   * script prefixes are exactly Agent_, Sensor_, Reward_, Systems_ and must live
-    in the matching folder under Assets/Scripts/ (four folders, no others);
+    in the matching folder under Assets/_Project/ (four folders, no others);
   * scenes are SCN_*, training scenes are SCN_TRAIN_<NAME> (no suffixes);
   * env builds are Builds/<Name>Env/ matching their scene;
   * configs are <Name><Phase><NN>.yaml paired 1:1 with run-id <name>_<phase><nn>;
-  * agent assets live in Assets/Agents/<Name>_v<NN>/ with a MANIFEST.md;
-  * face art is Assets/Art/Faces/<Name>_Neutral.png or
+  * agent assets live in Assets/_Project/RL_Models/<Name>_v<NN>/ with a MANIFEST.md;
+  * face art is Assets/_Project/Environments/Art/Faces/<Name>_Neutral.png or
     <Name>_<Happy|Angry|Hurt|Insult>_<1-5>.png (any subset - missing slots are
     drawn procedurally by Systems_FaceMood);
-  * voice lines are Assets/Resources/Audio/Voice/<Name>_<Mood>_L<1-5>_<1-5>.wav
+  * voice lines are Assets/_Project/Data/Resources/Audio/Voice/<Name>_<Mood>_L<1-5>_<1-5>.wav
     (any subset - missing lines are synthesised by Systems_VoiceSynth);
   * hierarchy roots carry the standard 7 groups (checked only when a scene
     conveniently serializes them -- this tool does NOT parse .unity files).
@@ -44,10 +44,15 @@ def violation(path: Path, msg: str) -> None:
 
 
 def audit_scripts() -> None:
-    scripts = ROOT / "Assets" / "Scripts"
-    for folder in sorted(p for p in scripts.iterdir() if p.is_dir()):
+    # Runtime scripts live in Assets/_Project/Agents/{Agent,Sensor,Reward}/ and
+    # Assets/_Project/Core/Systems/ (one PoSumo.Runtime assembly, asmdef at Assets/_Project/).
+    project = ROOT / "Assets" / "_Project"
+    script_dirs = [project / "Agents" / name for name in ("Agent", "Sensor", "Reward")] + [project / "Core" / "Systems"]
+    agents = project / "Agents"
+    for folder in sorted(p for p in agents.iterdir() if p.is_dir()):
         if folder.name not in SCRIPT_FOLDERS:
-            violation(folder, "unexpected folder under Assets/Scripts (exactly Agent/Sensor/Reward/Systems allowed)")
+            violation(folder, "unexpected folder under Assets/_Project/Agents (exactly Agent/Sensor/Reward allowed)")
+    for folder in script_dirs:
         for cs in sorted(folder.glob("*.cs")):
             match = re.match(r"(Agent|Sensor|Reward|Systems)_", cs.name)
             if not match:
@@ -56,11 +61,12 @@ def audit_scripts() -> None:
                 violation(cs, f"prefix {match.group(1)}_ does not match folder {folder.name}/")
     # stray .cs anywhere else under Assets (except Editor/Tests which are
     # assembly-defined and legitimately unprefixed tooling)
+    allowed = set(script_dirs) | {project / "Core" / "Editor", project / "Core" / "Tests"}
     for cs in sorted((ROOT / "Assets").rglob("*.cs")):
         rel = cs.relative_to(ROOT / "Assets")
-        if rel.parts[0] in ("Scripts", "Editor", "Tests", "ML-Agents", "Plugins"):
+        if rel.parts[0] in ("ML-Agents", "Plugins") or any(parent in allowed for parent in cs.parents):
             continue
-        violation(cs, "script outside Assets/Scripts (or Editor/Tests)")
+        violation(cs, "script outside Assets/_Project/Agents/*, Core/Systems (or Core/Editor, Core/Tests)")
 
 
 def audit_scenes() -> None:
@@ -89,7 +95,7 @@ def audit_configs() -> None:
 
 
 def audit_agents() -> None:
-    agents = ROOT / "Assets" / "Agents"
+    agents = ROOT / "Assets" / "_Project" / "RL_Models"
     for folder in sorted(p for p in agents.iterdir() if p.is_dir()):
         match = re.match(r"^(.+)_v(\d{2})$", folder.name)
         if not match:
@@ -100,7 +106,7 @@ def audit_agents() -> None:
 
 
 def audit_faces() -> None:
-    faces = ROOT / "Assets" / "Art" / "Faces"
+    faces = ROOT / "Assets" / "_Project" / "Environments" / "Art" / "Faces"
     if not faces.is_dir():
         return
     for png in sorted(faces.glob("*.png")):
@@ -109,7 +115,7 @@ def audit_faces() -> None:
 
 
 def audit_voices() -> None:
-    voices = ROOT / "Assets" / "Resources" / "Audio" / "Voice"
+    voices = ROOT / "Assets" / "_Project" / "Data" / "Resources" / "Audio" / "Voice"
     if not voices.is_dir():
         return
     for wav in sorted(voices.glob("*.wav")):

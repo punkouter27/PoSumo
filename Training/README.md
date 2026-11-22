@@ -255,7 +255,7 @@ exists to fix. Re-measure the same way — play `SCN_TOURNAMENT` and read the
 `[MATCH] ROUND OUTCOMES:` lines — rather than inventing a new metric, or the comparison
 is worthless.
 
-Reverting is `git checkout -- Assets/Agents/`: all four shipped `.onnx` are tracked, so
+Reverting is `git checkout -- Assets/_Project/RL_Models/`: all four shipped `.onnx` are tracked, so
 `DeployBrain` overwriting them in place is undoable. Verify that BEFORE deploying, not
 after — `Training/results/` is gitignored and is not the safety net.
 
@@ -494,7 +494,7 @@ agent folder and repoints its character asset. The ONNX is always **overwritten 
 place** so the .meta GUID (and every scene reference to it) survives.
 
 To audition a brain from a run that is still going, call
-`DeployBrain.DeployLatestCheckpoint("<run-id>", "<Behavior>", "Assets/Agents/<Folder>")`
+`DeployBrain.DeployLatestCheckpoint("<run-id>", "<Behavior>", "Assets/_Project/RL_Models/<Folder>")`
 via MCP `script-execute` — the trainer only writes the unnumbered export on
 shutdown. Copying a checkpoint does not require stopping the run.
 
@@ -669,7 +669,7 @@ the input layer's layout. Do not reorder it once a brain has trained on it.
 To back it out (one command, and the shipped brains work again):
 
 ```powershell
-git checkout -- Assets/Agents/
+git checkout -- Assets/_Project/RL_Models/
 ```
 
 That reverts the flag on all five assets. Note it also reverts the `.onnx` files, which

@@ -12,7 +12,7 @@
 # The build method comes from scripts/webgl.json; it writes Builds/WebGL.
 #
 # ONE VERSION STAMP. The UTC yyMMdd stamp is computed once here and handed to Unity as
-# PO_BUILD_VERSION; Assets/Editor/WriteBuildStamp.cs sets PlayerSettings.bundleVersion from it, so
+# PO_BUILD_VERSION; Assets/_Project/Core/Editor/WriteBuildStamp.cs sets PlayerSettings.bundleVersion from it, so
 # Application.version, the v{PRODUCT_VERSION} in index.html and the footer of diag.html (written by
 # scripts/webgl_diag.py with the same value) all carry the same stamp. The script checks that.
 
@@ -20,7 +20,7 @@ param(
     [switch] $SkipBuild,
     [switch] $SkipTests,
     [switch] $NoPublish,
-    [int] $Keep = 3          # webgl-* releases to keep, the new one included
+    [int] $Keep = 0          # >0: prune to the newest N webgl-* releases (opt-in; 0 never deletes a release)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -112,7 +112,8 @@ gh release create $tag $zip -R $repo --target $sha --title "WebGL v$stamp ($when
 if ($LASTEXITCODE -ne 0) { throw "gh release create failed ($LASTEXITCODE)." }
 "PUBLISHED $tag  ->  deploy: https://github.com/$repo/actions/workflows/webgl.yml"
 
-# Keep only the newest $Keep webgl-* releases (and their tags).
+# Releases are never deleted unless asked: -Keep N prunes to the newest N webgl-* releases (and tags).
+if ($Keep -le 0) { return }
 $old = gh release list -R $repo --limit 100 --json tagName,createdAt |
     ConvertFrom-Json | Where-Object { $_.tagName -like 'webgl-*' } |
     Sort-Object createdAt -Descending | Select-Object -Skip $Keep

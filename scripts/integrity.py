@@ -43,8 +43,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ref_audit  # noqa: E402  -- reuses the meta index and GUID scan
 
 REPO = ref_audit.REPO
-SCRIPTS_ROOT = os.path.join(REPO, "Assets", "Scripts")
-EDITOR_ROOT = os.path.join(REPO, "Assets", "Editor")
+# Runtime code: everything under Assets/_Project except the Editor and Tests assemblies.
+SCRIPTS_ROOT = os.path.join(REPO, "Assets", "_Project")
+EDITOR_ROOT = os.path.join(REPO, "Assets", "_Project", "Core", "Editor")
 
 # Statics verified benign when this tool was written. Each entry needs a reason;
 # anything added here is exempt from the reset gate. Resource caches are safe to
@@ -53,26 +54,32 @@ EDITOR_ROOT = os.path.join(REPO, "Assets", "Editor")
 STATIC_ALLOWLIST = {
     # Cached sprites/materials/shaders — created once from code or Resources and
     # reused by every instance; the reference remains valid across sessions.
-    ("Assets/Scripts/Agent/Agent_BipedBody.cs", "_squareSprite"): "shared sprite cache; object outlives Play sessions",
-    ("Assets/Scripts/Agent/Agent_BipedBody.cs", "_bodyMat"): "shared material cache; object outlives Play sessions",
-    ("Assets/Scripts/Systems/Systems_ArenaAtmosphere.cs", "_shaftSprite"): "shared sprite cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_litSprite"): "shared sprite cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_unlitSprite"): "shared sprite cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_bodyShader"): "Shader.Find cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_normalMap"): "texture cache",
-    ("Assets/Scripts/Systems/Systems_BlobShadow.cs", "_softDisc"): "shared sprite cache",
-    ("Assets/Scripts/Systems/Systems_RingSqueezeCue.cs", "_edgeFade"): "shared texture cache",
+    (
+        "Assets/_Project/Agents/Agent/Agent_BipedBody.cs",
+        "_squareSprite",
+    ): "shared sprite cache; object outlives Play sessions",
+    (
+        "Assets/_Project/Agents/Agent/Agent_BipedBody.cs",
+        "_bodyMat",
+    ): "shared material cache; object outlives Play sessions",
+    ("Assets/_Project/Core/Systems/Systems_ArenaAtmosphere.cs", "_shaftSprite"): "shared sprite cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_litSprite"): "shared sprite cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_unlitSprite"): "shared sprite cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_bodyShader"): "Shader.Find cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_normalMap"): "texture cache",
+    ("Assets/_Project/Core/Systems/Systems_BlobShadow.cs", "_softDisc"): "shared sprite cache",
+    ("Assets/_Project/Core/Systems/Systems_RingSqueezeCue.cs", "_edgeFade"): "shared texture cache",
     # Log-once / resolve-once latches — persisting them only suppresses repeat
     # warnings inside one Editor session; reflection lookups are deterministic.
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_bodyShaderMissingLogged"): "log-once latch",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_normalQualityField"): "reflection lookup cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_useNormalMapField"): "reflection lookup cache",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_normalReflectionResolved"): "resolve-once latch",
-    ("Assets/Scripts/Systems/Systems_ArenaLighting.cs", "_normalReflectionWarned"): "warn-once latch",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_bodyShaderMissingLogged"): "log-once latch",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_normalQualityField"): "reflection lookup cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_useNormalMapField"): "reflection lookup cache",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_normalReflectionResolved"): "resolve-once latch",
+    ("Assets/_Project/Core/Systems/Systems_ArenaLighting.cs", "_normalReflectionWarned"): "warn-once latch",
     # Self-healing singleton: nulled in OnDestroy and re-checked with Unity's ==
     # (which sees a destroyed object as null) before every reuse.
     (
-        "Assets/Scripts/Systems/Systems_Telemetry.cs",
+        "Assets/_Project/Core/Systems/Systems_Telemetry.cs",
         "_instance",
     ): "singleton, nulled in OnDestroy, Unity-null re-checked before reuse",
 }
@@ -98,12 +105,14 @@ SUBSYSTEM_RESET_RE = re.compile(r"SubsystemRegistration")
 EVENT_DECL_RE = re.compile(r"\bevent\s+[\w<>,\.\[\]\? ]+?\s+(?P<name>\w+)\s*;")
 
 CS_EXT = ".cs"
+# Folders under Assets/_Project that are not the runtime assembly.
+NON_RUNTIME = {"Editor", "Tests"}
 
 
 def cs_files(root: str) -> list[str]:
     found: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d != ".git"]
+        dirnames[:] = [d for d in dirnames if d != ".git" and (root == EDITOR_ROOT or d not in NON_RUNTIME)]
         for name in filenames:
             if name.endswith(CS_EXT):
                 found.append(os.path.join(dirpath, name))
@@ -116,7 +125,7 @@ def read(path: str) -> str:
 
 
 def audit_runtime_statics(verbose: bool) -> list[dict]:
-    """Every static field under Assets/Scripts must live in a file that carries
+    """Every static field under Assets/_Project must live in a file that carries
     a SubsystemRegistration reset."""
     findings: list[dict] = []
     for path in cs_files(SCRIPTS_ROOT):
@@ -146,7 +155,7 @@ def audit_runtime_statics(verbose: bool) -> list[dict]:
 
 
 def audit_event_pairing() -> list[dict]:
-    """Every event declared under Assets/Scripts that is subscribed somewhere in
+    """Every event declared under Assets/_Project that is subscribed somewhere in
     the project must also be unsubscribed somewhere in the project."""
     declared: dict[str, list[str]] = {}
     for path in cs_files(SCRIPTS_ROOT):
@@ -238,7 +247,7 @@ def main() -> int:
                 for rel in sorted(users):
                     print(f"      {rel}")
         if static_findings:
-            print("\nUNRESET STATIC STATE (Assets/Scripts):")
+            print("\nUNRESET STATIC STATE (Assets/_Project):")
             for finding in static_findings:
                 print(f"  {finding['file']} :: {finding['field']}")
                 print(f"      {finding['why']}")

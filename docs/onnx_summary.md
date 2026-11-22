@@ -2,7 +2,7 @@
 
 > Last revised: **2026-08-16**
 > Engine: Unity **6000.5.8f1** | ML-Agents **4.1.0** | InferenceEngine **2.6.1**
-> Backed by `Assets/Agents/<Name>_v01/<Name>.onnx` and the per-fighter `MANIFEST.md`.
+> Backed by `Assets/_Project/RL_Models/<Name>_v01/<Name>.onnx` and the per-fighter `MANIFEST.md`.
 
 This document is the canonical inventory of every shipped brain and the ragdoll it drives. Two matrices:
 
@@ -15,10 +15,10 @@ This document is the canonical inventory of every shipped brain and the ragdoll 
 
 | Fighter | ONNX file | File size | Input tensor | Output tensor | Initializers | Params (approx) | Source run-id | Final mean reward (fight) | Self-play ELO (last decile) | Promotion status |
 |---|---|---:|---|---|---:|---:|---|---:|---:|---|
-| **Matt** | `Assets/Agents/Matt_v01/Matt.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | `continuous_actions` shape `[batch, 13]` (+ `version_number[1]`, `memory_size[1]`, `continuous_action_output_shape[1]`, `deterministic_continuous_actions[b,13]`) | 14 | ~445k | `matt_unified02` cold (15.0M) | ~36 | ~1140 | **Production** |
-| **Grandma** (fka Standard) | `Assets/Agents/Grandma_v01/Grandma.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `standard_unified01` cold (15.0M, run id under the old name) | ~31 | ~1080 | **Production** |
-| **Nick** | `Assets/Agents/Nick_v01/Nick.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `nick_unified01` cold 3.75M + resumed to 15.0M | ~33 | ~1115 | **Production** |
-| **Kim** | `Assets/Agents/Kim_v01/Kim.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `kim_unified01` cold (15.0M) | ~30 | ~1050 | **Production** |
+| **Matt** | `Assets/_Project/RL_Models/Matt_v01/Matt.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | `continuous_actions` shape `[batch, 13]` (+ `version_number[1]`, `memory_size[1]`, `continuous_action_output_shape[1]`, `deterministic_continuous_actions[b,13]`) | 14 | ~445k | `matt_unified02` cold (15.0M) | ~36 | ~1140 | **Production** |
+| **Grandma** (fka Standard) | `Assets/_Project/RL_Models/Grandma_v01/Grandma.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `standard_unified01` cold (15.0M, run id under the old name) | ~31 | ~1080 | **Production** |
+| **Nick** | `Assets/_Project/RL_Models/Nick_v01/Nick.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `nick_unified01` cold 3.75M + resumed to 15.0M | ~33 | ~1115 | **Production** |
+| **Kim** | `Assets/_Project/RL_Models/Kim_v01/Kim.onnx` | 2.13 MB | `obs_0` shape `[batch, 45]` | same shape set | 14 | ~445k | `kim_unified01` cold (15.0M) | ~30 | ~1050 | **Production** |
 
 **Shared trunk** (every shipped `.onnx`):
 
@@ -166,12 +166,12 @@ curl http://127.0.0.1:8787/metrics
 
 ## Source files
 
-* `Assets/Agents/<Name>_v01/<Name>.onnx` - the shipped brain
-* `Assets/Agents/<Name>_v01/<Name>_Character.asset` - the source-of-truth per-character sheet
-* `Assets/Agents/<Name>_v01/MANIFEST.md` - the per-fighter changelog (this file draws heavily on it)
-* `Assets/Scripts/Agent/Agent_Biped.cs` - the brain contract: `ActionCount = 13`, `ObservationCount = 42` (45 with `extendedObservations`)
-* `Assets/Scripts/Agent/Agent_BipedBody.cs` - the rig: `PART_DEFS` (16 parts), `JOINT_DEFS` (16 joints, 13 powered)
-* `Assets/Scripts/Reward/Reward_SumoObjective.cs` - per-character shaping coefficients for the sumo school
-* `Assets/Scripts/Reward/Reward_WalkObjective.cs` - per-character shaping coefficients for the walk school
+* `Assets/_Project/RL_Models/<Name>_v01/<Name>.onnx` - the shipped brain
+* `Assets/_Project/RL_Models/<Name>_v01/<Name>_Character.asset` - the source-of-truth per-character sheet
+* `Assets/_Project/RL_Models/<Name>_v01/MANIFEST.md` - the per-fighter changelog (this file draws heavily on it)
+* `Assets/_Project/Agents/Agent/Agent_Biped.cs` - the brain contract: `ActionCount = 13`, `ObservationCount = 42` (45 with `extendedObservations`)
+* `Assets/_Project/Agents/Agent/Agent_BipedBody.cs` - the rig: `PART_DEFS` (16 parts), `JOINT_DEFS` (16 joints, 13 powered)
+* `Assets/_Project/Agents/Reward/Reward_SumoObjective.cs` - per-character shaping coefficients for the sumo school
+* `Assets/_Project/Agents/Reward/Reward_WalkObjective.cs` - per-character shaping coefficients for the walk school
 * `Training/configs/<Name>UnifiedNN.yaml` - the PPO config that produced the shipped brain
 * `Training/results/<run-id>/` - gitignored, present only after a local retrain; contains checkpoints, TFEvents, and final `<Behavior>.onnx`

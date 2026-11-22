@@ -4,8 +4,8 @@ Principal Unity ML-Agents Architect: modular, production-ready C# for active-rag
 
 ## 1. Naming
 
-- `Assets/Agents/<Name>_v<NN>/` — `.onnx`, `*_Character.asset`, `MANIFEST.md`.
-- Four script prefixes, each matching its folder under `Assets/Scripts/`: `Agent_`,
+- `Assets/_Project/RL_Models/<Name>_v<NN>/` — `.onnx`, `*_Character.asset`, `MANIFEST.md`.
+- Four script prefixes, each matching its folder under `Assets/_Project/Agents/` (Agent, Sensor, Reward) or `Assets/_Project/Core/` (Systems): `Agent_`,
   `Sensor_`, `Reward_`, `Systems_` (referees, presentation, persistence, UI — the largest).
 - Scenes `SCN_`; training `SCN_TRAIN_<NAME>`, no suffixes. Envs `Builds/<Name>Env/`;
   configs `<Name><Phase><NN>.yaml` paired 1:1 with run-id `<name>_<phase><nn>`.
@@ -58,7 +58,7 @@ this project does not have. Ignore the question and follow the recipe below.
 
 **Adding a feature — the whole recipe:**
 
-1. Write a `Systems_*` MonoBehaviour in `Assets/Scripts/Systems/`. It lands in
+1. Write a `Systems_*` MonoBehaviour in `Assets/_Project/Core/Systems/`. It lands in
    `PoSumo.Runtime`; `PoSumo.Editor` is for menu tools only. Those are the only two
    assemblies.
 2. Subscribe to what it needs, and unsubscribe in `OnDisable`:

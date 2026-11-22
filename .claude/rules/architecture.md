@@ -13,11 +13,13 @@ how plans get written against a stack that does not exist.
 ## The shape of the project
 
 ```
-Assets/Scripts/
-  Agent/    Agent_*     the ragdoll biped, its brain contract, character assets
-  Sensor/   Sensor_*    observation helpers
-  Reward/   Reward_*    reward-shaping providers (plain C#, no MonoBehaviour)
-  Systems/  Systems_*   everything else — referees, presentation, persistence, UI
+Assets/_Project/                 PoSumo.Runtime.asmdef covers every script below
+  Agents/Agent/    Agent_*     the ragdoll biped, its brain contract, character assets
+  Agents/Sensor/   Sensor_*    observation helpers
+  Agents/Reward/   Reward_*    reward-shaping providers (plain C#, no MonoBehaviour)
+  Core/Systems/    Systems_*   everything else — referees, presentation, persistence, UI
+  Core/Editor/, Core/Tests/    their own assemblies (below)
+  Data/ (Settings, Resources)  Environments/Art  RL_Models/<Name>_v01  Scenes/  UI/
 ```
 
 Exactly four folders, four prefixes. The prefix and the folder must agree. Adding a fifth
@@ -27,9 +29,10 @@ Three assembly definitions, and that is the whole graph:
 
 | Assembly | Contains |
 |---|---|
-| `PoSumo.Runtime` | `Assets/Scripts/` — everything shipped |
-| `PoSumo.Editor` | `Assets/Editor/` — menu tools, builders, the match harness |
-| `PoSumo.Tests.EditMode` | `Assets/Tests/EditMode/` — the pure-logic unit suite |
+| `PoSumo.Runtime` | `Assets/_Project/` (asmdef at its root) minus Core/Editor and Core/Tests — everything shipped |
+| `PoSumo.Editor` | `Assets/_Project/Core/Editor/` — menu tools, builders, the match harness |
+| `PoSumo.Tests.EditMode` | `Assets/_Project/Core/Tests/EditMode/` — the pure-logic unit suite |
+| `PoSumo.Tests.PlayMode` | `Assets/_Project/Core/Tests/PlayMode/` — live-arena checks (physics contract, reward penalties, benchmark) |
 
 Editor code may reference runtime code. Never the reverse. The test assembly references
 runtime only, is `includePlatforms: ["Editor"]` and carries
@@ -54,7 +57,7 @@ here — see the tuning-asset rule below.
 
 `Systems_GameMatchManager.Start` does `new GameObject(...)` for every presentation system —
 lighting, audio, music, damage, dust, blob shadows, face mood, career recording — each
-gated by an `enable*` bool on `Assets/Settings/GameTuning.asset`.
+gated by an `enable*` bool on `Assets/_Project/Data/Settings/GameTuning.asset`.
 
 **This is the extension point.** A new presentation feature is:
 
@@ -111,8 +114,8 @@ asset renames. Never key persisted data on folder or asset name.
 
 | Asset | Type | Holds |
 |---|---|---|
-| `Assets/Settings/GameTuning.asset` | `Systems_GameTuning` | shared match numbers + every `enable*` feature flag |
-| `Assets/Agents/<Name>_v01/<Name>_Character.asset` | `Agent_CharacterDefinition` | identity, body scales, brain generation, **all reward-shaping coefficients** |
+| `Assets/_Project/Data/Settings/GameTuning.asset` | `Systems_GameTuning` | shared match numbers + every `enable*` feature flag |
+| `Assets/_Project/RL_Models/<Name>_v01/<Name>_Character.asset` | `Agent_CharacterDefinition` | identity, body scales, brain generation, **all reward-shaping coefficients** |
 
 Two rules that have each cost a bug:
 
@@ -148,7 +151,7 @@ Keep it that way when adding a provider:
 
 ## Async: no coroutines, no UniTask
 
-`Assets/Scripts/` currently contains **zero** `StartCoroutine` and zero `IEnumerator`.
+`Assets/_Project/` currently contains **zero** `StartCoroutine` and zero `IEnumerator`.
 Deferred and timed work is done with accumulator fields advanced in `Update` /
 `FixedUpdate`, or with a small state machine like the referee's
 Fighting → RoundEnded → Grace → Fighting loop.
@@ -164,7 +167,7 @@ allocate), and do not reach for UniTask — it is not installed.
 "no runtime script reads either" until 2026-08-25; it was true once and the code moved
 past it. The package is therefore NOT a removal candidate.)
 
-`Assets/Settings/InputSystem_Actions.inputactions` is a different matter: nothing reads the
+`Assets/_Project/Data/Settings/InputSystem_Actions.inputactions` is a different matter: nothing reads the
 asset, only the static `Keyboard`/`Pointer` devices. Everything else is UI Toolkit buttons
 handling their own events. Legacy `Input.GetKey` / `GetAxis` / `GetButton` must not be
 introduced. If real gameplay input is ever added, add a single `Systems_Input*` reader that
@@ -180,7 +183,7 @@ components used to add their own at equal sorting order, which has no defined dr
 order, and taps were being swallowed.
 
 Build controls through `Systems_UiKit` or they will have no press feedback. Read
-`Assets/UI Toolkit/README.md` before touching UI.
+`Assets/_Project/UI/README.md` before touching UI.
 
 ## Composition over inheritance
 
@@ -225,7 +228,7 @@ There is no lint step. The verification tools are:
   `Training/ml-agents/`); a scan missing any one of them invents broken references,
 - the Game-view screenshot flow (`python Tools/unity.py shot ...`),
 - `Tools/unity.py errors` / `console-get-logs` for the console,
-- the EditMode unit suite in `Assets/Tests/EditMode` — run it with
+- the EditMode unit suite in `Assets/_Project/Core/Tests/EditMode` — run it with
   `run_tests` + `assemblyNames: ["PoSumo.Tests.EditMode"]`, never `testFilter`, which the
   bridge ignores while running every test in the project including a third-party one that
   always fails here.

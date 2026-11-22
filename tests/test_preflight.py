@@ -16,9 +16,9 @@ def test_code_contract_reads_observation_and_action_sizes_from_agent_biped():
 
 
 def test_every_shipped_fighter_has_a_character_sheet():
-    agents = os.path.join(preflight.ROOT, "Assets", "Agents")
+    agents = os.path.join(preflight.ROOT, "Assets", "_Project", "RL_Models")
     names = [d[: -len("_v01")] for d in os.listdir(agents) if d.endswith("_v01")]
-    assert names, "no Assets/Agents/<Name>_v01 folders"
+    assert names, "no Assets/_Project/RL_Models/<Name>_v01 folders"
     for name in names:
         values, path = preflight.sheet(name)
         assert values is not None, f"missing {path}"

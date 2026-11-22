@@ -44,3 +44,11 @@ def test_missing_build_folder_fails(tmp_path):
 def test_stamp_must_be_yymmdd(tmp_path):
     with pytest.raises(SystemExit):
         webgl_diag.main([str(tmp_path), "1.0.4"])
+
+
+def test_repo_config_probes_the_deployed_commit_header():
+    _, checks = webgl_diag.load_checks()
+    commit = [check for check in checks if check.get("header", "").lower() == "x-commit"]
+    assert commit, "/diag must show the live X-Commit (the deployed commit)"
+    page = webgl_diag.render("PoSumo", "261122", checks)
+    assert "r.headers.get(c.header)" in page

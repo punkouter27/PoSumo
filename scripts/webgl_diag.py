@@ -7,6 +7,8 @@ carries in PlayerSettings.bundleVersion and index.html. Nothing on the page is h
 "Ready": every row is probed live from the visitor's browser (fetch + latency), from the checks
 listed in scripts/webgl.json -> diagChecks, plus the WebGL2 capability and one row per file in
 the build's Build/ folder (discovered here, so a renamed bundle cannot leave a stale row).
+A check with a "header" key passes only when the live response carries that header, and shows
+its value (the deploy workflow stamps the deployed commit into every response as X-Commit).
 """
 
 from __future__ import annotations
@@ -97,7 +99,12 @@ done(gl, !!ctx, ctx ? 'Available' : 'Unavailable');
 for (const c of checks) {{
   const st = row(c.section, c.name), t0 = performance.now();
   fetch(c.url, {{ method: c.method || 'GET', cache: 'no-store' }})
-    .then(r => done(st, r.ok, (r.ok ? 'OK ' : 'HTTP ' + r.status + ' ') + Math.round(performance.now() - t0) + ' ms'))
+    .then(r => {{
+      const ms = Math.round(performance.now() - t0) + ' ms';
+      if (!c.header) return done(st, r.ok, (r.ok ? 'OK ' : 'HTTP ' + r.status + ' ') + ms);
+      const v = r.headers.get(c.header) || '';
+      done(st, r.ok && v.length > 0, r.ok ? (v ? v.slice(0, 7) + ' (' + ms + ')' : 'Missing ' + c.header) : 'HTTP ' + r.status + ' ' + ms);
+    }})
     .catch(e => done(st, false, 'Unreachable (' + Math.round(performance.now() - t0) + ' ms)'));
 }}
 </script></body></html>

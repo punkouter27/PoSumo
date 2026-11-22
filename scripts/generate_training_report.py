@@ -2,7 +2,7 @@
 """Generate an HTML training status & optimization report with inline SVG charts.
 
 Reads TensorBoard event files from Training/results/, roster definitions from
-Training/unique01_roster.csv, character sheets from Assets/Agents/*_v01/, and
+Training/unique01_roster.csv, character sheets from Assets/_Project/RL_Models/*_v01/, and
 status JSON from docs/20261110/unique01_status.json.
 
 Outputs:
@@ -105,8 +105,8 @@ def load_tb_run(run_dir: Path) -> dict[str, list[tuple[int, float]]]:
 
 
 def parse_character_sheet(fighter: str) -> dict[str, Any]:
-    sheet = REPO_ROOT / "Assets" / "Agents" / f"{fighter}_v01" / f"{fighter}_Character.asset"
-    onnx_path = REPO_ROOT / "Assets" / "Agents" / f"{fighter}_v01" / f"{fighter}.onnx"
+    sheet = REPO_ROOT / "Assets" / "_Project" / "RL_Models" / f"{fighter}_v01" / f"{fighter}_Character.asset"
+    onnx_path = REPO_ROOT / "Assets" / "_Project" / "RL_Models" / f"{fighter}_v01" / f"{fighter}.onnx"
     info: dict[str, Any] = {
         "borrowedBrainFrom": "",
         "balanceObservations": 0,

@@ -18,7 +18,7 @@ stats at mean 0 / variance 1, so the widened policy computes exactly what the
 shipped one did until training moves those weights. The script asserts that.
 
     Training/venv/Scripts/python.exe scripts/onnx_warmstart.py \
-        Assets/Agents/Matt_v01/Matt.onnx Training/results/matt_intentinit/Matt/checkpoint.pt --new-obs 2
+        Assets/_Project/RL_Models/Matt_v01/Matt.onnx Training/results/matt_intentinit/Matt/checkpoint.pt --new-obs 2
 """
 
 import argparse

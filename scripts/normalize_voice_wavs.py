@@ -45,7 +45,7 @@ import os
 import struct
 import sys
 
-VOICE_GLOB = "Assets/Resources/Audio/Voice/*.wav"
+VOICE_GLOB = "Assets/_Project/Data/Resources/Audio/Voice/*.wav"
 
 # Chosen from the measured distribution: close to the median of the 75 clips, so
 # most files move a little rather than a few moving enormously.

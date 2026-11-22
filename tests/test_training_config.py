@@ -12,7 +12,7 @@ PENALTIES = ("joint_torque_penalty", "joint_velocity_penalty", "action_rate_pena
 
 
 def agent_parameters():
-    source = (ROOT / "Assets" / "Scripts" / "Agent" / "Agent_Biped.cs").read_text(encoding="utf-8")
+    source = (ROOT / "Assets" / "_Project" / "Agents" / "Agent" / "Agent_Biped.cs").read_text(encoding="utf-8")
     return set(re.findall(r'GetWithDefault\("([a-z0-9_]+)"', source))
 
 

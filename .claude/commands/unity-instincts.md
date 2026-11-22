@@ -76,7 +76,7 @@ Graduate high-confidence instincts into draft skill files.
 name: learned-<domain>-patterns
 description: "Patterns auto-learned from Unity sessions in this project"
 alwaysApply: false
-globs: ["Assets/Scripts/**/*.cs"]
+globs: ["Assets/_Project/**/*.cs"]
 ---
 
 # Learned <Domain> Patterns

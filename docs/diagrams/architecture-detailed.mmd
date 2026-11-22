@@ -2,7 +2,7 @@ flowchart TB
     %% PoSumo - Unified Architecture (DETAILED)
     %% Memory + tensor flow between editor, runtime, training, and PhysX/Sentis
 
-    subgraph Editor["Editor  (Assets/Editor)"]
+    subgraph Editor["Editor  (Assets/_Project/Core/Editor)"]
         BTE["BuildTrainingEnv<br/>BuildOptions.Development"]:::ed
         BAB["BuildAndroid / AAB"]:::ed
         DPB[DeployBrain]:::ed

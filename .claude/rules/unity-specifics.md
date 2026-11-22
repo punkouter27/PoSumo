@@ -3,7 +3,7 @@
 ## Editor vs Runtime
 
 ```csharp
-// Runtime code (Assets/Scripts/) — NEVER use UnityEditor unguarded
+// Runtime code (Assets/_Project/) — NEVER use UnityEditor unguarded
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -131,7 +131,7 @@ private void Update()
 }
 ```
 
-`Assets/Scripts/` currently contains zero `StartCoroutine` and zero `IEnumerator`. Keep it
+`Assets/_Project/` currently contains zero `StartCoroutine` and zero `IEnumerator`. Keep it
 that way.
 
 ## DontDestroyOnLoad

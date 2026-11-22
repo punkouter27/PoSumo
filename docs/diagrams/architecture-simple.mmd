@@ -10,12 +10,12 @@ flowchart TB
         ONNX[BehaviorName.onnx]:::tr
     end
 
-    subgraph Edit["Editor (Assets/Editor)"]
+    subgraph Edit["Editor (Assets/_Project/Core/Editor)"]
         direction LR
         Menu["PoSumo menu tools<br/>Build Env / Deploy / Harness"]:::ed
     end
 
-    subgraph Game["Runtime (Assets/Scripts)"]
+    subgraph Game["Runtime (Assets/_Project)"]
         direction TB
         subgraph Agent["Agent_"]
             AB["Agent_Biped<br/>13 actions, 45 obs"]:::ag
@@ -41,7 +41,7 @@ flowchart TB
         end
     end
 
-    subgraph Comp["Assets/Settings"]
+    subgraph Comp["Assets/_Project/Data/Settings"]
         direction LR
         GT[GameTuning.asset]:::as
         IP[InputSystem_Actions]:::as

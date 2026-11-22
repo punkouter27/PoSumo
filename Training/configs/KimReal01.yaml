@@ -26,7 +26,7 @@
 # its mean reward mixes two schools and cannot say when either is ready.
 #
 # WARM START: widen the shipped 53-input brain by two zero-weighted columns,
-#   Training/venv/Scripts/python.exe scripts/onnx_warmstart.py Assets/Agents/Kim_v01/Kim.onnx \
+#   Training/venv/Scripts/python.exe scripts/onnx_warmstart.py Assets/_Project/RL_Models/Kim_v01/Kim.onnx \
 #       Training/results/kim_realinit/Kim/checkpoint.pt --new-obs 2
 # then preflight with --widened. Judge the fight on ELO SHAPE from 1200, the walk
 # on Gate/WalkFailures and Realism/*. Export only after

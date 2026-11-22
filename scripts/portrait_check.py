@@ -261,7 +261,9 @@ def run_size(width: int, height: int, out_dir: str, play: bool, notch: bool) -> 
     print(f"\n=== {tag} " + "=" * (60 - len(tag)))
 
     print("  " + str(set_game_view(width, height)))
-    unity.call("manage_scene", {"action": "load", "name": "SCN_TOURNAMENT", "path": "Assets/Scenes"}, timeout=120)
+    unity.call(
+        "manage_scene", {"action": "load", "name": "SCN_TOURNAMENT", "path": "Assets/_Project/Scenes"}, timeout=120
+    )
 
     _exec('UnityEditor.EditorApplication.isPlaying = true; return "play";')
     time.sleep(6.0)

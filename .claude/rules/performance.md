@@ -78,7 +78,7 @@ SpriteAtlas "CardAtlas" containing all 52 cards + backs + UI elements
 ```
 
 **Rules:**
-- **All 2D sprites MUST use Sprite Atlases** — create atlases in `Assets/Art/Atlases/`
+- **All 2D sprites MUST use Sprite Atlases** — create atlases in `Assets/_Project/Environments/Art/Atlases/`
 - Group by rendering layer: one atlas per logical group (cards, UI icons, environment tiles)
 - Max atlas size: 2048x2048 (mobile) or 4096x4096 (desktop)
 - Enable "Tight Packing" and "Allow Rotation" for optimal packing
@@ -194,14 +194,14 @@ Example guidance format:
 The game requires sprite atlases for optimal draw call count. Please create these in Unity Editor:
 
 1. Right-click in Project window → Create → 2D → Sprite Atlas
-2. Name it "CardAtlas", save to Assets/Art/Atlases/
+2. Name it "CardAtlas", save to Assets/_Project/Environments/Art/Atlases/
 3. In the Inspector:
-   - Add folder "Assets/Art/Cards" to "Objects for Packing"
+   - Add folder "Assets/_Project/Environments/Art/Cards" to "Objects for Packing"
    - Set "Max Texture Size" to 2048
    - Enable "Tight Packing"
    - Enable "Allow Rotation"
    - Click "Pack Preview" to verify all sprites fit
-4. Repeat for "UIAtlas" with Assets/Art/UI/
+4. Repeat for "UIAtlas" with Assets/_Project/Environments/Art/UI/
 
 Until these atlases exist, every card/UI element is a separate draw call.
 ```
@@ -211,7 +211,7 @@ This applies to ALL optimization assets the agent can't create: sprite atlases, 
 ## Debug
 
 - No raw `Debug.Log` in runtime code. Call **`Systems_Log.Info`**
-  (`Assets/Scripts/Systems/Systems_Log.cs`), which carries
+  (`Assets/_Project/Core/Systems/Systems_Log.cs`), which carries
   `[Conditional("UNITY_EDITOR")]` + `[Conditional("DEVELOPMENT_BUILD")]`.
 - **Route through a method; do not wrap the call in `if`.** Every one of this project's
   log lines is an interpolated string. An `if` guard still builds the string and throws it
@@ -222,5 +222,5 @@ This applies to ALL optimization assets the agent can't create: sprite atlases, 
 - These lines are load-bearing, not leftovers: `MatchTestHarness` and the verification
   flow in `CLAUDE.md` read `[MATCH]` / `[ROUND]` / `HARNESS RESULT:` back out of the
   console. Delete one and you break a test tool.
-- `Assets/Editor/` is exempt — it never ships, so `Debug.Log` there is fine.
+- `Assets/_Project/Core/Editor/` is exempt — it never ships, so `Debug.Log` there is fine.
 - Strip debug code with scripting defines, not runtime checks.

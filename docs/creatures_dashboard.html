@@ -158,7 +158,7 @@ footer{margin-top:48px;padding:20px 32px;color:var(--muted);font-size:12px;borde
     <div class="kpi"><div class="label">Decision Period</div><div class="value">3 ticks</div><div class="sub">0.06 s per decision; 50 Hz physics</div></div>
     <div class="kpi"><div class="label">Observation Dim</div><div class="value">45</div><div class="sub">base 42 + 3 extended; append order locked</div></div>
     <div class="kpi"><div class="label">Buffer / Batch</div><div class="value">20480 / 2048</div><div class="sub">GAE lambda 0.95, gamma 0.997</div></div>
-    <div class="kpi"><div class="label">Promotion Status</div><div class="value"><span class="tag prod">Production</span></div><div class="sub">all 4 shipped to Assets/Agents/&lt;Name&gt;_v01/&lt;Name&gt;.onnx</div></div>
+    <div class="kpi"><div class="label">Promotion Status</div><div class="value"><span class="tag prod">Production</span></div><div class="sub">all 4 shipped to Assets/_Project/RL_Models/&lt;Name&gt;_v01/&lt;Name&gt;.onnx</div></div>
   </div>
 </section>
 
@@ -265,10 +265,10 @@ footer{margin-top:48px;padding:20px 32px;color:var(--muted);font-size:12px;borde
   <table>
     <thead><tr><th>Fighter</th><th>File</th><th>Size (MB)</th><th>Input</th><th>Hidden</th><th>Output</th><th>Init.</th><th>Params (approx)</th></tr></thead>
     <tbody>
-      <tr><td><span class="swatch" style="background:#d63b3b;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Matt</td><td><code>Assets/Agents/Matt_v01/Matt.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
-      <tr><td><span class="swatch" style="background:#3bd6a8;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Grandma</td><td><code>Assets/Agents/Grandma_v01/Grandma.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
-      <tr><td><span class="swatch" style="background:#3b9ad6;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Nick</td><td><code>Assets/Agents/Nick_v01/Nick.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
-      <tr><td><span class="swatch" style="background:#b89040;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Kim</td><td><code>Assets/Agents/Kim_v01/Kim.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
+      <tr><td><span class="swatch" style="background:#d63b3b;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Matt</td><td><code>Assets/_Project/RL_Models/Matt_v01/Matt.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
+      <tr><td><span class="swatch" style="background:#3bd6a8;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Grandma</td><td><code>Assets/_Project/RL_Models/Grandma_v01/Grandma.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
+      <tr><td><span class="swatch" style="background:#3b9ad6;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Nick</td><td><code>Assets/_Project/RL_Models/Nick_v01/Nick.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
+      <tr><td><span class="swatch" style="background:#b89040;display:inline-block;width:12px;height:12px;border-radius:50%;vertical-align:middle;margin-right:6px"></span>Kim</td><td><code>Assets/_Project/RL_Models/Kim_v01/Kim.onnx</code></td><td>2.13</td><td>obs_0 [batch, 45]</td><td>3x Dense(512)</td><td>continuous_actions [batch, 13]</td><td>14</td><td>~445k</td></tr>
     </tbody>
   </table>
   </div>

@@ -18,7 +18,7 @@ Perform a comprehensive code review with Unity-specific checks.
 ## Scope
 
 If the user specified a scope: review **$ARGUMENTS**
-If no scope: review recently changed files (`git diff` or all `.cs` files in `Assets/Scripts/`).
+If no scope: review recently changed files (`git diff` or all `.cs` files in `Assets/_Project/`).
 
 ## Workflow
 
