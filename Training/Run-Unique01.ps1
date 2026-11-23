@@ -122,94 +122,135 @@ function EnvPlayers([string]$name) {
         Where-Object { $_.CommandLine -match "posumoFighter\s+$name(\s|$)" })
 }
 
-for ($wave = 0; $wave -lt $waves; $wave++) {
-    $batch = @($roster | Select-Object -Skip ($wave * $Concurrent) -First $Concurrent)
-    $live = @()
-    $port = $BasePort
-    foreach ($row in $batch) {
-        $name = $row.fighter; $donor = $row.donor
-        $run = "$($name.ToLowerInvariant())_unique01"
-        $initFlag = if ($Resume -and (Test-Path "Training/results/$run/$name/checkpoint.pt")) { '--resume' } else { "--initialize-from=$($name.ToLowerInvariant())_uniqueinit" }
-        $learnArgs = @(
-            "Training/configs/${name}Unique01.yaml",
-            "--run-id=$run",
-            '--results-dir=Training/results',
-            "--env=Builds/${donor}Env/${donor}Env.exe",
-            "--num-envs=$NumEnvs",
-            "--base-port=$port",
-            '--no-graphics',
-            $initFlag,
-            '--env-args', '-posumoFighter', $name)
-        $proc = Start-Process -FilePath $learnExe -PassThru -WorkingDirectory $repoRoot -ArgumentList $learnArgs
-        Write-Host ("[{0:HH:mm:ss}] wave {1}/{2}: {3} ({4}, env {5}) trainer {6} ports {7}+" -f (Get-Date), ($wave + 1), $waves, $name, $row.style, $donor, $proc.Id, $port)
-        $live += [pscustomobject]@{ name = $name; run = $run; style = $row.style; donor = $donor; proc = $proc; clock = $null; launched = Get-Date }
-        $port += 10
-    }
+# Training runs grid: each run is recorded in Training/results/runs.html when its trainer
+# exits (below). If this launcher is stopped (Ctrl+C) or crashes mid-wave, the finally block
+# records the runs that already exited and hands the live ones to a detached watcher, so
+# every run still gets its row. Update-RunsGrid.ps1 never throws.
+$gridScript = Join-Path $PSScriptRoot 'Update-RunsGrid.ps1'
+$live = @()
+$launcherError = $null
+try {
+    for ($wave = 0; $wave -lt $waves; $wave++) {
+        $batch = @($roster | Select-Object -Skip ($wave * $Concurrent) -First $Concurrent)
+        $live = @()
+        $port = $BasePort
+        foreach ($row in $batch) {
+            $name = $row.fighter; $donor = $row.donor
+            $run = "$($name.ToLowerInvariant())_unique01"
+            $initFlag = if ($Resume -and (Test-Path "Training/results/$run/$name/checkpoint.pt")) { '--resume' } else { "--initialize-from=$($name.ToLowerInvariant())_uniqueinit" }
+            $learnArgs = @(
+                "Training/configs/${name}Unique01.yaml",
+                "--run-id=$run",
+                '--results-dir=Training/results',
+                "--env=Builds/${donor}Env/${donor}Env.exe",
+                "--num-envs=$NumEnvs",
+                "--base-port=$port",
+                '--no-graphics',
+                $initFlag,
+                '--env-args', '-posumoFighter', $name)
+            $proc = Start-Process -FilePath $learnExe -PassThru -WorkingDirectory $repoRoot -ArgumentList $learnArgs
+            try { $null = $proc.Handle } catch { }   # keeps the exit code readable for the runs grid
+            Write-Host ("[{0:HH:mm:ss}] wave {1}/{2}: {3} ({4}, env {5}) trainer {6} ports {7}+" -f (Get-Date), ($wave + 1), $waves, $name, $row.style, $donor, $proc.Id, $port)
+            $live += [pscustomobject]@{ name = $name; run = $run; style = $row.style; donor = $donor; proc = $proc; clock = $null; launched = Get-Date; stoppedBy = $null; recorded = $false }
+            $port += 10
+        }
 
-    # Each trainer's clock starts when ITS env players exist, not at launch.
-    while ($true) {
-        $pending = $false
+        # Each trainer's clock starts when ITS env players exist, not at launch.
+        while ($true) {
+            $pending = $false
+            foreach ($r in $live) {
+                if ($r.proc.HasExited) { continue }
+                if (-not $r.clock) {
+                    if ((EnvPlayers $r.name).Count -ge 1) { $r.clock = Get-Date; Write-Host ("[{0:HH:mm:ss}]   {1}: envs up, {2} min clock started" -f (Get-Date), $r.name, $Minutes) }
+                    elseif (((Get-Date) - $r.launched).TotalMinutes -gt 4) { Write-Warning "$($r.name): no env player after 4 min"; $r.clock = Get-Date }
+                    $pending = $true; continue
+                }
+                if (((Get-Date) - $r.clock).TotalMinutes -lt $Minutes) { $pending = $true; continue }
+                Write-Host ("[{0:HH:mm:ss}]   {1}: time -- waiting for fresh 25k-step checkpoint before stopping" -f (Get-Date), $r.name)
+                $ckptPath = "Training/results/$($r.run)/$($r.name)/checkpoint.pt"
+                $waitStart = Get-Date
+                while (-not $r.proc.HasExited -and ((Get-Date) - $waitStart).TotalSeconds -lt 42) {
+                    if ((Test-Path $ckptPath) -and ((Get-Date) - (Get-Item $ckptPath).LastWriteTime).TotalSeconds -lt 12) {
+                        break
+                    }
+                    Start-Sleep -Seconds 3
+                }
+                if (-not $r.proc.HasExited) {
+                    $r.stoppedBy = "stopped at the $Minutes-min budget"
+                    if (-not $r.proc.CloseMainWindow()) {
+                        $r.proc.Kill()
+                        $r.stoppedBy = "killed at the $Minutes-min budget"
+                    }
+                }
+            }
+            if (-not $pending) { break }
+            Start-Sleep -Seconds 10
+        }
+
         foreach ($r in $live) {
-            if ($r.proc.HasExited) { continue }
-            if (-not $r.clock) {
-                if ((EnvPlayers $r.name).Count -ge 1) { $r.clock = Get-Date; Write-Host ("[{0:HH:mm:ss}]   {1}: envs up, {2} min clock started" -f (Get-Date), $r.name, $Minutes) }
-                elseif (((Get-Date) - $r.launched).TotalMinutes -gt 4) { Write-Warning "$($r.name): no env player after 4 min"; $r.clock = Get-Date }
-                $pending = $true; continue
-            }
-            if (((Get-Date) - $r.clock).TotalMinutes -lt $Minutes) { $pending = $true; continue }
-            Write-Host ("[{0:HH:mm:ss}]   {1}: time -- waiting for fresh 25k-step checkpoint before stopping" -f (Get-Date), $r.name)
-            $ckptPath = "Training/results/$($r.run)/$($r.name)/checkpoint.pt"
-            $waitStart = Get-Date
-            while (-not $r.proc.HasExited -and ((Get-Date) - $waitStart).TotalSeconds -lt 42) {
-                if ((Test-Path $ckptPath) -and ((Get-Date) - (Get-Item $ckptPath).LastWriteTime).TotalSeconds -lt 12) {
-                    break
-                }
-                Start-Sleep -Seconds 3
-            }
             if (-not $r.proc.HasExited) {
-                if (-not $r.proc.CloseMainWindow()) {
-                    $r.proc.Kill()
+                if (-not $r.proc.WaitForExit(15000)) { $r.proc.Kill(); $r.stoppedBy = "killed at the $Minutes-min budget" }
+            }
+            EnvPlayers $r.name | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            $dir = "Training/results/$($r.run)/$($r.name)"
+            $finalOnnx = Test-Path "Training/results/$($r.run)/$($r.name).onnx"
+            $numbered = @(Get-ChildItem $dir -Filter "$($r.name)-*.onnx" -ErrorAction SilentlyContinue | Sort-Object { [int]($_.BaseName -replace '.*-', '') })
+            $steps = if ($numbered) { [int]($numbered[-1].BaseName -replace '.*-', '') } else { 0 }
+            $entry = [ordered]@{ fighter = $r.name; style = $r.style; donor = $r.donor; run = $r.run
+                finalOnnx = $finalOnnx; lastNumberedOnnx = if ($numbered) { $numbered[-1].Name } else { $null }; steps = $steps
+                minutes = if ($r.clock) { [math]::Round(((Get-Date) - $r.clock).TotalMinutes, 1) } else { 0 } }
+            $status.runs += $entry
+            Save-Status
+            # Deploy production ONNX weights in-place (preserving .meta GUID) and promote placeholder brain ownership
+            $bestOnnx = if ($finalOnnx) { "Training/results/$($r.run)/$($r.name).onnx" } elseif ($numbered) { $numbered[-1].FullName } else { $null }
+            if ($bestOnnx -and (Test-Path $bestOnnx)) {
+                $dstOnnx = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name).onnx"
+                Copy-Item -LiteralPath $bestOnnx -Destination $dstOnnx -Force
+                $charAsset = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name)_Character.asset"
+                if (Test-Path $charAsset) {
+                    $raw = [System.IO.File]::ReadAllText((Resolve-Path $charAsset))
+                    $updated = [regex]::Replace($raw, '(?m)^([ \t]*borrowedBrainFrom:)[ \t]*\S+', '$1 ')
+                    if ($updated -ne $raw) { [System.IO.File]::WriteAllText((Resolve-Path $charAsset), $updated, (New-Object System.Text.UTF8Encoding($false))) }
                 }
+                $stampSrc = "Training/stamps/$($r.run).json"
+                if (Test-Path $stampSrc) { Copy-Item -LiteralPath $stampSrc -Destination "Training/results/$($r.run)/STAMP.json" -Force }
+                Write-Host ("[{0:HH:mm:ss}]   {1}: promoted ONNX -> {2} ({3} steps)" -f (Get-Date), $r.name, $dstOnnx, $steps)
             }
+            Write-Host ("[{0:HH:mm:ss}]   {1}: done -- final onnx {2}, last numbered {3}" -f (Get-Date), $r.name, $finalOnnx, $entry.lastNumberedOnnx)
+            # Training runs grid (Training/results/runs.html); never fails the campaign.
+            $code = try { [string]$r.proc.ExitCode } catch { '' }
+            & $gridScript -RunId $r.run -Launcher 'Training/Run-Unique01.ps1' -Ended $r.stoppedBy -ExitCode $code
+            $r.recorded = $true
         }
-        if (-not $pending) { break }
-        Start-Sleep -Seconds 10
+        # The staging dirs hold weights, not history: out of the logdir once used.
+        foreach ($r in $live) { Remove-Item -Recurse -Force "Training/results/$($r.name.ToLowerInvariant())_uniqueinit" -ErrorAction SilentlyContinue }
+        & $venvPython scripts/generate_training_report.py
     }
-
-    foreach ($r in $live) {
-        if (-not $r.proc.HasExited) {
-            if (-not $r.proc.WaitForExit(15000)) { $r.proc.Kill() }
-        }
-        EnvPlayers $r.name | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-        $dir = "Training/results/$($r.run)/$($r.name)"
-        $finalOnnx = Test-Path "Training/results/$($r.run)/$($r.name).onnx"
-        $numbered = @(Get-ChildItem $dir -Filter "$($r.name)-*.onnx" -ErrorAction SilentlyContinue | Sort-Object { [int]($_.BaseName -replace '.*-', '') })
-        $steps = if ($numbered) { [int]($numbered[-1].BaseName -replace '.*-', '') } else { 0 }
-        $entry = [ordered]@{ fighter = $r.name; style = $r.style; donor = $r.donor; run = $r.run
-            finalOnnx = $finalOnnx; lastNumberedOnnx = if ($numbered) { $numbered[-1].Name } else { $null }; steps = $steps
-            minutes = if ($r.clock) { [math]::Round(((Get-Date) - $r.clock).TotalMinutes, 1) } else { 0 } }
-        $status.runs += $entry
-        Save-Status
-        # Deploy production ONNX weights in-place (preserving .meta GUID) and promote placeholder brain ownership
-        $bestOnnx = if ($finalOnnx) { "Training/results/$($r.run)/$($r.name).onnx" } elseif ($numbered) { $numbered[-1].FullName } else { $null }
-        if ($bestOnnx -and (Test-Path $bestOnnx)) {
-            $dstOnnx = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name).onnx"
-            Copy-Item -LiteralPath $bestOnnx -Destination $dstOnnx -Force
-            $charAsset = "Assets/_Project/RL_Models/$($r.name)_v01/$($r.name)_Character.asset"
-            if (Test-Path $charAsset) {
-                $raw = [System.IO.File]::ReadAllText((Resolve-Path $charAsset))
-                $updated = [regex]::Replace($raw, '(?m)^([ \t]*borrowedBrainFrom:)[ \t]*\S+', '$1 ')
-                if ($updated -ne $raw) { [System.IO.File]::WriteAllText((Resolve-Path $charAsset), $updated, (New-Object System.Text.UTF8Encoding($false))) }
+}
+catch {
+    $launcherError = ("launcher crashed: $($_.Exception.Message)" -replace '\s+', ' ')
+    if ($launcherError.Length -gt 200) { $launcherError = $launcherError.Substring(0, 200) }
+    throw
+}
+finally {
+    foreach ($r in @($live)) {
+        if ($r.recorded) { continue }
+        $note = if ($launcherError) { $launcherError } else { 'launcher interrupted (Ctrl+C)' }
+        try {
+            if ($r.proc.HasExited) {
+                $code = try { [string]$r.proc.ExitCode } catch { '' }
+                & $gridScript -RunId $r.run -Launcher 'Training/Run-Unique01.ps1' -Ended $r.stoppedBy -ExitCode $code -Note $note
+            } else {
+                Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -ArgumentList @(
+                    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$gridScript`"",
+                    '-RunId', $r.run, '-Launcher', 'Training/Run-Unique01.ps1', '-TrainerPid', "$($r.proc.Id)",
+                    '-Note', "`"$($note -replace '"', "'")`"") | Out-Null
+                Write-Host "  $($r.name): trainer $($r.proc.Id) still running; its runs-grid row is written when it exits"
             }
-            $stampSrc = "Training/stamps/$($r.run).json"
-            if (Test-Path $stampSrc) { Copy-Item -LiteralPath $stampSrc -Destination "Training/results/$($r.run)/STAMP.json" -Force }
-            Write-Host ("[{0:HH:mm:ss}]   {1}: promoted ONNX -> {2} ({3} steps)" -f (Get-Date), $r.name, $dstOnnx, $steps)
+        } catch {
+            Write-Warning "runs grid not updated for $($r.run): $_"
         }
-        Write-Host ("[{0:HH:mm:ss}]   {1}: done -- final onnx {2}, last numbered {3}" -f (Get-Date), $r.name, $finalOnnx, $entry.lastNumberedOnnx)
     }
-    # The staging dirs hold weights, not history: out of the logdir once used.
-    foreach ($r in $live) { Remove-Item -Recurse -Force "Training/results/$($r.name.ToLowerInvariant())_uniqueinit" -ErrorAction SilentlyContinue }
-    & $venvPython scripts/generate_training_report.py
 }
 
 $status.finishedLocal = (Get-Date).ToString('s')

@@ -172,6 +172,19 @@ Write-Host "Starting trainer: $RunId"
 Write-Host "  envs $NumEnvs on ports $BasePort..$($BasePort + $NumEnvs - 1)"
 $trainer = Start-Process -FilePath $learnExe -PassThru -ArgumentList $learnArgs -WorkingDirectory $repoRoot
 
+# Training runs grid: a detached, hidden watcher waits for this trainer to exit (finished,
+# stopped or crashed), then records the run in Training/results/runs.html via
+# benchmark/runs.py. It only waits on the trainer; if it cannot start, that is a warning.
+try {
+    Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-File', "`"$(Join-Path $PSScriptRoot 'Update-RunsGrid.ps1')`"",
+        '-RunId', $RunId, '-Launcher', 'Training/Start-Training.ps1', '-TrainerPid', "$($trainer.Id)"
+    ) | Out-Null
+} catch {
+    Write-Warning "runs grid watcher not started (the run is unaffected): $_"
+}
+
 # Recorded so a dashboard, a later shell, or Stop-Training can find this session
 # without guessing. Deliberately not the only way processes are found — Stop
 # matches by name and path too, because a wrapper that crashes must not strand a

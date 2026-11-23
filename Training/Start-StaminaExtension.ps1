@@ -234,6 +234,19 @@ foreach ($fighter in $Fighters) {
     $proc = Start-Process -FilePath $learnExe -PassThru -ArgumentList $learnArgs -WorkingDirectory $repoRoot
     Write-Host "  trainer pid $($proc.Id) on ports $port..$($port + $NumEnvs - 1)"
 
+    # Training runs grid: a detached, hidden watcher waits for this trainer to exit
+    # (finished, auto-stopped or crashed), then records it in Training/results/runs.html
+    # via benchmark/runs.py. It only waits; if it cannot start, that is a warning.
+    try {
+        Start-Process -FilePath (Get-Process -Id $PID).Path -WindowStyle Hidden -ArgumentList @(
+            '-NoProfile', '-ExecutionPolicy', 'Bypass',
+            '-File', "`"$(Join-Path $PSScriptRoot 'Update-RunsGrid.ps1')`"",
+            '-RunId', $runId, '-Launcher', 'Training/Start-StaminaExtension.ps1', '-TrainerPid', "$($proc.Id)"
+        ) | Out-Null
+    } catch {
+        Write-Warning "runs grid watcher not started for $runId (the run is unaffected): $_"
+    }
+
     $launched += [ordered]@{
         runId      = $runId
         fighter    = $fighter

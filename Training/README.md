@@ -489,6 +489,14 @@ up in TensorBoard as empty runs, so delete them once the real run has started.
 
 ## After training
 
+**Training runs grid.** `Training/results/runs.html` (local, git-ignored) lists every run
+under `Training/results/`, newest first: start, wall-clock, how it ended, steps, the run's own
+steps/s, the newest `benchmark/history.json` result on the same machine, config, envs, warm
+start, commit and machine. `Start-Training.ps1`, `Start-StaminaExtension.ps1` and
+`Run-Unique01.ps1` record each run through `Update-RunsGrid.ps1` when its trainer exits
+(finished, stopped or crashed); rebuild it by hand with
+`Training/venv/Scripts/python.exe benchmark/runs.py`.
+
 *PoSumo → Deploy \<Name\> Brain* copies the run's final ONNX into the fighter's
 agent folder and repoints its character asset. The ONNX is always **overwritten in
 place** so the .meta GUID (and every scene reference to it) survives.
