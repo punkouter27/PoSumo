@@ -123,7 +123,12 @@ namespace PoSumo.EditorTools
                     ceilingLimited++;
                 }
 
-                names.Add(clip.name);
+                // A standard line lives in a per-fighter folder and is called
+                // just "<emotion>-<level>", so it is keyed "<Fighter>/<emotion>-<level>"
+                // (Systems_FighterVoice.GainKey) or every fighter's "angry-3" collides.
+                string relative = path.Substring(VOICE_FOLDER.Length + 1);
+                int slash = relative.LastIndexOf('/');
+                names.Add(slash > 0 ? relative.Substring(0, slash) + "/" + clip.name : clip.name);
                 gains.Add(gain);
                 // Reported after the attenuate-only rebase below, not here, or
                 // every line would quote a gain the table does not hold.

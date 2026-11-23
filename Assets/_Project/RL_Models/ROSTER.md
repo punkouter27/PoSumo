@@ -1,4 +1,11 @@
-# PoSumo Fighter Roster (16: 4 trained + 12 placeholders)
+# PoSumo Fighter Roster (16 trained fighters)
+
+> **Update 2026-11-22 (tournament standard).** The twelve fighters below that started as
+> placeholders were each promoted to their own trained brain in the Unique01 pass (2026-11-11;
+> see each `MANIFEST.md`), and `borrowedBrainFrom` is empty on every asset. They are real,
+> playable fighters and stay in the roster; a **BYE** is only an empty slot, which a full
+> 16-fighter roster never has. The draw is seeded by tournament Elo (1v16, 8v9, 4v13, 5v12,
+> 2v15, 7v10, 3v14, 6v11), no longer shuffled. The sections below are the 2026-11-10 history.
 
 **Since 2026-11-10 the bracket is 16 slots**, drawn as a tree: eight seeds down the left,
 eight down the right, the final and champion in the centre. Four fighters are RL-trained;
@@ -28,7 +35,10 @@ policy was fitted to the donor's physique.
 ## Faces and voices (2026-11-10)
 
 Both use four moods — **Happy, Angry, Hurt, Insult** — at levels **1-5** (1 mildest), plus a
-Neutral face. `Systems_FighterVoice` decides every emotional moment and announces it on
+Neutral face. *(2026-11-22: a fifth, **Celebrate**, completes the standard 5 x 5 matrix; it fires
+on winning a round (2-4) or the match (5). Standard voice files are
+`Resources/Audio/Voice/<Name>/<emotion>-<level>.wav`, checked before the legacy names below; a
+fighter with no celebrate face art shows its Happy art.)* `Systems_FighterVoice` decides every emotional moment and announces it on
 `Expressed`; `Systems_FaceMood` draws the same mood and level.
 
 | | Real asset (wins when present) | Fallback |

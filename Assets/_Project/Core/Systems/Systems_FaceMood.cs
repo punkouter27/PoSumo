@@ -274,6 +274,11 @@ namespace PoSumo
                     tint = new Color(1f - 0.03f * l, 1f - 0.07f * l, 1f - 0.01f * l);
                     sx = 1f + 0.015f * l; sy = 1f; tilt = 4f * l;
                     break;
+                case Systems_FighterMood.Celebrate:
+                    // Happy, pushed further: hotter, wider, chin thrown right up.
+                    tint = new Color(1f, 1f - 0.01f * l, 1f - 0.09f * l);
+                    sx = 1f + 0.04f * l; sy = 1f - 0.01f * l; tilt = 3f * l;
+                    break;
                 default:
                     tint = Color.white; sx = 1f; sy = 1f; tilt = 0f;
                     break;

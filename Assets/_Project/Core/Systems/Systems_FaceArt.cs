@@ -98,13 +98,18 @@ namespace PoSumo
                         if (sprite != null) { levelOfArt = above; return sprite; }
                     }
                 }
+                // No celebrate art yet: the Happy art is the nearest real face.
+                if (mood == Systems_FighterMood.Celebrate)
+                {
+                    return Resolve(prefix, Systems_FighterMood.Happy, level, out levelOfArt);
+                }
             }
             return Load(prefix + "_Neutral");
         }
 
         // Names are built once per (prefix, mood, level) and cached: FaceMood asks on
         // every expression step, and string concatenation per step is garbage.
-        private const int MOOD_COUNT = 5;   // members of Systems_FighterMood
+        private const int MOOD_COUNT = 6;   // members of Systems_FighterMood (Celebrate is 5)
         private static readonly Dictionary<string, string[]> NameCache = new Dictionary<string, string[]>();
 
         private static string Name(string prefix, Systems_FighterMood mood, int level)

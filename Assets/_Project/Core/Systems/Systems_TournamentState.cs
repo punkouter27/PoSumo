@@ -265,6 +265,9 @@ namespace PoSumo
         /// 14 <- 12,13. (The same formula served the 4- and 8-slot frames.)
         private static int FeederOf(int match) => (match - FIRST_ROUND_MATCHES) * 2;
 
+        /// A drawn bout: the higher seed advances.
+        public static bool ReportDraw() => ReportWinner(null);
+
         public static void SetSeed(int slot, Agent_CharacterDefinition character)
         {
             if (slot < 0 || slot >= SEED_COUNT) return;
@@ -329,77 +332,110 @@ namespace PoSumo
         /// required before the bracket can start. Empty slots are byes, not gaps.
         public static bool SeedsReady() => _seeded && FighterCount >= 2;
 
-        /// Draw the bracket: every supplied character ONCE, shuffled, with the
-        /// remaining slots left empty as byes.
-        ///
-        /// The byes are dealt one per quarterfinal pair before any pair gets a
-        /// second, so (on the old eight-slot frame) five fighters drew three "fighter v BYE" rows and one
-        /// real quarterfinal rather than a dead "BYE v BYE" row beside two real
-        /// ones. Which pairs get them, and which side of the pair, is shuffled.
-        public static void AutoSeed(Agent_CharacterDefinition[] roster, int shuffleSalt)
+        /// The standard 16-slot seeding chart (Po tournament standard, 2026-11-22):
+        /// first-round pairs, top to bottom, are 1v16, 8v9, 4v13, 5v12, 2v15, 7v10,
+        /// 3v14, 6v11. `SLOT_SEEDS[slot]` is the 1-based seed that sits in a slot,
+        /// so slots (0,1) hold seeds 1 and 16, (2,3) seeds 8 and 9, and so on. Seeds
+        /// 1 and 2 can only meet in the final, 1-4 only from the semifinals.
+        public static readonly int[] SLOT_SEEDS = { 1, 16, 8, 9, 4, 13, 5, 12, 2, 15, 7, 10, 3, 14, 6, 11 };
+
+        /// 1-based seed of a slot on the standard chart.
+        public static int SeedOfSlot(int slot) =>
+            slot >= 0 && slot < SEED_COUNT ? SLOT_SEEDS[slot] : int.MaxValue;
+
+        /// Slot that holds a 1-based seed.
+        public static int SlotOfSeed(int seed)
         {
-            if (roster == null || roster.Length == 0) return;
-
-            // Distinct, non-null entrants, capped at the frame. Compared by
-            // reference: one asset is one fighter.
-            var entrants = new Agent_CharacterDefinition[SEED_COUNT];
-            int entrantCount = 0;
-            for (int rosterIndex = 0; rosterIndex < roster.Length && entrantCount < SEED_COUNT; rosterIndex++)
+            for (int slot = 0; slot < SEED_COUNT; slot++)
             {
-                Agent_CharacterDefinition candidate = roster[rosterIndex];
-                if (candidate == null) continue;
-                bool seen = false;
-                for (int entrantIndex = 0; entrantIndex < entrantCount; entrantIndex++)
-                {
-                    if (entrants[entrantIndex] == candidate) { seen = true; break; }
-                }
-                if (!seen) entrants[entrantCount++] = candidate;
+                if (SLOT_SEEDS[slot] == seed) return slot;
             }
-            if (entrantCount == 0) return;
+            return -1;
+        }
 
-            // Deterministic Fisher-Yates from a caller-supplied salt: scenes must
-            // not call Random during load order, and a salt keeps reshuffles
-            // reproducible if the user wants the same draw again.
-            var rng = new System.Random(shuffleSalt);
-            for (int index = entrantCount - 1; index > 0; index--)
+        /// Seed of a fighter in the current draw (the slot it sits in, after any
+        /// manual swap); int.MaxValue when it is not in the draw.
+        public static int SeedOf(Agent_CharacterDefinition character)
+        {
+            if (character == null) return int.MaxValue;
+            for (int slot = 0; slot < SEED_COUNT; slot++)
             {
-                int j = rng.Next(index + 1);
-                (entrants[index], entrants[j]) = (entrants[j], entrants[index]);
+                if (_seeds[slot] == character) return SLOT_SEEDS[slot];
             }
+            return int.MaxValue;
+        }
 
-            // How many of each pair's two slots are filled. Everybody gets one
-            // before anybody gets two (when there are fewer fighters than pairs
-            // the tail pairs stay empty), then the pair order is shuffled so the
-            // byes do not always land on the same rows.
-            const int PAIRS = SEED_COUNT / 2;
-            var fill = new int[PAIRS];
-            for (int entrantIndex = 0; entrantIndex < entrantCount; entrantIndex++)
-            {
-                fill[entrantIndex % PAIRS]++;
-            }
-            for (int index = PAIRS - 1; index > 0; index--)
-            {
-                int j = rng.Next(index + 1);
-                (fill[index], fill[j]) = (fill[j], fill[index]);
-            }
+        /// The fighter a DRAWN bout sends on: the higher seed (lower number).
+        /// Standard rule — a draw is never replayed and never a coin toss.
+        public static Agent_CharacterDefinition HigherSeed(Agent_CharacterDefinition a, Agent_CharacterDefinition b)
+        {
+            if (a == null) return b;
+            if (b == null) return a;
+            return SeedOf(b) < SeedOf(a) ? b : a;
+        }
 
-            int next = 0;
-            for (int pair = 0; pair < PAIRS; pair++)
+        /// Draw the bracket: every supplied character ONCE, SEEDED BY TOURNAMENT
+        /// ELO (highest = seed 1) onto the standard chart, with the bottom seeds
+        /// left empty as BYES.
+        ///
+        /// Was a salted shuffle until 2026-11-22. Ratings start at 1000, so a
+        /// fresh install seeds in roster order (ties break on titles, then roster
+        /// order) and the draw sharpens as tournaments are played. BYEs taking
+        /// the bottom seeds means each missing fighter hands a TOP seed a
+        /// first-round walkover, the usual reward for a high rating.
+        public static void AutoSeed(Agent_CharacterDefinition[] roster) =>
+            AutoSeed(roster, character => Systems_TournamentElo.Get(character.behaviorName),
+                     character => Systems_TournamentElo.Titles(character.behaviorName));
+
+        /// Same, with the rating (and an optional tie-break) supplied — the pure
+        /// form the EditMode tests drive without touching tournament_elo.json.
+        public static void AutoSeed(Agent_CharacterDefinition[] roster,
+                                    Func<Agent_CharacterDefinition, float> rating,
+                                    Func<Agent_CharacterDefinition, int> titles = null)
+        {
+            if (roster == null || roster.Length == 0 || rating == null) return;
+            Agent_CharacterDefinition[] ordered = SeedOrder(roster, rating, titles);
+            if (ordered.Length == 0) return;
+
+            for (int slot = 0; slot < SEED_COUNT; slot++)
             {
-                int left = pair * 2;
-                _seeds[left] = null;
-                _seeds[left + 1] = null;
-                if (fill[pair] == 2)
-                {
-                    _seeds[left] = entrants[next++];
-                    _seeds[left + 1] = entrants[next++];
-                }
-                else if (fill[pair] == 1)
-                {
-                    _seeds[left + rng.Next(2)] = entrants[next++];
-                }
+                int seed = SLOT_SEEDS[slot];
+                _seeds[slot] = seed <= ordered.Length ? ordered[seed - 1] : null;
             }
             _seeded = true;
+        }
+
+        /// Distinct, non-null entrants (by reference: one asset is one fighter),
+        /// capped at the frame, best first: rating desc, titles desc, roster order.
+        public static Agent_CharacterDefinition[] SeedOrder(Agent_CharacterDefinition[] roster,
+                                                            Func<Agent_CharacterDefinition, float> rating,
+                                                            Func<Agent_CharacterDefinition, int> titles = null)
+        {
+            var entrants = new System.Collections.Generic.List<Agent_CharacterDefinition>();
+            if (roster == null) return entrants.ToArray();
+            for (int rosterIndex = 0; rosterIndex < roster.Length; rosterIndex++)
+            {
+                Agent_CharacterDefinition candidate = roster[rosterIndex];
+                if (candidate != null && !entrants.Contains(candidate)) entrants.Add(candidate);
+            }
+            var keyed = new (Agent_CharacterDefinition fighter, float rating, int titles, int order)[entrants.Count];
+            for (int index = 0; index < entrants.Count; index++)
+            {
+                keyed[index] = (entrants[index], rating(entrants[index]),
+                                titles != null ? titles(entrants[index]) : 0, index);
+            }
+            // List.Sort is not stable; the roster index makes every key unique.
+            Array.Sort(keyed, (x, y) =>
+            {
+                int byRating = y.rating.CompareTo(x.rating);
+                if (byRating != 0) return byRating;
+                int byTitles = y.titles.CompareTo(x.titles);
+                return byTitles != 0 ? byTitles : x.order.CompareTo(y.order);
+            });
+            int count = Mathf.Min(keyed.Length, SEED_COUNT);
+            var ordered = new Agent_CharacterDefinition[count];
+            for (int index = 0; index < count; index++) ordered[index] = keyed[index].fighter;
+            return ordered;
         }
 
         public static void BeginTournament()
@@ -418,11 +454,16 @@ namespace PoSumo
         }
 
         /// Record the result of the current match and advance. Returns true when
-        /// the tournament still has matches left to play.
+        /// the tournament still has matches left to play. Null = a draw, which
+        /// the higher seed wins.
         public static bool ReportWinner(Agent_CharacterDefinition winner)
         {
             if (!Active) return false;
             GetEntrants(CurrentMatch, out Agent_CharacterDefinition a, out Agent_CharacterDefinition b);
+            // A DRAW (no winner, or somebody not in this bout) goes to the higher
+            // seed. The arena always decides a match today; this is the standard's
+            // rule for the day it does not, so the bracket can never stall.
+            if (winner == null || (winner != a && winner != b)) winner = HigherSeed(a, b);
             Agent_CharacterDefinition loser = winner == a ? b : a;
             _winners[CurrentMatch] = winner;
             _outcomes[CurrentMatch] = OUTCOME_BOUT;

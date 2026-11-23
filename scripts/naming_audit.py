@@ -10,10 +10,13 @@ Enforces the conventions docs/project-notes.md mandates across the tree:
   * configs are <Name><Phase><NN>.yaml paired 1:1 with run-id <name>_<phase><nn>;
   * agent assets live in Assets/_Project/RL_Models/<Name>_v<NN>/ with a MANIFEST.md;
   * face art is Assets/_Project/Environments/Art/Faces/<Name>_Neutral.png or
-    <Name>_<Happy|Angry|Hurt|Insult>_<1-5>.png (any subset - missing slots are
-    drawn procedurally by Systems_FaceMood);
-  * voice lines are Assets/_Project/Data/Resources/Audio/Voice/<Name>_<Mood>_L<1-5>_<1-5>.wav
-    (any subset - missing lines are synthesised by Systems_VoiceSynth);
+    <Name>_<Happy|Angry|Hurt|Insult|Celebrate>_<1-5>.png (any subset - missing
+    slots are drawn procedurally by Systems_FaceMood);
+  * voice lines follow the Po tournament standard
+    Assets/_Project/Data/Resources/Audio/Voice/<Name>/<emotion>-<1-5>.wav
+    (emotion = angry|happy|hurt|insult|celebrate), or the legacy flat
+    <Name>_<Mood>_L<1-5>_<1-5>.wav (any subset - missing lines are synthesised
+    by Systems_VoiceSynth);
   * hierarchy roots carry the standard 7 groups (checked only when a scene
     conveniently serializes them -- this tool does NOT parse .unity files).
 
@@ -32,9 +35,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 VALID_PREFIXES = {"Agent_", "Sensor_", "Reward_", "Systems_"}
 SCRIPT_FOLDERS = {"Agent", "Sensor", "Reward", "Systems"}
-MOODS = "Happy|Angry|Hurt|Insult"
+MOODS = "Happy|Angry|Hurt|Insult|Celebrate"
 FACE_RE = re.compile(rf"^[A-Za-z0-9]+_(Neutral|(?:{MOODS})_[1-5])\.png$")
 VOICE_RE = re.compile(rf"^[A-Za-z0-9]+_(?:{MOODS})_L[1-5]_[1-5]\.wav$")
+STANDARD_VOICE_RE = re.compile(r"^(?:angry|happy|hurt|insult|celebrate)-[1-5]\.wav$")
 
 violations: list[str] = []
 
@@ -111,7 +115,9 @@ def audit_faces() -> None:
         return
     for png in sorted(faces.glob("*.png")):
         if not FACE_RE.match(png.name):
-            violation(png, "face art must be <Name>_Neutral.png or <Name>_<Happy|Angry|Hurt|Insult>_<1-5>.png")
+            violation(
+                png, "face art must be <Name>_Neutral.png or <Name>_<Happy|Angry|Hurt|Insult|Celebrate>_<1-5>.png"
+            )
 
 
 def audit_voices() -> None:
@@ -120,7 +126,13 @@ def audit_voices() -> None:
         return
     for wav in sorted(voices.glob("*.wav")):
         if not VOICE_RE.match(wav.name):
-            violation(wav, "voice line must be <Name>_<Happy|Angry|Hurt|Insult>_L<1-5>_<1-5>.wav")
+            violation(wav, "voice line must be <Name>/<emotion>-<1-5>.wav or <Name>_<Mood>_L<1-5>_<1-5>.wav")
+    for folder in sorted(p for p in voices.iterdir() if p.is_dir()):
+        if not re.match(r"^[A-Za-z0-9]+$", folder.name):
+            violation(folder, "voice folder must be the fighter's behavior name")
+        for wav in sorted(folder.rglob("*.wav")):
+            if wav.parent != folder or not STANDARD_VOICE_RE.match(wav.name):
+                violation(wav, "standard voice line must be <Name>/<angry|happy|hurt|insult|celebrate>-<1-5>.wav")
 
 
 def main() -> int:

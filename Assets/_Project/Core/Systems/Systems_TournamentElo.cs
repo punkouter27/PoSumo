@@ -28,7 +28,16 @@ namespace PoSumo
         public const float START = 1000f;
         /// Higher than the career ladder's 24: a bracket is only 15 bouts, and the
         /// ratings should separate within a few tournaments, not a few dozen.
-        private const float K = 32f;
+        /// START 1000 / K 32 / persisted is the Po tournament standard.
+        public const float K = 32f;
+
+        /// Points a winner rated `winnerElo` takes from a loser rated `loserElo`.
+        /// Pure, so the tests check the formula without touching the save file.
+        public static float Delta(float winnerElo, float loserElo)
+        {
+            float expected = 1f / (1f + Mathf.Pow(10f, (loserElo - winnerElo) / 400f));
+            return K * (1f - expected);
+        }
 
         [Serializable]
         private sealed class Entry
@@ -73,8 +82,7 @@ namespace PoSumo
             if (string.IsNullOrEmpty(winner) || string.IsNullOrEmpty(loser) || winner == loser) return 0f;
             Entry w = FindOrAdd(winner);
             Entry l = FindOrAdd(loser);
-            float expected = 1f / (1f + Mathf.Pow(10f, (l.elo - w.elo) / 400f));
-            float delta = K * (1f - expected);
+            float delta = Delta(w.elo, l.elo);
             w.elo += delta;
             l.elo -= delta;
             w.bouts++;

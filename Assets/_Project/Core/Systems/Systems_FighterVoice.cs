@@ -4,9 +4,10 @@ namespace PoSumo
 {
     /// One fighter's voice — and the one place that decides WHEN a fighter emotes.
     ///
-    /// Four moods (`Systems_FighterMood`: Happy, Angry, Hurt, Insult), five levels
-    /// each (1 = mildest, 5 = strongest), five different lines per level: 100 lines
-    /// per fighter (spec of 2026-11-10).
+    /// Five emotions (`Systems_FighterMood`: Angry, Happy, Hurt, Insult, Celebrate
+    /// — the Po tournament standard of 2026-11-22; Neutral is an internal extra),
+    /// five levels each (1 = mildest, 5 = strongest), five different lines per
+    /// level when synthesised.
     ///
     /// Every emotional moment is decided here and announced on the static
     /// `Expressed` event BEFORE any voice gating, so `Systems_FaceMood` shows the
@@ -23,9 +24,13 @@ namespace PoSumo
     ///           on a ring-out streak), winning the match (5)
     ///   Insult  roughly every insultInterval seconds while a round is live; the
     ///           fighter ahead taunts harder
+    ///   Celebrate  winning a round (2, 3 on a ring-out, 4 on a ring-out streak),
+    ///           winning the match (5)
     ///
     /// Lines resolve by naming convention, recorded first:
-    ///     Resources/Audio/Voice/<Behavior>_<Mood>_L<level>_<variant>.wav
+    ///     Resources/Audio/Voice/<Fighter>/<emotion>-<level>.wav   (STANDARD)
+    ///     Resources/Audio/Voice/<Behavior>_<Mood>_L<level>_<variant>.wav (legacy,
+    ///         still honoured: the shipped recordings use it)
     /// and any line with no WAV is synthesised on first use by
     /// `Systems_VoiceSynth` — so every fighter, including the 12 placeholder
     /// fighters with no recordings at all, has a complete voice, and a real
@@ -73,7 +78,27 @@ namespace PoSumo
 
         public const int LEVELS = 5;
         public const int VARIANTS = 5;
-        private const int MOODS = 5;   // Systems_FighterMood incl. Neutral (unused slot 0)
+        private const int MOODS = 6;   // Systems_FighterMood incl. Neutral (unused slot 0) and Celebrate (5)
+
+        /// The five standard emotions, in the standard's order.
+        public static readonly Systems_FighterMood[] STANDARD_EMOTIONS =
+        {
+            Systems_FighterMood.Angry, Systems_FighterMood.Happy, Systems_FighterMood.Hurt,
+            Systems_FighterMood.Insult, Systems_FighterMood.Celebrate,
+        };
+
+        /// Standard file-name segment of an emotion: lower-case enum name.
+        public static string EmotionName(Systems_FighterMood mood) => mood.ToString().ToLowerInvariant();
+
+        /// Standard Resources path (no extension) of one line:
+        /// `Audio/Voice/<Fighter>/<emotion>-<level>`.
+        public static string StandardName(string fighter, Systems_FighterMood mood, int level) =>
+            $"{VOICE_PATH}{fighter}/{EmotionName(mood)}-{level}";
+
+        /// Legacy Resources path (no extension) of one line:
+        /// `Audio/Voice/<Fighter>_<Mood>_L<level>_<variant>`.
+        public static string LegacyName(string fighter, Systems_FighterMood mood, int level, int variant) =>
+            $"{VOICE_PATH}{fighter}_{mood}_L{level}_{variant}";
 
         private const float LPF_OPEN = 22000f;
         private const float LPF_SLOWMO = 900f;
@@ -236,9 +261,11 @@ namespace PoSumo
             }
             if (winner == _fighter)
             {
-                // Two ring-outs running: the top read, held twice as long.
-                if (_ringOutStreak >= 2) Express(Systems_FighterMood.Happy, 5, expressionSeconds * 2f);
-                else Express(Systems_FighterMood.Happy, 4, expressionSeconds);
+                // Winning a round CELEBRATES (tournament standard); two ring-outs
+                // running is the top round read, held twice as long. Level 5 is
+                // kept for the match.
+                if (_ringOutStreak >= 2) Express(Systems_FighterMood.Celebrate, 4, expressionSeconds * 2f);
+                else Express(Systems_FighterMood.Celebrate, ringOut ? 3 : 2, expressionSeconds);
             }
             else if (loser == _fighter)
             {
@@ -254,7 +281,7 @@ namespace PoSumo
             // being driven out makes you furious.
             if (winner == _fighter)
             {
-                Express(Systems_FighterMood.Happy, 5, float.PositiveInfinity, force: true);
+                Express(Systems_FighterMood.Celebrate, 5, float.PositiveInfinity, force: true);
                 return;
             }
             bool wentDown = _manager != null && _manager.LastOutcome != Systems_GameMatchManager.RoundOutcome.RingOut;
@@ -409,11 +436,17 @@ namespace PoSumo
             _source.pitch = pitchScale;
             _source.panStereo = Pan();
             _source.clip = clip;
-            _source.volume = volume * (_gains != null ? _gains.GainFor(clip.name) : 1f)
+            _source.volume = volume * (_gains != null ? _gains.GainFor(GainKey(clip)) : 1f)
                            * Systems_AudioMix.VoiceLevel;
             _source.Play();
             LineStarted?.Invoke(clip.length);
         }
+
+        /// Key into the normalisation table: a standard per-fighter clip is
+        /// "<Fighter>/<emotion>-<level>" (NormalizeVoice writes it that way), a
+        /// legacy one its flat name.
+        private string GainKey(AudioClip clip) =>
+            clip.name.IndexOf('_') < 0 && clip.name.IndexOf('-') > 0 ? _prefix + "/" + clip.name : clip.name;
 
         /// A different variant from the last line of the same mood, so the same
         /// shout does not fire twice running.
@@ -430,7 +463,9 @@ namespace PoSumo
         }
 
         /// Recorded WAV if there is one, otherwise synthesised — each looked up or
-        /// built once, on first use.
+        /// built once, on first use. Order: the STANDARD
+        /// `<fighter>/<emotion>-<level>` (one recording serves every variant),
+        /// then the legacy per-variant name, then the synth.
         private AudioClip Clip(Systems_FighterMood mood, int level, int variant)
         {
             AudioClip[] slot = _bank[(int)mood][level - 1];
@@ -439,10 +474,14 @@ namespace PoSumo
             {
                 return clip;
             }
-            string name = $"{_prefix}_{mood}_L{level}_{variant}";
-            clip = Resources.Load<AudioClip>(VOICE_PATH + name);
+            clip = Resources.Load<AudioClip>(StandardName(_prefix, mood, level));
             if (clip == null)
             {
+                clip = Resources.Load<AudioClip>(LegacyName(_prefix, mood, level, variant));
+            }
+            if (clip == null)
+            {
+                string name = $"{_prefix}_{mood}_L{level}_{variant}";
                 clip = Systems_VoiceSynth.Create(name, _voice, mood, level, variant);
                 _synthesised[(int)mood][level - 1][variant - 1] = true;
             }

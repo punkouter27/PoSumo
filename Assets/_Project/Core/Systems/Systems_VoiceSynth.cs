@@ -197,6 +197,35 @@ namespace PoSumo
                     shape.Vowel = VowelE;
                     break;
 
+                // A VICTORY WHOOP (Celebrate, tournament standard 2026-11-22).
+                // Distinct from the Happy cheer: higher, louder, longer, a run of
+                // rising syllables ending in a big open "HAA" held with vibrato,
+                // with drive for the shout — the highest-energy profile in the set.
+                case Systems_FighterMood.Celebrate:
+                    shape.Syllables = 2 + variant % 3;                       // 2-4
+                    shape.Gains = new float[shape.Syllables];
+                    shape.Steps = new float[shape.Syllables];
+                    for (int syllable = 0; syllable < shape.Syllables; syllable++)
+                    {
+                        float k = syllable / (float)(shape.Syllables - 1);
+                        shape.Gains[syllable] = Mathf.Lerp(0.8f, 1f, k);
+                        shape.Steps[syllable] = 1f + k * Mathf.Lerp(0.18f, 0.35f, intensity);
+                    }
+                    shape.IntraGlide = Mathf.Lerp(1.10f, 1.20f, intensity);
+                    shape.Attack = Mathf.Lerp(0.05f, 0.025f, intensity);
+                    shape.Decay = Mathf.Lerp(1.8f, 1.2f, intensity);
+                    shape.Breath = Mathf.Lerp(0.20f, 0.12f, intensity);
+                    shape.VibratoHz = 6.5f;
+                    shape.VibratoDepth = Mathf.Lerp(0.02f, 0.035f, intensity);
+                    shape.Onset = 0.35f;
+                    shape.Gap = 0.10f;
+                    shape.Drive = Mathf.Lerp(1.8f, 3.0f, intensity);
+                    shape.Growl = 0f;
+                    shape.Length = Mathf.Lerp(0.85f, 1.25f, intensity) * Mathf.Lerp(0.9f, 1.1f, spread);
+                    shape.Pitch = 1.25f;
+                    shape.Vowel = VowelA;
+                    break;
+
                 // A CHEER. Weight on the LAST syllable with the pitch rising into
                 // it — a rise at the end separates delight from mere effort.
                 default:
@@ -233,7 +262,8 @@ namespace PoSumo
 
         // ---------------------------------------------------------- synthesis
 
-        private static float[] Synthesize(Voice voice, Systems_FighterMood mood, int level, int variant)
+        /// The raw samples `Create` wraps (public for the EditMode tests).
+        public static float[] Synthesize(Voice voice, Systems_FighterMood mood, int level, int variant)
         {
             level = Mathf.Clamp(level, 1, 5);
             variant = Mathf.Clamp(variant, 1, 5);

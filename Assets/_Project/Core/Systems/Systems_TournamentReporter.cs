@@ -70,10 +70,18 @@ namespace PoSumo
 
         private void OnMatchEnded(Agent_Biped winner)
         {
-            if (_returning || winner == null) return;
+            if (_returning) return;
             _returning = true;
 
-            Agent_CharacterDefinition character = winner.character;
+            // A null winner is a DRAW: the bracket sends the higher seed on
+            // (tournament standard), so it is reported rather than ignored —
+            // ignoring it left the bracket parked on this bout for ever.
+            int drawnMatch = Systems_TournamentState.CurrentMatch;
+            Systems_TournamentState.GetEntrants(drawnMatch, out Agent_CharacterDefinition entrantA,
+                                                out Agent_CharacterDefinition entrantB);
+            Agent_CharacterDefinition character = winner != null
+                ? winner.character
+                : Systems_TournamentState.HigherSeed(entrantA, entrantB);
             // Read BEFORE reporting: ReportWinner advances CurrentMatch, so
             // logging it afterwards named the match that has not been played yet
             // and every line was off by one.
