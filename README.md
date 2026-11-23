@@ -16,6 +16,10 @@ policy (ONNX, inference only at runtime); a tournament bracket of RL-trained fig
   `tournament_elo.json`). First round: 1v16, 8v9, 4v13, 5v12, 2v15, 7v10, 3v14, 6v11. Empty slots
   are **BYE** and take the bottom seeds; a BYE's opponent advances unfought, BYE v BYE sends a BYE on,
   a drawn bout goes to the higher seed, and the bracket plays itself.
+- **Demo / exhibition Elo**: every completed CPU-v-CPU bout updates the same tournament Elo. Demo mode
+  plays the bracket, so its bouts were already rated; exhibition bouts in `SCN_SUMO` (rematches outside a
+  bracket) now are too (`Systems_ExhibitionElo`): win 1, draw 0.5 each, mirror bouts and unfinished or
+  quit matches record nothing, a match counts once, and the result card shows each fighter's Elo and change.
 - **Main menu**: the BRACKET tab draws the tree, the GRID tab shows the 16 slots as a 4x4 grid in
   seed order (BYE tiles for empty slots). All 16 roster fighters have their own trained brains
   (the 12 former placeholders were promoted in Unique01, 2026-11-11), so a full roster draws no BYEs.

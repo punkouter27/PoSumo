@@ -149,6 +149,11 @@ every publish. Tests never write into tracked files.
   goes to the higher seed; walkovers settle automatically. Elo: `Systems_TournamentElo` 1000 / K 32,
   `tournament_elo.json`.
 - **No FFA**: 1v1 game, bracket only.
+- Demo Elo (2026-11-22): bracket bouts (incl. demo mode) are rated by `Systems_TournamentReporter`; exhibition
+  bouts by `Systems_CareerRecorder` → `Systems_ExhibitionElo` → `Systems_TournamentElo.RecordResult` (draw 0.5,
+  mirror skipped, once per match, re-armed on `MatchReset`). The result card shows the Elo line
+  (`Systems_GameMatchManager.ShowEloLine`). `DemoEloTests.cs` runs in `Systems_TournamentElo.InMemoryScope`.
+  Note: `MatchTestHarness` exhibition runs in the editor now move tournament_elo.json too (as they already did career.json).
 - Voice: `Systems_FighterMood.Celebrate` (appended, ordinal 5; Neutral stays as the internal resting
   face). Every line resolves through the manifest `Resources/Audio/Voice/voices.json`
   (`Systems_VoiceManifest` model/builder, `Systems_VoiceLibrary` runtime, `VoiceManifestGenerator` editor
