@@ -1,0 +1,683 @@
+{
+  "schema": "po-voice-manifest/1",
+  "game": "PoSumo",
+  "generated": "2026-11-22T00:00:00Z",
+  "root": "Assets/_Project/Data/Resources/Audio/Voice",
+  "emotions": ["angry", "happy", "hurt", "insult", "celebrate"],
+  "levels": [1, 2, 3, 4, 5],
+  "fallback": "procedural",
+  "characters": [
+    {
+      "id": "alan",
+      "name": "ALAN",
+      "voice": { "pitchHz": 115, "formantScale": 1.02, "breath": 0.31, "rasp": 0.29, "vibratoHz": 5.57, "vibratoDepth": 0.031, "tempo": 1.05, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "alan/angry-1.wav", "exists": false },
+          { "level": 2, "file": "alan/angry-2.wav", "exists": false },
+          { "level": 3, "file": "alan/angry-3.wav", "exists": false },
+          { "level": 4, "file": "alan/angry-4.wav", "exists": false },
+          { "level": 5, "file": "alan/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "alan/happy-1.wav", "exists": false },
+          { "level": 2, "file": "alan/happy-2.wav", "exists": false },
+          { "level": 3, "file": "alan/happy-3.wav", "exists": false },
+          { "level": 4, "file": "alan/happy-4.wav", "exists": false },
+          { "level": 5, "file": "alan/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "alan/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "alan/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "alan/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "alan/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "alan/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "alan/insult-1.wav", "exists": false },
+          { "level": 2, "file": "alan/insult-2.wav", "exists": false },
+          { "level": 3, "file": "alan/insult-3.wav", "exists": false },
+          { "level": 4, "file": "alan/insult-4.wav", "exists": false },
+          { "level": 5, "file": "alan/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "alan/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "alan/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "alan/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "alan/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "alan/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "baily",
+      "name": "BAILY",
+      "voice": { "pitchHz": 205, "formantScale": 1.176, "breath": 0.39, "rasp": 0.5, "vibratoHz": 5.79, "vibratoDepth": 0.031, "tempo": 1.09, "timbre": "adult-female" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "baily/angry-1.wav", "exists": false },
+          { "level": 2, "file": "baily/angry-2.wav", "exists": false },
+          { "level": 3, "file": "baily/angry-3.wav", "exists": false },
+          { "level": 4, "file": "baily/angry-4.wav", "exists": false },
+          { "level": 5, "file": "baily/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "baily/happy-1.wav", "exists": false },
+          { "level": 2, "file": "baily/happy-2.wav", "exists": false },
+          { "level": 3, "file": "baily/happy-3.wav", "exists": false },
+          { "level": 4, "file": "baily/happy-4.wav", "exists": false },
+          { "level": 5, "file": "baily/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "baily/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "baily/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "baily/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "baily/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "baily/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "baily/insult-1.wav", "exists": false },
+          { "level": 2, "file": "baily/insult-2.wav", "exists": false },
+          { "level": 3, "file": "baily/insult-3.wav", "exists": false },
+          { "level": 4, "file": "baily/insult-4.wav", "exists": false },
+          { "level": 5, "file": "baily/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "baily/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "baily/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "baily/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "baily/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "baily/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "brendan",
+      "name": "BRENDAN",
+      "voice": { "pitchHz": 95, "formantScale": 0.943, "breath": 0.34, "rasp": 0.45, "vibratoHz": 6.14, "vibratoDepth": 0.016, "tempo": 1.07, "timbre": "deep-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "brendan/angry-1.wav", "exists": false },
+          { "level": 2, "file": "brendan/angry-2.wav", "exists": false },
+          { "level": 3, "file": "brendan/angry-3.wav", "exists": false },
+          { "level": 4, "file": "brendan/angry-4.wav", "exists": false },
+          { "level": 5, "file": "brendan/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "brendan/happy-1.wav", "exists": false },
+          { "level": 2, "file": "brendan/happy-2.wav", "exists": false },
+          { "level": 3, "file": "brendan/happy-3.wav", "exists": false },
+          { "level": 4, "file": "brendan/happy-4.wav", "exists": false },
+          { "level": 5, "file": "brendan/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "brendan/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "brendan/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "brendan/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "brendan/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "brendan/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "brendan/insult-1.wav", "exists": false },
+          { "level": 2, "file": "brendan/insult-2.wav", "exists": false },
+          { "level": 3, "file": "brendan/insult-3.wav", "exists": false },
+          { "level": 4, "file": "brendan/insult-4.wav", "exists": false },
+          { "level": 5, "file": "brendan/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "brendan/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "brendan/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "brendan/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "brendan/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "brendan/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "decoy",
+      "name": "DECOY",
+      "voice": { "pitchHz": 120, "formantScale": 1.031, "breath": 0.39, "rasp": 0.46, "vibratoHz": 4.88, "vibratoDepth": 0.028, "tempo": 0.95, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "decoy/angry-1.wav", "exists": false },
+          { "level": 2, "file": "decoy/angry-2.wav", "exists": false },
+          { "level": 3, "file": "decoy/angry-3.wav", "exists": false },
+          { "level": 4, "file": "decoy/angry-4.wav", "exists": false },
+          { "level": 5, "file": "decoy/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "decoy/happy-1.wav", "exists": false },
+          { "level": 2, "file": "decoy/happy-2.wav", "exists": false },
+          { "level": 3, "file": "decoy/happy-3.wav", "exists": false },
+          { "level": 4, "file": "decoy/happy-4.wav", "exists": false },
+          { "level": 5, "file": "decoy/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "decoy/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "decoy/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "decoy/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "decoy/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "decoy/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "decoy/insult-1.wav", "exists": false },
+          { "level": 2, "file": "decoy/insult-2.wav", "exists": false },
+          { "level": 3, "file": "decoy/insult-3.wav", "exists": false },
+          { "level": 4, "file": "decoy/insult-4.wav", "exists": false },
+          { "level": 5, "file": "decoy/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "decoy/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "decoy/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "decoy/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "decoy/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "decoy/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "dupee",
+      "name": "DUPEE",
+      "voice": { "pitchHz": 112, "formantScale": 1, "breath": 0.17, "rasp": 0.39, "vibratoHz": 4.68, "vibratoDepth": 0.02, "tempo": 1.01, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "dupee/angry-1.wav", "exists": false },
+          { "level": 2, "file": "dupee/angry-2.wav", "exists": false },
+          { "level": 3, "file": "dupee/angry-3.wav", "exists": false },
+          { "level": 4, "file": "dupee/angry-4.wav", "exists": false },
+          { "level": 5, "file": "dupee/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "dupee/happy-1.wav", "exists": false },
+          { "level": 2, "file": "dupee/happy-2.wav", "exists": false },
+          { "level": 3, "file": "dupee/happy-3.wav", "exists": false },
+          { "level": 4, "file": "dupee/happy-4.wav", "exists": false },
+          { "level": 5, "file": "dupee/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "dupee/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "dupee/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "dupee/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "dupee/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "dupee/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "dupee/insult-1.wav", "exists": false },
+          { "level": 2, "file": "dupee/insult-2.wav", "exists": false },
+          { "level": 3, "file": "dupee/insult-3.wav", "exists": false },
+          { "level": 4, "file": "dupee/insult-4.wav", "exists": false },
+          { "level": 5, "file": "dupee/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "dupee/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "dupee/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "dupee/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "dupee/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "dupee/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "grandma",
+      "name": "GRANDMA",
+      "voice": { "pitchHz": 110, "formantScale": 1, "breath": 0.22, "rasp": 0.37, "vibratoHz": 6.09, "vibratoDepth": 0.031, "tempo": 1.02, "timbre": "elderly-female" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "grandma/angry-1.wav", "exists": false },
+          { "level": 2, "file": "grandma/angry-2.wav", "exists": false },
+          { "level": 3, "file": "grandma/angry-3.wav", "exists": false },
+          { "level": 4, "file": "grandma/angry-4.wav", "exists": false },
+          { "level": 5, "file": "grandma/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "Grandma_Happy_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Grandma_Happy_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Grandma_Happy_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Grandma_Happy_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Grandma_Happy_L5_1.wav", "exists": true }
+        ],
+        "hurt": [
+          { "level": 1, "file": "Grandma_Hurt_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Grandma_Hurt_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Grandma_Hurt_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Grandma_Hurt_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Grandma_Hurt_L5_1.wav", "exists": true }
+        ],
+        "insult": [
+          { "level": 1, "file": "Grandma_Insult_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Grandma_Insult_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Grandma_Insult_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Grandma_Insult_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Grandma_Insult_L5_1.wav", "exists": true }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "grandma/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "grandma/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "grandma/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "grandma/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "grandma/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "josh",
+      "name": "JOSH",
+      "voice": { "pitchHz": 105, "formantScale": 0.98, "breath": 0.39, "rasp": 0.23, "vibratoHz": 6.02, "vibratoDepth": 0.031, "tempo": 0.91, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "josh/angry-1.wav", "exists": false },
+          { "level": 2, "file": "josh/angry-2.wav", "exists": false },
+          { "level": 3, "file": "josh/angry-3.wav", "exists": false },
+          { "level": 4, "file": "josh/angry-4.wav", "exists": false },
+          { "level": 5, "file": "josh/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "josh/happy-1.wav", "exists": false },
+          { "level": 2, "file": "josh/happy-2.wav", "exists": false },
+          { "level": 3, "file": "josh/happy-3.wav", "exists": false },
+          { "level": 4, "file": "josh/happy-4.wav", "exists": false },
+          { "level": 5, "file": "josh/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "josh/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "josh/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "josh/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "josh/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "josh/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "josh/insult-1.wav", "exists": false },
+          { "level": 2, "file": "josh/insult-2.wav", "exists": false },
+          { "level": 3, "file": "josh/insult-3.wav", "exists": false },
+          { "level": 4, "file": "josh/insult-4.wav", "exists": false },
+          { "level": 5, "file": "josh/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "josh/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "josh/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "josh/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "josh/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "josh/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "kim",
+      "name": "KIM",
+      "voice": { "pitchHz": 196, "formantScale": 0.877, "breath": 0.21, "rasp": 0.41, "vibratoHz": 6.15, "vibratoDepth": 0.021, "tempo": 0.98, "timbre": "adult-female" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "kim/angry-1.wav", "exists": false },
+          { "level": 2, "file": "kim/angry-2.wav", "exists": false },
+          { "level": 3, "file": "kim/angry-3.wav", "exists": false },
+          { "level": 4, "file": "kim/angry-4.wav", "exists": false },
+          { "level": 5, "file": "kim/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "Kim_Happy_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Kim_Happy_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Kim_Happy_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Kim_Happy_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Kim_Happy_L5_1.wav", "exists": true }
+        ],
+        "hurt": [
+          { "level": 1, "file": "Kim_Hurt_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Kim_Hurt_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Kim_Hurt_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Kim_Hurt_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Kim_Hurt_L5_1.wav", "exists": true }
+        ],
+        "insult": [
+          { "level": 1, "file": "Kim_Insult_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Kim_Insult_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Kim_Insult_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Kim_Insult_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Kim_Insult_L5_1.wav", "exists": true }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "kim/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "kim/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "kim/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "kim/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "kim/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "manzi",
+      "name": "MANZI",
+      "voice": { "pitchHz": 118, "formantScale": 1.01, "breath": 0.29, "rasp": 0.17, "vibratoHz": 5.53, "vibratoDepth": 0.031, "tempo": 1.03, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "manzi/angry-1.wav", "exists": false },
+          { "level": 2, "file": "manzi/angry-2.wav", "exists": false },
+          { "level": 3, "file": "manzi/angry-3.wav", "exists": false },
+          { "level": 4, "file": "manzi/angry-4.wav", "exists": false },
+          { "level": 5, "file": "manzi/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "manzi/happy-1.wav", "exists": false },
+          { "level": 2, "file": "manzi/happy-2.wav", "exists": false },
+          { "level": 3, "file": "manzi/happy-3.wav", "exists": false },
+          { "level": 4, "file": "manzi/happy-4.wav", "exists": false },
+          { "level": 5, "file": "manzi/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "manzi/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "manzi/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "manzi/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "manzi/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "manzi/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "manzi/insult-1.wav", "exists": false },
+          { "level": 2, "file": "manzi/insult-2.wav", "exists": false },
+          { "level": 3, "file": "manzi/insult-3.wav", "exists": false },
+          { "level": 4, "file": "manzi/insult-4.wav", "exists": false },
+          { "level": 5, "file": "manzi/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "manzi/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "manzi/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "manzi/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "manzi/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "manzi/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "matt",
+      "name": "MATT",
+      "voice": { "pitchHz": 98, "formantScale": 1.064, "breath": 0.32, "rasp": 0.31, "vibratoHz": 5.45, "vibratoDepth": 0.03, "tempo": 0.98, "timbre": "deep-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "matt/angry-1.wav", "exists": false },
+          { "level": 2, "file": "matt/angry-2.wav", "exists": false },
+          { "level": 3, "file": "matt/angry-3.wav", "exists": false },
+          { "level": 4, "file": "matt/angry-4.wav", "exists": false },
+          { "level": 5, "file": "matt/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "Matt_Happy_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Matt_Happy_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Matt_Happy_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Matt_Happy_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Matt_Happy_L5_1.wav", "exists": true }
+        ],
+        "hurt": [
+          { "level": 1, "file": "Matt_Hurt_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Matt_Hurt_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Matt_Hurt_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Matt_Hurt_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Matt_Hurt_L5_1.wav", "exists": true }
+        ],
+        "insult": [
+          { "level": 1, "file": "Matt_Insult_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Matt_Insult_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Matt_Insult_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Matt_Insult_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Matt_Insult_L5_1.wav", "exists": true }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "matt/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "matt/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "matt/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "matt/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "matt/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "maya",
+      "name": "MAYA",
+      "voice": { "pitchHz": 310, "formantScale": 1.429, "breath": 0.31, "rasp": 0.35, "vibratoHz": 5.26, "vibratoDepth": 0.028, "tempo": 1.08, "timbre": "small-high" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "maya/angry-1.wav", "exists": false },
+          { "level": 2, "file": "maya/angry-2.wav", "exists": false },
+          { "level": 3, "file": "maya/angry-3.wav", "exists": false },
+          { "level": 4, "file": "maya/angry-4.wav", "exists": false },
+          { "level": 5, "file": "maya/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "maya/happy-1.wav", "exists": false },
+          { "level": 2, "file": "maya/happy-2.wav", "exists": false },
+          { "level": 3, "file": "maya/happy-3.wav", "exists": false },
+          { "level": 4, "file": "maya/happy-4.wav", "exists": false },
+          { "level": 5, "file": "maya/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "maya/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "maya/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "maya/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "maya/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "maya/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "maya/insult-1.wav", "exists": false },
+          { "level": 2, "file": "maya/insult-2.wav", "exists": false },
+          { "level": 3, "file": "maya/insult-3.wav", "exists": false },
+          { "level": 4, "file": "maya/insult-4.wav", "exists": false },
+          { "level": 5, "file": "maya/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "maya/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "maya/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "maya/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "maya/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "maya/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "nick",
+      "name": "NICK",
+      "voice": { "pitchHz": 128, "formantScale": 0.962, "breath": 0.26, "rasp": 0.37, "vibratoHz": 4.91, "vibratoDepth": 0.014, "tempo": 1.04, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "nick/angry-1.wav", "exists": false },
+          { "level": 2, "file": "nick/angry-2.wav", "exists": false },
+          { "level": 3, "file": "nick/angry-3.wav", "exists": false },
+          { "level": 4, "file": "nick/angry-4.wav", "exists": false },
+          { "level": 5, "file": "nick/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "Nick_Happy_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Nick_Happy_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Nick_Happy_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Nick_Happy_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Nick_Happy_L5_1.wav", "exists": true }
+        ],
+        "hurt": [
+          { "level": 1, "file": "Nick_Hurt_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Nick_Hurt_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Nick_Hurt_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Nick_Hurt_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Nick_Hurt_L5_1.wav", "exists": true }
+        ],
+        "insult": [
+          { "level": 1, "file": "Nick_Insult_L1_1.wav", "exists": true },
+          { "level": 2, "file": "Nick_Insult_L2_1.wav", "exists": true },
+          { "level": 3, "file": "Nick_Insult_L3_1.wav", "exists": true },
+          { "level": 4, "file": "Nick_Insult_L4_1.wav", "exists": true },
+          { "level": 5, "file": "Nick_Insult_L5_1.wav", "exists": true }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "nick/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "nick/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "nick/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "nick/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "nick/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "porto",
+      "name": "PORTO",
+      "voice": { "pitchHz": 100, "formantScale": 0.971, "breath": 0.25, "rasp": 0.33, "vibratoHz": 4.66, "vibratoDepth": 0.028, "tempo": 0.93, "timbre": "deep-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "porto/angry-1.wav", "exists": false },
+          { "level": 2, "file": "porto/angry-2.wav", "exists": false },
+          { "level": 3, "file": "porto/angry-3.wav", "exists": false },
+          { "level": 4, "file": "porto/angry-4.wav", "exists": false },
+          { "level": 5, "file": "porto/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "porto/happy-1.wav", "exists": false },
+          { "level": 2, "file": "porto/happy-2.wav", "exists": false },
+          { "level": 3, "file": "porto/happy-3.wav", "exists": false },
+          { "level": 4, "file": "porto/happy-4.wav", "exists": false },
+          { "level": 5, "file": "porto/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "porto/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "porto/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "porto/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "porto/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "porto/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "porto/insult-1.wav", "exists": false },
+          { "level": 2, "file": "porto/insult-2.wav", "exists": false },
+          { "level": 3, "file": "porto/insult-3.wav", "exists": false },
+          { "level": 4, "file": "porto/insult-4.wav", "exists": false },
+          { "level": 5, "file": "porto/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "porto/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "porto/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "porto/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "porto/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "porto/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "sokol",
+      "name": "SOKOL",
+      "voice": { "pitchHz": 100, "formantScale": 0.962, "breath": 0.36, "rasp": 0.19, "vibratoHz": 4.84, "vibratoDepth": 0.031, "tempo": 1.04, "timbre": "deep-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "sokol/angry-1.wav", "exists": false },
+          { "level": 2, "file": "sokol/angry-2.wav", "exists": false },
+          { "level": 3, "file": "sokol/angry-3.wav", "exists": false },
+          { "level": 4, "file": "sokol/angry-4.wav", "exists": false },
+          { "level": 5, "file": "sokol/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "sokol/happy-1.wav", "exists": false },
+          { "level": 2, "file": "sokol/happy-2.wav", "exists": false },
+          { "level": 3, "file": "sokol/happy-3.wav", "exists": false },
+          { "level": 4, "file": "sokol/happy-4.wav", "exists": false },
+          { "level": 5, "file": "sokol/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "sokol/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "sokol/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "sokol/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "sokol/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "sokol/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "sokol/insult-1.wav", "exists": false },
+          { "level": 2, "file": "sokol/insult-2.wav", "exists": false },
+          { "level": 3, "file": "sokol/insult-3.wav", "exists": false },
+          { "level": 4, "file": "sokol/insult-4.wav", "exists": false },
+          { "level": 5, "file": "sokol/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "sokol/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "sokol/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "sokol/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "sokol/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "sokol/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "tong",
+      "name": "TONG",
+      "voice": { "pitchHz": 300, "formantScale": 1.429, "breath": 0.24, "rasp": 0.22, "vibratoHz": 5.31, "vibratoDepth": 0.019, "tempo": 1.04, "timbre": "small-high" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "tong/angry-1.wav", "exists": false },
+          { "level": 2, "file": "tong/angry-2.wav", "exists": false },
+          { "level": 3, "file": "tong/angry-3.wav", "exists": false },
+          { "level": 4, "file": "tong/angry-4.wav", "exists": false },
+          { "level": 5, "file": "tong/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "tong/happy-1.wav", "exists": false },
+          { "level": 2, "file": "tong/happy-2.wav", "exists": false },
+          { "level": 3, "file": "tong/happy-3.wav", "exists": false },
+          { "level": 4, "file": "tong/happy-4.wav", "exists": false },
+          { "level": 5, "file": "tong/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "tong/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "tong/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "tong/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "tong/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "tong/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "tong/insult-1.wav", "exists": false },
+          { "level": 2, "file": "tong/insult-2.wav", "exists": false },
+          { "level": 3, "file": "tong/insult-3.wav", "exists": false },
+          { "level": 4, "file": "tong/insult-4.wav", "exists": false },
+          { "level": 5, "file": "tong/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "tong/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "tong/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "tong/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "tong/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "tong/celebrate-5.wav", "exists": false }
+        ]
+      }
+    },
+    {
+      "id": "velez",
+      "name": "VELEZ",
+      "voice": { "pitchHz": 108, "formantScale": 0.952, "breath": 0.38, "rasp": 0.43, "vibratoHz": 4.88, "vibratoDepth": 0.029, "tempo": 0.96, "timbre": "adult-male" },
+      "clips": {
+        "angry": [
+          { "level": 1, "file": "velez/angry-1.wav", "exists": false },
+          { "level": 2, "file": "velez/angry-2.wav", "exists": false },
+          { "level": 3, "file": "velez/angry-3.wav", "exists": false },
+          { "level": 4, "file": "velez/angry-4.wav", "exists": false },
+          { "level": 5, "file": "velez/angry-5.wav", "exists": false }
+        ],
+        "happy": [
+          { "level": 1, "file": "velez/happy-1.wav", "exists": false },
+          { "level": 2, "file": "velez/happy-2.wav", "exists": false },
+          { "level": 3, "file": "velez/happy-3.wav", "exists": false },
+          { "level": 4, "file": "velez/happy-4.wav", "exists": false },
+          { "level": 5, "file": "velez/happy-5.wav", "exists": false }
+        ],
+        "hurt": [
+          { "level": 1, "file": "velez/hurt-1.wav", "exists": false },
+          { "level": 2, "file": "velez/hurt-2.wav", "exists": false },
+          { "level": 3, "file": "velez/hurt-3.wav", "exists": false },
+          { "level": 4, "file": "velez/hurt-4.wav", "exists": false },
+          { "level": 5, "file": "velez/hurt-5.wav", "exists": false }
+        ],
+        "insult": [
+          { "level": 1, "file": "velez/insult-1.wav", "exists": false },
+          { "level": 2, "file": "velez/insult-2.wav", "exists": false },
+          { "level": 3, "file": "velez/insult-3.wav", "exists": false },
+          { "level": 4, "file": "velez/insult-4.wav", "exists": false },
+          { "level": 5, "file": "velez/insult-5.wav", "exists": false }
+        ],
+        "celebrate": [
+          { "level": 1, "file": "velez/celebrate-1.wav", "exists": false },
+          { "level": 2, "file": "velez/celebrate-2.wav", "exists": false },
+          { "level": 3, "file": "velez/celebrate-3.wav", "exists": false },
+          { "level": 4, "file": "velez/celebrate-4.wav", "exists": false },
+          { "level": 5, "file": "velez/celebrate-5.wav", "exists": false }
+        ]
+      }
+    }
+  ]
+}

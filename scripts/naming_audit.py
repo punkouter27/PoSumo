@@ -13,10 +13,11 @@ Enforces the conventions docs/project-notes.md mandates across the tree:
     <Name>_<Happy|Angry|Hurt|Insult|Celebrate>_<1-5>.png (any subset - missing
     slots are drawn procedurally by Systems_FaceMood);
   * voice lines follow the Po tournament standard
-    Assets/_Project/Data/Resources/Audio/Voice/<Name>/<emotion>-<1-5>.wav
-    (emotion = angry|happy|hurt|insult|celebrate), or the legacy flat
-    <Name>_<Mood>_L<1-5>_<1-5>.wav (any subset - missing lines are synthesised
-    by Systems_VoiceSynth);
+    Assets/_Project/Data/Resources/Audio/Voice/<id>/<emotion>-<1-5>.wav
+    (id = lower-case behavior name, emotion = angry|happy|hurt|insult|celebrate),
+    or the legacy flat <Name>_<Mood>_L<1-5>_<1-5>.wav (any subset - missing lines
+    are synthesised by Systems_VoiceSynth); voices.json beside them is the
+    manifest (PoSumo > Voice > Regenerate voices.json);
   * hierarchy roots carry the standard 7 groups (checked only when a scene
     conveniently serializes them -- this tool does NOT parse .unity files).
 
@@ -126,13 +127,13 @@ def audit_voices() -> None:
         return
     for wav in sorted(voices.glob("*.wav")):
         if not VOICE_RE.match(wav.name):
-            violation(wav, "voice line must be <Name>/<emotion>-<1-5>.wav or <Name>_<Mood>_L<1-5>_<1-5>.wav")
+            violation(wav, "voice line must be <id>/<emotion>-<1-5>.wav or <Name>_<Mood>_L<1-5>_<1-5>.wav")
     for folder in sorted(p for p in voices.iterdir() if p.is_dir()):
-        if not re.match(r"^[A-Za-z0-9]+$", folder.name):
-            violation(folder, "voice folder must be the fighter's behavior name")
+        if not re.match(r"^[a-z0-9]+$", folder.name):
+            violation(folder, "voice folder must be the fighter's id (lower-case behavior name)")
         for wav in sorted(folder.rglob("*.wav")):
             if wav.parent != folder or not STANDARD_VOICE_RE.match(wav.name):
-                violation(wav, "standard voice line must be <Name>/<angry|happy|hurt|insult|celebrate>-<1-5>.wav")
+                violation(wav, "standard voice line must be <id>/<angry|happy|hurt|insult|celebrate>-<1-5>.wav")
 
 
 def main() -> int:

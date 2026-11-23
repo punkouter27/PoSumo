@@ -173,12 +173,14 @@ namespace PoSumo
                 vibratoHz = Round(4.6f + 1.6f * H(16), 2),
                 vibratoDepth = Round(0.012f + 0.02f * H(24), 3),
                 tempo = Round(0.9f + 0.2f * H(4), 2),
-                timbre = TimbreFor(pitch, formantScale),
+                timbre = TimbreFor(IdOf(behaviorName), pitch, formantScale),
             };
         }
 
-        private static string TimbreFor(float pitchHz, float formantScale)
+        private static string TimbreFor(string id, float pitchHz, float formantScale)
         {
+            if (id.Contains("grandma")) return "elderly-female";
+            if (id.Contains("grandpa")) return "elderly-male";
             if (pitchHz >= 260f || formantScale >= 1.3f) return "small-high";
             if (pitchHz >= 170f) return "adult-female";
             if (pitchHz <= 100f) return "deep-male";

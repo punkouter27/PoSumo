@@ -37,8 +37,9 @@ policy was fitted to the donor's physique.
 Both use four moods — **Happy, Angry, Hurt, Insult** — at levels **1-5** (1 mildest), plus a
 Neutral face. *(2026-11-22: a fifth, **Celebrate**, completes the standard 5 x 5 matrix; it fires
 on winning a round (2-4) or the match (5). Standard voice files are
-`Resources/Audio/Voice/<Name>/<emotion>-<level>.wav`, checked before the legacy names below; a
-fighter with no celebrate face art shows its Happy art.)* `Systems_FighterVoice` decides every emotional moment and announces it on
+`Resources/Audio/Voice/<id>/<emotion>-<level>.wav` (id = lower-case name); `voices.json` in that
+folder lists which file every fighter uses for every cell and holds each voice profile — see
+README "Voices". A fighter with no celebrate face art shows its Happy art.)* `Systems_FighterVoice` decides every emotional moment and announces it on
 `Expressed`; `Systems_FaceMood` draws the same mood and level.
 
 | | Real asset (wins when present) | Fallback |

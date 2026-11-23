@@ -529,9 +529,10 @@ namespace PoSumo
                 buffer[total - 1 - index] *= k;
             }
 
-            // Level sets loudness; recorded lines are normalised to the same range
-            // by NormalizeVoice, so the two sit together.
-            return Normalize(buffer, Lerp(0.50f, 0.90f, t));
+            // Level sets loudness — both the peak and the RMS ceiling grow with it,
+            // so a level-5 line is louder than a level-1 line whatever its shape.
+            // Recorded lines are levelled by NormalizeVoice into the same range.
+            return Normalize(buffer, Lerp(0.50f, 0.90f, t), Lerp(0.085f, 0.22f, t));
         }
 
         private static int OnsetSamples(Onset onset)
@@ -589,12 +590,20 @@ namespace PoSumo
         private static float Lerp(float a, float b, float k) => a + (b - a) * Math.Max(0f, Math.Min(1f, k));
         private static float Clamp01(float value) => Math.Max(0f, Math.Min(1f, value));
 
-        private static float[] Normalize(float[] buffer, float peak)
+        /// Scales to the peak target, or less if that would put the RMS over its
+        /// ceiling.
+        private static float[] Normalize(float[] buffer, float peak, float rmsCeiling)
         {
             float max = 0f;
-            for (int index = 0; index < buffer.Length; index++) max = Math.Max(max, Math.Abs(buffer[index]));
+            double energy = 0;
+            for (int index = 0; index < buffer.Length; index++)
+            {
+                max = Math.Max(max, Math.Abs(buffer[index]));
+                energy += buffer[index] * (double)buffer[index];
+            }
             if (max < 1e-6f) return buffer;
-            float scale = peak / max;
+            float rms = (float)Math.Sqrt(energy / buffer.Length);
+            float scale = Math.Min(peak / max, rms > 1e-6f ? rmsCeiling / rms : float.MaxValue);
             for (int index = 0; index < buffer.Length; index++) buffer[index] *= scale;
             return buffer;
         }

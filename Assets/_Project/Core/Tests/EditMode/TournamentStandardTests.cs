@@ -150,7 +150,7 @@ namespace PoSumo.Tests
                 new[] { "angry", "happy", "hurt", "insult", "celebrate" },
                 System.Array.ConvertAll(Systems_FighterVoice.STANDARD_EMOTIONS, Systems_FighterVoice.EmotionName));
             Assert.AreEqual(5, Systems_FighterVoice.LEVELS);
-            Assert.AreEqual("Audio/Voice/Matt/celebrate-3",
+            Assert.AreEqual("Audio/Voice/matt/celebrate-3",
                             Systems_FighterVoice.StandardName("Matt", Systems_FighterMood.Celebrate, 3));
             Assert.AreEqual("Audio/Voice/Matt_Happy_L2_1",
                             Systems_FighterVoice.LegacyName("Matt", Systems_FighterMood.Happy, 2, 1));

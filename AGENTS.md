@@ -150,7 +150,11 @@ every publish. Tests never write into tracked files.
   `tournament_elo.json`.
 - **No FFA**: 1v1 game, bracket only.
 - Voice: `Systems_FighterMood.Celebrate` (appended, ordinal 5; Neutral stays as the internal resting
-  face). Lookup order `Voice/<Fighter>/<emotion>-<level>` → legacy `<Fighter>_<Mood>_L<l>_<v>` → synth.
+  face). Every line resolves through the manifest `Resources/Audio/Voice/voices.json`
+  (`Systems_VoiceManifest` model/builder, `Systems_VoiceLibrary` runtime, `VoiceManifestGenerator` editor
+  menu + import hook): `exists` → that WAV (standard `<id>/<emotion>-<level>.wav` or the legacy file it
+  lists), otherwise the procedural imitation from the fighter's `voice` profile. Tests:
+  `VoiceManifestTests.cs` (EditMode) and `tests/test_voice_manifest.py`.
 - Tests: `Assets/_Project/Core/Tests/EditMode/TournamentStandardTests.cs` (no disk writes).
 
 #### Deliberate deviations

@@ -27,11 +27,12 @@ namespace PoSumo
     ///   Celebrate  winning a round (2, 3 on a ring-out, 4 on a ring-out streak),
     ///           winning the match (5)
     ///
-    /// Lines resolve by naming convention, recorded first:
-    ///     Resources/Audio/Voice/<Fighter>/<emotion>-<level>.wav   (STANDARD)
-    ///     Resources/Audio/Voice/<Behavior>_<Mood>_L<level>_<variant>.wav (legacy,
-    ///         still honoured: the shipped recordings use it)
-    /// and any line with no WAV is synthesised on first use by
+    /// Lines resolve through the voice manifest
+    /// `Resources/Audio/Voice/voices.json` (`Systems_VoiceLibrary`): a cell it
+    /// marks `exists` plays its WAV — the standard `<id>/<emotion>-<level>.wav`,
+    /// or the legacy `<Behavior>_<Mood>_L<level>_<take>.wav` recordings that
+    /// shipped — and any other line is the advanced procedural imitation,
+    /// synthesised on first use by
     /// `Systems_VoiceSynth` — so every fighter, including the 12 placeholder
     /// fighters with no recordings at all, has a complete voice, and a real
     /// recording replaces a placeholder one file at a time. The old recordings
@@ -91,9 +92,9 @@ namespace PoSumo
         public static string EmotionName(Systems_FighterMood mood) => mood.ToString().ToLowerInvariant();
 
         /// Standard Resources path (no extension) of one line:
-        /// `Audio/Voice/<Fighter>/<emotion>-<level>`.
+        /// `Audio/Voice/<id>/<emotion>-<level>`, id = lower-case behavior name.
         public static string StandardName(string fighter, Systems_FighterMood mood, int level) =>
-            $"{VOICE_PATH}{fighter}/{EmotionName(mood)}-{level}";
+            $"{VOICE_PATH}{Systems_VoiceManifest.IdOf(fighter)}/{EmotionName(mood)}-{level}";
 
         /// Legacy Resources path (no extension) of one line:
         /// `Audio/Voice/<Fighter>_<Mood>_L<level>_<variant>`.
@@ -172,7 +173,8 @@ namespace PoSumo
 
             Agent_CharacterDefinition character = _body != null ? _body.character : null;
             _prefix = character != null ? character.behaviorName : fighterBehaviorName;
-            _voice = Systems_VoiceSynth.VoiceFor(character, _prefix);
+            // The manifest's per-fighter profile, else the asset-derived default.
+            _voice = Systems_VoiceLibrary.VoiceFor(character, _prefix);
             for (int mood = 0; mood < MOODS; mood++)
             {
                 _bank[mood] = new AudioClip[LEVELS][];
@@ -446,7 +448,9 @@ namespace PoSumo
         /// "<Fighter>/<emotion>-<level>" (NormalizeVoice writes it that way), a
         /// legacy one its flat name.
         private string GainKey(AudioClip clip) =>
-            clip.name.IndexOf('_') < 0 && clip.name.IndexOf('-') > 0 ? _prefix + "/" + clip.name : clip.name;
+            clip.name.IndexOf('_') < 0 && clip.name.IndexOf('-') > 0
+                ? Systems_VoiceManifest.IdOf(_prefix) + "/" + clip.name
+                : clip.name;
 
         /// A different variant from the last line of the same mood, so the same
         /// shout does not fire twice running.
@@ -462,10 +466,10 @@ namespace PoSumo
             return variant;
         }
 
-        /// Recorded WAV if there is one, otherwise synthesised — each looked up or
-        /// built once, on first use. Order: the STANDARD
-        /// `<fighter>/<emotion>-<level>` (one recording serves every variant),
-        /// then the legacy per-variant name, then the synth.
+        /// The recorded WAV `voices.json` lists for this cell (a multi-take cell
+        /// cycles its takes by variant), otherwise the procedural imitation —
+        /// each looked up or built once, on first use. A file the manifest does
+        /// not list is never requested.
         private AudioClip Clip(Systems_FighterMood mood, int level, int variant)
         {
             AudioClip[] slot = _bank[(int)mood][level - 1];
@@ -474,10 +478,15 @@ namespace PoSumo
             {
                 return clip;
             }
-            clip = Resources.Load<AudioClip>(StandardName(_prefix, mood, level));
-            if (clip == null)
+            string recorded = Systems_VoiceLibrary.RecordedPath(_prefix, mood, level, variant);
+            if (recorded != null)
             {
-                clip = Resources.Load<AudioClip>(LegacyName(_prefix, mood, level, variant));
+                clip = Resources.Load<AudioClip>(recorded);
+                if (clip == null)
+                {
+                    Debug.LogWarning($"Systems_FighterVoice: voices.json lists {recorded} but it does not load — " +
+                                     "synthesising. Run PoSumo > Voice > Regenerate voices.json.");
+                }
             }
             if (clip == null)
             {

@@ -19,10 +19,23 @@ policy (ONNX, inference only at runtime); a tournament bracket of RL-trained fig
 - **Main menu**: the BRACKET tab draws the tree, the GRID tab shows the 16 slots as a 4x4 grid in
   seed order (BYE tiles for empty slots). All 16 roster fighters have their own trained brains
   (the 12 former placeholders were promoted in Unique01, 2026-11-11), so a full roster draws no BYEs.
-- **Voice matrix**: 5 emotions (angry, happy, hurt, insult, celebrate) x 5 levels per fighter.
-  A real line is `Assets/_Project/Data/Resources/Audio/Voice/<Fighter>/<emotion>-<level>.wav`; the
-  older `<Fighter>_<Mood>_L<level>_<variant>.wav` recordings still play, and any missing line is
-  synthesised (`Systems_VoiceSynth`; celebrate has its own high-energy whoop).
+- **Voice matrix**: 5 emotions (angry, happy, hurt, insult, celebrate) x 5 levels per fighter,
+  listed in the voice manifest (below).
+
+## Voices: `voices.json`
+
+`Assets/_Project/Data/Resources/Audio/Voice/voices.json` lists every fighter x 5 emotions x 5 levels:
+the WAV each cell uses, whether it `exists`, and the fighter's procedural voice profile (pitch,
+formant scale, breath, rasp, vibrato, tempo). Cells use `<id>/<emotion>-<level>.wav` (id = lower-case
+fighter name); where an older recording is what actually plays, the cell lists that real file
+(`<Fighter>_<Mood>_L<level>_<take>.wav`, with all `takes`). Today 60 of 400 cells are recorded.
+
+- **Add a recording**: drop `matt/angry-3.wav` into that folder. The manifest regenerates on import
+  (or run *PoSumo → Voice → Regenerate voices.json*); it logs "N of M clips recorded; missing: ...".
+  Never edit `exists` by hand; voice profiles in the file are kept on regeneration, so tune them there.
+- **If a WAV is missing** the game plays an advanced procedural imitation of that fighter
+  (`Systems_VoiceSynth`: glottal pulses with jitter/shimmer, four gliding formants, consonant onsets,
+  per-emotion prosody, level-scaled loudness and length), deterministic and cached per line.
 
 | Path | What |
 |---|---|
