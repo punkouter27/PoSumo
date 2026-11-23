@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// The diagnostics overlay's BENCHMARK TRAINING SPEED button: runs the arena that
+    /// The diagnostics overlay's BENCHMARK SIM SPEED button: runs the arena that
     /// is on screen — every fighter observing, running its policy and driving its 13
     /// motors, Physics2D on its fixed 0.02 s step — as fast as this device manages for
     /// `DemoModeSettings.benchmarkSeconds` real seconds, and counts the physics ticks

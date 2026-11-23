@@ -2,6 +2,7 @@
 # training (MattUnique01, 2 headless env players) and records step time, machine and machine load in
 # benchmark/history.json (commit it to compare laptops). The first run on a machine builds Builds/MattEnv in Unity
 # batch mode, so the Unity Editor must be closed and Unity Hub signed in.
+# -Run: no page; runs one Benchmark in this console, records it in benchmark/history.json and exits 0 (recorded) or 1.
 $ErrorActionPreference = 'Stop'
 $py = Join-Path $PSScriptRoot 'Training/venv/Scripts/python.exe'
 if (-not (Test-Path $py)) {
@@ -14,3 +15,4 @@ if (-not (Test-Path $py)) {
     } finally { Pop-Location }
 }
 & $py (Join-Path $PSScriptRoot 'benchmark/serve.py') @args
+exit $LASTEXITCODE

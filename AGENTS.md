@@ -118,7 +118,7 @@ every publish. Tests never write into tracked files.
   reward, inference latency (rolling mean of the decision steps, `Systems_InferenceClock`) and curriculum stage
   (school + bracket stage; the trainer's `stand_assist` / `obs_delay_max` lessons when a trainer is connected).
   The fighter debug panel moved from Tab to `F3` (and the green bottom-left telemetry line).
-  **BENCHMARK TRAINING SPEED** in the panel (`Systems_SimBenchmark`) runs the live arena flat out for
+  **BENCHMARK SIM SPEED** in the panel (`Systems_SimBenchmark`) runs the live arena flat out for
   `benchmarkSeconds` (3 s, `DemoModeSettings.asset`) by borrowing `Time.timeScale` (fixed step unchanged) and reports
   physics ticks/s, env steps/s and decisions/s, labelled "local simulation speed, not a training run".
 - Demo mode: `Systems_DemoMode` + `Assets/_Project/Data/Resources/DemoModeSettings.asset` (idle 30 s, 7 s per camera shot, the

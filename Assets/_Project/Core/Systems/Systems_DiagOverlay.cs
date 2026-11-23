@@ -17,7 +17,7 @@ namespace PoSumo
     ///     Episode reward ..... each fighter's cumulative reward this episode
     ///     Inference latency .. rolling mean of the decision steps (Systems_InferenceClock)
     ///     Curriculum stage ... the school the fighters run in and the bracket stage
-    ///     Training speed ..... BENCHMARK TRAINING SPEED runs the live arena flat out
+    ///     Sim speed .......... BENCHMARK SIM SPEED runs the live arena flat out
     ///                          for a few seconds (Systems_SimBenchmark)
     ///
     /// It lives on one DontDestroyOnLoad object built at startup (with
@@ -148,9 +148,9 @@ namespace PoSumo
             _latency = Row("Inference latency");
             _stage = Row("Curriculum stage");
             _demo = Row("Demo mode");
-            _bench = Row("Training speed");
+            _bench = Row("Sim speed");
             _bench.text = "press the button during a bout";
-            _benchButton = new Button(RunBenchmark) { text = "BENCHMARK TRAINING SPEED", name = "BenchmarkButton" };
+            _benchButton = new Button(RunBenchmark) { text = "BENCHMARK SIM SPEED", name = "BenchmarkButton" };
             _benchButton.style.marginTop = 8;
             _benchButton.style.marginLeft = 0;
             _benchButton.style.height = Systems_UiKit.TOUCH_MIN;
