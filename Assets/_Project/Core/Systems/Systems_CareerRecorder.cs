@@ -26,6 +26,12 @@ namespace PoSumo
         /// trading one fragile order for another.
         private bool _isTournamentFinal;
 
+        /// Tournament-standard Elo for bouts OUTSIDE the bracket (exhibition /
+        /// CPU-v-CPU rematches in SCN_SUMO). Bracket bouts — including every demo-
+        /// mode bout, since demo mode plays the bracket — are rated by
+        /// Systems_TournamentReporter; this one only shows their change.
+        private Systems_ExhibitionElo _elo;
+
         /// A rank change worth telling the player about.
         public readonly struct RankChange
         {
@@ -86,6 +92,8 @@ namespace PoSumo
             // The bout that leaves one fighter standing — which with byes in the
             // draw is not necessarily the one sitting in the final's slot.
             _isTournamentFinal = Systems_TournamentState.IsTitleBout;
+            // Snapshotted for the same ordering reason as the title flag.
+            _elo = new Systems_ExhibitionElo(Systems_TournamentState.Active);
 
             _manager = FindAnyObjectByType<Systems_GameMatchManager>();
             if (_manager == null)
@@ -94,7 +102,11 @@ namespace PoSumo
             }
             _manager.RoundEnded += OnRoundEnded;
             _manager.MatchEnded += OnMatchEnded;
+            _manager.MatchReset += OnMatchReset;
         }
+
+        /// A rematch is a new match: it may be rated once more.
+        private void OnMatchReset() => _elo?.MatchStarted();
 
         private void OnDisable()
         {
@@ -102,6 +114,7 @@ namespace PoSumo
             {
                 _manager.RoundEnded -= OnRoundEnded;
                 _manager.MatchEnded -= OnMatchEnded;
+                _manager.MatchReset -= OnMatchReset;
             }
         }
 
@@ -113,6 +126,7 @@ namespace PoSumo
 
         private void OnMatchEnded(Agent_Biped winner)
         {
+            RateAndShowElo(winner);
             if (winner == null)
             {
                 return;
@@ -163,6 +177,32 @@ namespace PoSumo
             // the Ozeki or Yokozuna gate, and sampling before it would miss the one
             // promotion the player most wants to be told about.
             CaptureRankChange(winnerName, winnerRankBefore, loserName, loserRankBefore, bonusNote);
+        }
+
+        /// Rates an exhibition bout (a null winner is a draw, 0.5 each) and puts
+        /// both fighters' tournament Elo and change on the result card. For a
+        /// bracket bout the reporter (subscribed first) has already rated it.
+        private void RateAndShowElo(Agent_Biped winner)
+        {
+            if (_elo == null || _manager == null) return;
+            string nameA = NameOf(_manager.wrestlerA);
+            string nameB = NameOf(_manager.wrestlerB);
+            float deltaA;
+            if (_elo.BracketBout)
+            {
+                int match = Systems_TournamentState.LastDecidedMatch;
+                float moved = match >= 0 ? Systems_TournamentState.EloDelta(match) : 0f;
+                deltaA = winner == _manager.wrestlerA ? moved : -moved;
+                _elo.MarkCounted();
+            }
+            else
+            {
+                float scoreA = winner == null ? 0.5f : winner == _manager.wrestlerA ? 1f : 0f;
+                if (!_elo.TryRecord(nameA, nameB, scoreA, out deltaA)) return;
+                Systems_Log.Info($"[ELO] exhibition {nameA} v {nameB}: {nameA} {deltaA:+0.0;-0.0}");
+            }
+            if (string.IsNullOrEmpty(nameA) || string.IsNullOrEmpty(nameB) || nameA == nameB) return;
+            _manager.ShowEloLine(Systems_ExhibitionElo.Describe(nameA, deltaA, nameB, -deltaA));
         }
 
         /// Records at most one change, preferring the promotion.

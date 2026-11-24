@@ -12,7 +12,8 @@ namespace PoSumo
     /// in a 16-slot frame (since 2026-11-10), drawn as a TREE: eight seeds down
     /// the left edge and eight down the right, each round one column further in,
     /// and the final with the champion in the centre. The bracket auto-seeds each
-    /// character ONCE (shuffled) and leaves the spare slots as BYES; the user can
+    /// character ONCE by tournament Elo on the standard chart (1v16, 8v9, 4v13,
+    /// 5v12, 2v15, 7v10, 3v14, 6v11) and leaves the bottom seeds as BYES; the user can
     /// drag one seed onto another to swap them before starting. Pressing START
     /// plays the whole bracket unattended: each real bout is played in SCN_SUMO,
     /// the winner is filled in on return, and the next bout launches after a
@@ -117,7 +118,15 @@ namespace PoSumo
         /// Replaces the ScrollView — the zero-scroll constraint (checklist #3)
         /// means every pane fits the viewport, and the overflow audit polices it.
         private const int TAB_BRACKET = 0;
-        private const int TAB_RECORD = 1;
+        /// The 4x4 GRID of the sixteen slots (tournament standard, 2026-11-22):
+        /// every seeded fighter as a tile in seed order, empty slots as BYE tiles.
+        /// Its own tab because the BRACKET pane has no height to spare (zero-scroll).
+        private const int TAB_GRID = 1;
+        private const int TAB_RECORD = 2;
+        private const int GRID_SIDE = 4;
+        private const int GRID_FACE = 56;
+        private readonly List<VisualElement> _gridTiles = new List<VisualElement>();
+        private VisualElement _paneGrid;
         private int _activeTab = TAB_BRACKET;
         private readonly List<Button> _tabButtons = new List<Button>();
         private VisualElement _paneHost;
@@ -212,13 +221,10 @@ namespace PoSumo
             // Otherwise this is a fresh visit, so draw a new field.
             if (!Systems_TournamentState.SeedsReady())
             {
-                // NOT Time.frameCount: SCN_TOURNAMENT is build index 0, so this
-                // Start runs on the first frame of the session and the salt was
-                // the same small constant on every cold launch — ten launches,
-                // ten byte-identical draws. Invisible unless you compare cold
-                // starts, because RESHUFFLE runs late enough for frameCount to
-                // vary. TickCount is wall-clock and unrelated to the frame loop.
-                Systems_TournamentState.AutoSeed(_roster, System.Environment.TickCount);
+                // Seeded by tournament Elo onto the standard chart (1v16, 8v9,
+                // 4v13, 5v12, 2v15, 7v10, 3v14, 6v11); BYEs take the bottom seeds.
+                // It was a salted shuffle until 2026-11-22.
+                Systems_TournamentState.AutoSeed(_roster);
             }
 
             // A bracket the app was killed in the middle of. OFFERED, never
@@ -278,7 +284,9 @@ namespace PoSumo
             tabRow.style.paddingRight = Systems_UiKit.SPACE_3;
             tabRow.style.flexShrink = 0;
             screen.Add(tabRow);
+            // Added in tab-id order: SelectTab indexes the buttons by id.
             AddTab(tabRow, TAB_BRACKET, "BRACKET");
+            AddTab(tabRow, TAB_GRID, "GRID");
             AddTab(tabRow, TAB_RECORD, "RECORD");
 
             _paneHost = Systems_UiKit.Column();
@@ -343,6 +351,7 @@ namespace PoSumo
             // the 4:3 panel does not have. The promotion banner sits at the top
             // so a player returning from a bout sees it without switching panes.
             _paneBracket = MakePane();
+            _paneGrid = MakePane();
             _paneRecord = MakePane();
             _content = _paneBracket;
             // The blocks of this pane SHARE its free height instead of stacking at
@@ -390,7 +399,10 @@ namespace PoSumo
 
             BuildSpotlight();
 
-            // ---- Pane 2: RECORD (career/banzuke + rules) ------------------------
+            // ---- Pane 2: GRID (4x4, the sixteen slots by seed) ----------------
+            BuildGrid();
+
+            // ---- Pane 3: RECORD (career/banzuke + rules) ------------------------
             //
             // The old inline CAREER button, the top-3 standings block and the
             // career overlay's ScrollView are all folded in here (screen merging,
@@ -472,7 +484,9 @@ namespace PoSumo
             // running bracket — this screen is shown for _betweenMatchSeconds
             // after every bout — one tap silently destroyed the tournament in
             // progress with no confirmation.
-            _resetButton = Systems_UiKit.GhostButton("RESHUFFLE", OnReset);
+            // RESEED (was RESHUFFLE): the draw is seeded by rating now, so this
+            // puts it back on the rating chart after any drag-swaps.
+            _resetButton = Systems_UiKit.GhostButton("RESEED", OnReset);
             _resetButton.style.flexGrow = 1;
             _resetButton.style.flexBasis = 0;
             _resetButton.style.marginLeft = Systems_UiKit.SPACE_1;
@@ -701,7 +715,7 @@ namespace PoSumo
         /// Systems_CareerScreen's own `_expandedFighter`).
         private void SelectTab(int tab)
         {
-            if (tab != TAB_BRACKET && tab != TAB_RECORD)
+            if (tab != TAB_BRACKET && tab != TAB_GRID && tab != TAB_RECORD)
             {
                 return;
             }
@@ -709,6 +723,10 @@ namespace PoSumo
             if (_paneBracket != null)
             {
                 _paneBracket.style.display = tab == TAB_BRACKET ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+            if (_paneGrid != null)
+            {
+                _paneGrid.style.display = tab == TAB_GRID ? DisplayStyle.Flex : DisplayStyle.None;
             }
             if (_paneRecord != null)
             {
@@ -1033,6 +1051,108 @@ namespace PoSumo
                 ? Systems_TournamentState.EloDelta(match) : 0f;
             elo.text = gained > 0.5f ? $"{rating} +{Mathf.RoundToInt(gained)}" : rating.ToString();
             elo.style.color = gained > 0.5f ? Systems_UiKit.Good : Systems_UiKit.TextLow;
+        }
+
+
+        /// The main-menu 4x4 grid: tile (row r, column c) is seed r*4+c+1, so the
+        /// top row is the four top seeds. A tile shows the seed number, face, name
+        /// and tournament Elo; a slot with nobody in it is a BYE tile. Built once,
+        /// repainted by Refresh (seeding, a swap, a result all move it).
+        private void BuildGrid()
+        {
+            _gridTiles.Clear();
+            Label caption = Systems_UiKit.Caption("16 SLOTS · SEEDED BY TOURNAMENT ELO",
+                                                  Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow, true);
+            caption.style.unityTextAlign = TextAnchor.MiddleCenter;
+            caption.style.marginBottom = Systems_UiKit.SPACE_2;
+            _paneGrid.Add(caption);
+
+            VisualElement grid = Systems_UiKit.Column(Align.Stretch);
+            grid.style.flexGrow = 1;
+            grid.style.minHeight = 0;
+            _paneGrid.Add(grid);
+            for (int row = 0; row < GRID_SIDE; row++)
+            {
+                VisualElement line = Systems_UiKit.Row(Align.Stretch);
+                line.style.flexGrow = 1;
+                line.style.flexBasis = 0;
+                grid.Add(line);
+                for (int column = 0; column < GRID_SIDE; column++)
+                {
+                    line.Add(MakeGridTile(row * GRID_SIDE + column + 1));
+                }
+            }
+        }
+
+        /// Children: [0] seed number, [1] face, [2] name, [3] Elo. userData = seed.
+        private VisualElement MakeGridTile(int seed)
+        {
+            VisualElement tile = Systems_UiKit.Column(Align.Center);
+            tile.userData = seed;
+            tile.style.flexGrow = 1;
+            tile.style.flexBasis = 0;
+            tile.style.justifyContent = Justify.Center;
+            tile.style.marginLeft = 2;
+            tile.style.marginRight = 2;
+            tile.style.marginTop = 2;
+            tile.style.marginBottom = 2;
+            tile.style.backgroundColor = Systems_UiKit.Chip;
+            tile.style.overflow = Overflow.Hidden;
+            tile.Round(Systems_UiKit.RADIUS_SM);
+
+            Label number = Systems_UiKit.Caption("#" + seed, TREE_FONT_ELO, Systems_UiKit.TextLow, true);
+            number.NoPick();
+            tile.Add(number);
+
+            var face = new VisualElement();
+            face.style.width = GRID_FACE;
+            face.style.height = GRID_FACE;
+            face.style.flexShrink = 0;
+            face.Round(GRID_FACE / 2);
+            face.NoPick();
+            tile.Add(face);
+
+            Label name = Systems_UiKit.Text("", TREE_FONT_NAME + 2, Systems_UiKit.TextHi, true);
+            name.style.unityTextAlign = TextAnchor.MiddleCenter;
+            name.NoPick();
+            tile.Add(name);
+
+            Label elo = Systems_UiKit.Text("", TREE_FONT_ELO, Systems_UiKit.TextLow);
+            elo.style.unityTextAlign = TextAnchor.MiddleCenter;
+            elo.NoPick();
+            tile.Add(elo);
+
+            _gridTiles.Add(tile);
+            return tile;
+        }
+
+        private void RefreshGrid()
+        {
+            for (int tileIndex = 0; tileIndex < _gridTiles.Count; tileIndex++)
+            {
+                VisualElement tile = _gridTiles[tileIndex];
+                int seed = (int)tile.userData;
+                int slot = Systems_TournamentState.SlotOfSeed(seed);
+                Agent_CharacterDefinition character = slot >= 0 ? Systems_TournamentState.GetSeed(slot) : null;
+                VisualElement face = tile[1];
+                var name = (Label)tile[2];
+                var elo = (Label)tile[3];
+
+                tile.style.opacity = character != null ? 1f : 0.5f;
+                tile.style.borderTopWidth = character != null ? 3 : 0;
+                tile.style.borderTopColor = character != null ? character.teamColor : Systems_UiKit.Chip;
+                face.style.backgroundColor = character != null && character.headSprite == null
+                    ? character.teamColor
+                    : (character != null ? Color.clear : new Color(0.25f, 0.23f, 0.24f));
+                face.style.backgroundImage = character != null && character.headSprite != null
+                    ? new StyleBackground(character.headSprite)
+                    : new StyleBackground();
+                name.text = ChipName(character, EMPTY_BYE);
+                name.style.color = character != null ? character.teamColor : Systems_UiKit.TextLow;
+                elo.text = character != null
+                    ? Mathf.RoundToInt(Systems_TournamentElo.Get(character.behaviorName)).ToString()
+                    : string.Empty;
+            }
         }
 
         /// Gold outline on the chips that ARE the current bout — its two seeds in
@@ -1552,6 +1672,7 @@ namespace PoSumo
                               Systems_TournamentState.GetAdvancing(matchIndex), EMPTY_UNDECIDED, matchIndex);
             }
             HighlightCurrentBout();
+            RefreshGrid();
             RefreshBoutNews();
 
             // The seeding controls only exist while seeding is possible. Left up,
@@ -1819,7 +1940,7 @@ namespace PoSumo
             Systems_BodyDamage.ClearAll();
             Systems_RingBlood.ClearAll();
             Systems_ClayWear.ClearAll();
-            Systems_TournamentState.AutoSeed(_roster, Time.frameCount);
+            Systems_TournamentState.AutoSeed(_roster);
             Refresh();
         }
     }

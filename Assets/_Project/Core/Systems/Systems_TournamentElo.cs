@@ -5,7 +5,11 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// TOURNAMENT-MODE Elo: one rating per fighter, moved only by bracket bouts.
+    /// TOURNAMENT-STANDARD Elo: one rating per fighter, moved by every completed
+    /// bout between two rated fighters — bracket bouts (Systems_TournamentReporter)
+    /// AND, since 2026-11-22 (demo-Elo spec), exhibition / CPU-v-CPU bouts outside
+    /// the bracket (Systems_ExhibitionElo). Demo mode itself plays the bracket, so
+    /// its bouts were already rated. One store, no separate demo table.
     ///
     /// Deliberately SEPARATE from `Systems_CareerStats.elo` (user's choice,
     /// 2026-11-10). The career rating also moves on exhibition bouts and carries
@@ -28,7 +32,16 @@ namespace PoSumo
         public const float START = 1000f;
         /// Higher than the career ladder's 24: a bracket is only 15 bouts, and the
         /// ratings should separate within a few tournaments, not a few dozen.
-        private const float K = 32f;
+        /// START 1000 / K 32 / persisted is the Po tournament standard.
+        public const float K = 32f;
+
+        /// Points a winner rated `winnerElo` takes from a loser rated `loserElo`.
+        /// Pure, so the tests check the formula without touching the save file.
+        public static float Delta(float winnerElo, float loserElo)
+        {
+            float expected = 1f / (1f + Mathf.Pow(10f, (loserElo - winnerElo) / 400f));
+            return K * (1f - expected);
+        }
 
         [Serializable]
         private sealed class Entry
@@ -68,19 +81,61 @@ namespace PoSumo
 
         /// Applies one decided bout and returns the points that moved (winner +,
         /// loser -). Zero for a missing or mirror pairing.
-        public static float RecordBout(string winner, string loser)
+        public static float RecordBout(string winner, string loser) => RecordResult(winner, loser, 1f);
+
+        /// Points A gains (negative = loses) for scoring `scoreA` (1 win, 0.5
+        /// draw, 0 loss) against B. Pure.
+        public static float Exchange(float ratingA, float ratingB, float scoreA)
         {
-            if (string.IsNullOrEmpty(winner) || string.IsNullOrEmpty(loser) || winner == loser) return 0f;
-            Entry w = FindOrAdd(winner);
-            Entry l = FindOrAdd(loser);
-            float expected = 1f / (1f + Mathf.Pow(10f, (l.elo - w.elo) / 400f));
-            float delta = K * (1f - expected);
-            w.elo += delta;
-            l.elo -= delta;
-            w.bouts++;
-            l.bouts++;
+            float expectedA = 1f / (1f + Mathf.Pow(10f, (ratingB - ratingA) / 400f));
+            return K * (scoreA - expectedA);
+        }
+
+        /// Applies one completed bout, A v B, A scoring `scoreA` (1 / 0.5 / 0), and
+        /// saves at once. Returns A's change (B's is its negative). A fighter never
+        /// plays itself: a mirror or missing pairing records nothing.
+        public static float RecordResult(string a, string b, float scoreA)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b) || a == b) return 0f;
+            Entry ea = FindOrAdd(a);
+            Entry eb = FindOrAdd(b);
+            float delta = Exchange(ea.elo, eb.elo, Mathf.Clamp01(scoreA));
+            ea.elo += delta;
+            eb.elo -= delta;
+            ea.bouts++;
+            eb.bouts++;
             Save();
             return delta;
+        }
+
+        private static bool _memoryOnly;
+
+        /// For tests: ratings live in memory only — nothing is read from or written
+        /// to tournament_elo.json until the returned scope is disposed, which puts
+        /// the real ratings back.
+        public static IDisposable InMemoryScope()
+        {
+            SaveFile saved = _data;
+            bool wasMemory = _memoryOnly;
+            _data = new SaveFile();
+            _memoryOnly = true;
+            return new Scope(() =>
+            {
+                _data = saved;
+                _memoryOnly = wasMemory;
+            });
+        }
+
+        private sealed class Scope : IDisposable
+        {
+            private Action _onDispose;
+            public Scope(Action onDispose) => _onDispose = onDispose;
+
+            public void Dispose()
+            {
+                _onDispose?.Invoke();
+                _onDispose = null;
+            }
         }
 
         public static void RecordTitle(string champion)
@@ -126,6 +181,13 @@ namespace PoSumo
         }
 
         private static void Save()
+        {
+            if (_memoryOnly) return;
+            WriteFile();
+        }
+
+        /// Separate from Save so the in-memory path never touches the serializer.
+        private static void WriteFile()
         {
             try
             {

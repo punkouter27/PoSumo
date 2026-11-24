@@ -410,6 +410,8 @@ namespace PoSumo
         private Systems_HudRoot _hud;
         private Label _scoreDigits, _banner, _countdown;
         private Label _resultTitle, _resultScore;
+        /// "ELO  MATT 1016 +16  ·  NICK 984 −16" under the score; empty until set.
+        private Label _resultElo;
         private VisualElement _pauseCard, _resultCard;
         private VisualElement _scoreBug;   // hidden while the result card is up
         private Button _rematchButton;     // hidden for a bracket bout — see MarkBracketBout
@@ -1218,6 +1220,12 @@ namespace PoSumo
             _resultScore.style.marginTop = Systems_UiKit.SPACE_1;
             _resultCard.Add(_resultScore);
 
+            _resultElo = Systems_UiKit.Text("", Systems_UiKit.FONT_SMALL, Systems_UiKit.TextMid);
+            _resultElo.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _resultElo.style.whiteSpace = WhiteSpace.Normal;
+            _resultElo.style.display = DisplayStyle.None;
+            _resultCard.Add(_resultElo);
+
             // Rank badge (idea #8): the banzuke promotion moment, folded into the
             // one card the player is already dismissing — one surface, one
             // CONTINUE, instead of a result card followed by a ceremony modal.
@@ -1990,6 +1998,15 @@ namespace PoSumo
         /// revealed, so the final's card would have offered a rematch.
         public void MarkBracketBout() => _bracketBout = true;
 
+        /// The tournament-Elo line on the result card (Systems_CareerRecorder sets
+        /// it when the match is decided; the card is revealed after that).
+        public void ShowEloLine(string text)
+        {
+            if (_resultElo == null) return;
+            _resultElo.text = text ?? string.Empty;
+            _resultElo.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
         /// Public so MatchTestHarness can chain matches unattended without the
         /// REMATCH button. It used to reach this through private reflection, which
         /// meant renaming the method turned the harness into a silent no-op after
@@ -2022,6 +2039,7 @@ namespace PoSumo
             // A rematch is a new match: no fatigue from the one just finished.
             // Before the EndEpisode pair below, whose ResetPose would re-seed it.
             SetFatigueCarry(0f);
+            ShowEloLine(null);
             MatchReset?.Invoke();
             UpdateScoreboard(false);
             _hud.HideModal();            // clears the result card and the backdrop

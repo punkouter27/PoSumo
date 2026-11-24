@@ -142,6 +142,26 @@ every publish. Tests never write into tracked files.
   Engine) instead of the project's `UnityDefaultRuntimeTheme.tss`; that theme drags in App UI's TextMate grammar
   assets, whose script types do not exist in the WebGL player. The panel now uses the project theme.
 
+#### Tournament standard (cross-project, 2026-11-22)
+- No-player slot reads **BYE** on the bracket tree and the main-menu 4x4 GRID tab.
+- `Systems_TournamentState.AutoSeed` seeds by tournament Elo onto `SLOT_SEEDS` (1v16, 8v9, 4v13, 5v12,
+  2v15, 7v10, 3v14, 6v11); BYEs are the bottom seeds; a draw (`ReportWinner(null)` / `ReportDraw`)
+  goes to the higher seed; walkovers settle automatically. Elo: `Systems_TournamentElo` 1000 / K 32,
+  `tournament_elo.json`.
+- **No FFA**: 1v1 game, bracket only.
+- Demo Elo (2026-11-22): bracket bouts (incl. demo mode) are rated by `Systems_TournamentReporter`; exhibition
+  bouts by `Systems_CareerRecorder` → `Systems_ExhibitionElo` → `Systems_TournamentElo.RecordResult` (draw 0.5,
+  mirror skipped, once per match, re-armed on `MatchReset`). The result card shows the Elo line
+  (`Systems_GameMatchManager.ShowEloLine`). `DemoEloTests.cs` runs in `Systems_TournamentElo.InMemoryScope`.
+  Note: `MatchTestHarness` exhibition runs in the editor now move tournament_elo.json too (as they already did career.json).
+- Voice: `Systems_FighterMood.Celebrate` (appended, ordinal 5; Neutral stays as the internal resting
+  face). Every line resolves through the manifest `Resources/Audio/Voice/voices.json`
+  (`Systems_VoiceManifest` model/builder, `Systems_VoiceLibrary` runtime, `VoiceManifestGenerator` editor
+  menu + import hook): `exists` → that WAV (standard `<id>/<emotion>-<level>.wav` or the legacy file it
+  lists), otherwise the procedural imitation from the fighter's `voice` profile. Tests:
+  `VoiceManifestTests.cs` (EditMode) and `tests/test_voice_manifest.py`.
+- Tests: `Assets/_Project/Core/Tests/EditMode/TournamentStandardTests.cs` (no disk writes).
+
 #### Deliberate deviations
 
 | Deviation | Why | Commit sha / date | How to undo |
