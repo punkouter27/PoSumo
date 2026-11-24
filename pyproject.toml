@@ -36,5 +36,10 @@ ignore = [
     "UP031", # printf-style formatting is used deliberately in the report tables
 ]
 
+[tool.ruff.lint.isort]
+# scripts/screenshots.py: on Windows the SCREENSHOTS/ folder makes ruff call `screenshots` first-party, on the
+# case-sensitive CI runner it is third-party; pin it so both sort the import the same way.
+known-first-party = ["screenshots"]
+
 [tool.ruff.format]
 quote-style = "double"
