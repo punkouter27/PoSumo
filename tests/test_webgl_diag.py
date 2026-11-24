@@ -52,3 +52,21 @@ def test_repo_config_probes_the_deployed_commit_header():
     assert commit, "/diag must show the live X-Commit (the deployed commit)"
     page = webgl_diag.render("PoSumo", "261122", checks)
     assert "r.headers.get(c.header)" in page
+
+
+def test_page_caches_one_probe_round_per_tab_and_build(tmp_path):
+    build = tmp_path / "Build"
+    build.mkdir()
+    (build / "WebGL.loader.js").write_bytes(b"x")
+    page = webgl_diag.write(tmp_path, "261124").read_text(encoding="utf-8")
+    assert webgl_diag.CACHE_SECONDS == 60
+    assert "sessionStorage" in page
+    assert f"MAX_AGE_MS = {webgl_diag.CACHE_SECONDS} * 1000" in page
+    # Keyed by the build: same files -> same key, a different bundle -> a new key.
+    key = f"po-diag-PoSumo-261124-{webgl_diag.build_id(tmp_path)}"
+    assert key in page
+    (build / "WebGL.loader.js").write_bytes(b"xy")
+    assert webgl_diag.build_id(tmp_path) not in key
+    # ?fresh skips the cache and probes again; the page links to it.
+    assert "has('fresh')" in page
+    assert 'href="/diag?fresh"' in page

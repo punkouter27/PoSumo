@@ -27,7 +27,9 @@ namespace PoSumo
     /// `Debug.LogError` directly.
     internal static class Systems_Log
     {
-        [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]
+        // DEBUG, not DEVELOPMENT_BUILD: the analyzer (UAC0009) deprecates the latter and names DEBUG as the
+        // managed-code-variant replacement (same choice as Agent_Biped.BeginObservationGuard).
+        [Conditional("UNITY_EDITOR"), Conditional("DEBUG")]
         internal static void Info(string message)
         {
             // Fully qualified: `using System.Diagnostics` above makes a bare

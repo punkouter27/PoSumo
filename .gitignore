@@ -103,6 +103,11 @@ Training/*.log
 # YYMMDD in the bottom-right corner). Changes per build; git already knows the date.
 /Assets/_Project/Data/Resources/BuildStamp.txt
 /Assets/_Project/Data/Resources/BuildStamp.txt.meta
+# The pre-2026-11-22 location: a stale tracked copy there (261119) shadowed the real stamp in
+# Resources.Load("BuildStamp"); it must never come back.
+/Assets/Resources/BuildStamp.txt
+/Assets/Resources/BuildStamp.txt.meta
+/Assets/Resources.meta
 
 # Generated Unity C# project files
 /*.csproj
@@ -114,3 +119,8 @@ Training/*.log
 # pytest / ruff caches
 .pytest_cache/
 .ruff_cache/
+
+# Unity Test Runner scratch scenes (written into Assets/ during a PlayMode run, removed after it;
+# an interrupted run leaves them behind)
+/Assets/InitTestScene*.unity
+/Assets/InitTestScene*.unity.meta

@@ -125,10 +125,9 @@ namespace PoSumo
 
             if (FindAnyObjectByType<Systems_CameraFollow>() != null && _settings.cameraShots.Length > 0)
             {
-                _shotTimer += Time.unscaledDeltaTime;
-                if (_shotTimer >= _settings.cameraDwellSeconds)
+                if (ShotDue(ref _shotTimer, Time.unscaledDeltaTime, _settings.maxCountedFrameSeconds,
+                            _settings.cameraDwellSeconds))
                 {
-                    _shotTimer = 0f;
                     _shotIndex = (_shotIndex + 1) % _settings.cameraShots.Length;
                     Systems_CameraFollow.Mode = _settings.cameraShots[_shotIndex];
                 }
@@ -142,6 +141,17 @@ namespace PoSumo
         {
             if (!float.IsFinite(frameSeconds) || frameSeconds <= 0f || frameSeconds > maxFrameSeconds) return idleSeconds;
             return idleSeconds + frameSeconds;
+        }
+
+        /// Advances the camera-dwell clock by one frame, with the same long-frame rule
+        /// as the idle clock (a hitch must not cut a shot short), and says whether the
+        /// shot has run its dwell time; when it has, the clock restarts at 0.
+        public static bool ShotDue(ref float shotSeconds, float frameSeconds, float maxFrameSeconds, float dwellSeconds)
+        {
+            shotSeconds = AccumulateIdle(shotSeconds, frameSeconds, maxFrameSeconds);
+            if (shotSeconds < dwellSeconds) return false;
+            shotSeconds = 0f;
+            return true;
         }
 
         /// Movement and wheel are not "button presses", so they are polled.

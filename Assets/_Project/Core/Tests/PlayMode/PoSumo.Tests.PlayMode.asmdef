@@ -4,6 +4,7 @@
     "references": [
         "PoSumo.Runtime",
         "Unity.ML-Agents",
+        "Unity.InferenceEngine",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

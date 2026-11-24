@@ -126,11 +126,27 @@ namespace PoSumo
             TicksPerSecond = _realElapsed > 0f ? _ticks / _realElapsed : 0f;
             EnvStepsPerSecond = _realElapsed > 0f ? steps / _realElapsed : 0f;
             float decisions = EnvStepsPerSecond / _decisionPeriod * _fighters;
-            Result = string.Format(CultureInfo.InvariantCulture,
-                "{0:N0} physics ticks/s · {1:N0} env steps/s · {2:N0} decisions/s ({3} fighters, {4:0.0} s, this device). " +
-                "Local simulation speed, not a training run.",
-                TicksPerSecond, EnvStepsPerSecond, decisions, _fighters, _realElapsed);
+            Result = Describe(TicksPerSecond, EnvStepsPerSecond, decisions, _fighters, _realElapsed, Hardware());
             Systems_Log.Info("[BENCH] " + Result);
         }
+
+        /// The device the numbers belong to, as Unity reports it: the CPU with its
+        /// logical core count and the GPU. In a browser the GPU is the WebGL renderer
+        /// string the browser exposes, which may be generic.
+        public static string Hardware() => string.Format(CultureInfo.InvariantCulture,
+            "CPU {0} x{1}, GPU {2}",
+            string.IsNullOrWhiteSpace(SystemInfo.processorType) ? "unknown" : SystemInfo.processorType.Trim(),
+            SystemInfo.processorCount,
+            string.IsNullOrWhiteSpace(SystemInfo.graphicsDeviceName) ? "unknown" : SystemInfo.graphicsDeviceName.Trim());
+
+        /// The result line: the numbers, the hardware they were measured on and what
+        /// exactly was measured (pure, for the EditMode test).
+        public static string Describe(float ticksPerSecond, float envStepsPerSecond, float decisionsPerSecond,
+                                      int fighters, float seconds, string hardware) =>
+            string.Format(CultureInfo.InvariantCulture,
+                "{0:N0} physics ticks/s · {1:N0} env steps/s · {2:N0} decisions/s ({3} fighters, {4:0.0} s) on this device: {5}. " +
+                "Measured: Physics2D ticks and ML-Agents env steps with every fighter's ONNX brain deciding (CPU inference), " +
+                "real time. Local simulation speed, not a training run.",
+                ticksPerSecond, envStepsPerSecond, decisionsPerSecond, fighters, seconds, hardware);
     }
 }

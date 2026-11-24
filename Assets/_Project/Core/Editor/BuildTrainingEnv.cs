@@ -75,7 +75,7 @@ namespace PoSumo.EditorTools
                 // which is the ONLY place it is useful. Its port walk from 8787
                 // exists specifically so 4-8 concurrent envs each get a socket, and
                 // that code could never once have run. `Systems_Log.Info` is gated
-                // on DEVELOPMENT_BUILD for the same reason: a headless env should
+                // on DEBUG (a development player) for the same reason: a headless env should
                 // still be able to say what it is doing.
                 //
                 // The cost is a slightly larger player and the profiler being

@@ -13,6 +13,11 @@ namespace PoSumo.Tests
     ///
     /// Nothing here writes a tracked file or the player's career: the career recorder
     /// is removed as soon as the match manager spawns it.
+    ///
+    /// Determinism: no fixed sleeps. Every wait polls its condition every frame under a
+    /// real-time cap (so a loaded machine only makes it slower, never red), and the
+    /// fixture carries an explicit timeout above the sum of those caps.
+    [Timeout(300000)]
     public sealed class ArenaPlayTests
     {
         private const string ARENA = "SCN_SUMO";
@@ -32,6 +37,25 @@ namespace PoSumo.Tests
             yield return null;
         }
 
+        /// Polls until the arena has seated two fighters with their full ragdolls
+        /// built, or the cap runs out (the assertions that follow then say what is missing).
+        private static IEnumerator WaitForFighters(float capSeconds)
+        {
+            float deadline = Time.realtimeSinceStartup + capSeconds;
+            while (Time.realtimeSinceStartup < deadline)
+            {
+                Agent_Biped[] fighters = Object.FindObjectsByType<Agent_Biped>();
+                if (fighters.Length >= 2 && System.Array.TrueForAll(fighters, Built)) yield break;
+                yield return null;
+            }
+        }
+
+        private static bool Built(Agent_Biped fighter)
+        {
+            Agent_BipedBody body = fighter.GetComponent<Agent_BipedBody>();
+            return body != null && body.Joints != null && body.Joints.Length == Agent_BipedBody.JointCount;
+        }
+
         private static void DropCareerRecorder()
         {
             foreach (Systems_CareerRecorder recorder in Object.FindObjectsByType<Systems_CareerRecorder>())
@@ -43,7 +67,7 @@ namespace PoSumo.Tests
         [UnityTest]
         public IEnumerator ArenaBuildsTwoFightersToThePhysicsContract()
         {
-            yield return new WaitForSeconds(0.5f);
+            yield return WaitForFighters(60f);
             Agent_Biped[] fighters = Object.FindObjectsByType<Agent_Biped>();
             Assert.That(fighters.Length, Is.GreaterThanOrEqualTo(2), "the arena seats two fighters");
 
@@ -138,9 +162,32 @@ namespace PoSumo.Tests
         }
 
         [UnityTest]
+        public IEnumerator EveryFighterLogsItsOnnxInferenceLine()
+        {
+            yield return WaitForFighters(60f);
+            var brains = new System.Collections.Generic.List<string>();
+            foreach (Agent_Biped fighter in Object.FindObjectsByType<Agent_Biped>())
+            {
+                var bp = fighter.GetComponent<Unity.MLAgents.Policies.BehaviorParameters>();
+                if (bp != null && bp.Model != null) brains.Add(bp.Model.name);
+            }
+            Assert.That(brains, Is.Not.Empty, "the arena's fighters carry ONNX brains");
+            float deadline = Time.realtimeSinceStartup + 60f;
+            while (Time.realtimeSinceStartup < deadline && !brains.TrueForAll(Systems_InferenceLog.Logged))
+            {
+                DropCareerRecorder();
+                yield return null;
+            }
+            foreach (string brain in brains)
+            {
+                Assert.IsTrue(Systems_InferenceLog.Logged(brain), brain + ".onnx logged '" + Systems_InferenceLog.MARKER + "'");
+            }
+        }
+
+        [UnityTest]
         public IEnumerator BenchmarkTimesTheLiveArenaAndHandsTheClockBack()
         {
-            yield return new WaitForSeconds(0.5f);
+            yield return WaitForFighters(60f);
             var host = new GameObject("BenchmarkUnderTest");
             Systems_SimBenchmark benchmark = host.AddComponent<Systems_SimBenchmark>();
             yield return null;
@@ -157,6 +204,7 @@ namespace PoSumo.Tests
             Assert.Greater(benchmark.TicksPerSecond, 50f, "faster than real time (50 ticks/s)");
             Assert.Greater(benchmark.EnvStepsPerSecond, 0f, "ML-Agents environment steps were counted");
             StringAssert.Contains("not a training run", benchmark.Result);
+            StringAssert.Contains(Systems_SimBenchmark.Hardware(), benchmark.Result, "the label names the CPU and GPU");
             Assert.AreEqual(maxDeltaBefore, Time.maximumDeltaTime, 1e-6f, "maximumDeltaTime restored");
             Assert.That(Time.timeScale, Is.LessThanOrEqualTo(Mathf.Max(1f, scaleBefore)), "time scale handed back");
             Object.Destroy(host);

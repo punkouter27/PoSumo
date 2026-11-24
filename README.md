@@ -45,8 +45,9 @@ fighter name); where an older recording is what actually plays, the cell lists t
 |---|---|
 | `Assets/` | the Unity project (scenes `SCN_TOURNAMENT` → `SCN_SUMO`, scripts by prefix `Agent_`/`Reward_`/`Sensor_`/`Systems_`) |
 | `Training/` | trainer configs (`configs/*.yaml`), launch scripts, the vendored ML-Agents |
-| `scripts/` | `publish_webgl.ps1` (tests → build → release → deploy), `deploy_webgl.ps1`, Python tooling |
+| `scripts/` | `publish_webgl.ps1` (tests → build → release → deploy), `deploy_webgl.ps1`, `screenshots.py`, Python tooling |
 | `tests/` | pytest suite for the Python tooling (`ruff check . && ruff format --check . && pytest`) |
 | `docs/` | design notes, training write-ups, project history (`project-notes.md`) |
+| `SCREENSHOTS/` | before/after reports of UI changes (`<YYYYMMDD>_<feature>/report.html`), made by `python scripts/screenshots.py` |
 
 Agent and contributor rules: [AGENTS.md](AGENTS.md).

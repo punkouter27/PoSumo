@@ -75,6 +75,7 @@ namespace PoSumo
                 var bp = GetComponent<BehaviorParameters>();
                 if (bp != null) bp.Model = nextModel;
                 SetModel(behaviorName, nextModel);
+                _inferenceLogged = false;
                 actionsEnabled = true;
                 return true;
             }
@@ -929,9 +930,30 @@ namespace PoSumo
             return (near + far) * 0.5f;
         }
 
+        private bool _inferenceLogged;
+
+        /// One "[PoSumo] <brain>.onnx inference running" console line per brain and
+        /// session (Systems_InferenceLog), the first time a fighter's ONNX policy acts
+        /// with no trainer connected. Checked once per fighter, so the hot path pays a bool.
+        private void NoteInferenceRunning()
+        {
+            _inferenceLogged = true;
+            BehaviorParameters bp = GetComponent<BehaviorParameters>();
+            if (bp == null || bp.Model == null) return;
+            bool trainer = Academy.IsInitialized && Academy.Instance.IsCommunicatorOn;
+            if (bp.BehaviorType == BehaviorType.HeuristicOnly || (bp.BehaviorType == BehaviorType.Default && trainer))
+            {
+                return;
+            }
+            Systems_InferenceLog.Note(bp.Model.name, string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "{0}, {1} obs, {2} actions, {3}", behaviorName, bp.BrainParameters.VectorObservationSize,
+                ActionCount, bp.InferenceDevice));
+        }
+
         public override void OnActionReceived(ActionBuffers actions)
         {
             Systems_InferenceClock.NoteActed();
+            if (!_inferenceLogged) NoteInferenceRunning();
             if (!actionsEnabled)
             {
                 for (int actionIndex = 0; actionIndex < MotorCount; actionIndex++)
@@ -1199,6 +1221,9 @@ namespace PoSumo
         //   Realism/FootSlip       mean loaded-foot slip, m/s (Reward_FootSlip)
         //   Gate/<School>Episodes  episodes finished (summed per summary window)
         //   Gate/<School>Failures  of those, how many did not succeed (summed)
+        //   Penalty/<Term>         each reward penalty term's mean charge per step
+        //                          over the episode, one key per term
+        //                          (Reward_SumoObjective.PenaltyStats)
         //
         // Success is the school's own terminal: a walker graduating, a wrestler
         // winning the round (Systems_SumoMatchManager calls NoteEpisodeOutcome). A
@@ -1222,6 +1247,7 @@ namespace PoSumo
         private float _epSlip;
         private bool _epSuccess;
         private bool _epWasWalk;
+        private Reward_SumoObjective.PenaltyTotals _epPenaltyStart;
 
         /// Marks the episode about to end as a success (walk graduation, round
         /// won). Anything not marked counts as a failure for the gate.
@@ -1257,7 +1283,10 @@ namespace PoSumo
                           StatAggregationMethod.Sum);
                 stats.Add(_epWasWalk ? STAT_WALK_FAILURES : STAT_SUMO_FAILURES,
                           _epSuccess ? 0f : 1f, StatAggregationMethod.Sum);
+                Reward_SumoObjective.PenaltyStats(_epPenaltyStart, _sumoObjective.Penalties,
+                                                  (key, value) => stats.Add(key, value));
             }
+            _epPenaltyStart = _sumoObjective.Penalties;
             _epSteps = 0;
             _epHighFreq = 0f;
             _epSlip = 0f;

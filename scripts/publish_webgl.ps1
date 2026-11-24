@@ -49,8 +49,12 @@ $unity = "C:\Program Files\Unity\Hub\Editor\$want\Editor\Unity.exe"
 
 function Invoke-Unity([string[]] $arguments, [string] $log) {
     if (-not (Test-Path $unity)) { throw "Unity $want is not installed at $unity (install it with the WebGL module)." }
-    $p = Start-Process -FilePath $unity -PassThru -Wait -NoNewWindow -ArgumentList (@(
+    # Wait on the Unity process itself, not with Start-Process -Wait: -Wait also waits for every child,
+    # and Unity's licensing client (Unity.Licensing.Client.exe) outlives Unity, so -Wait can hang forever.
+    $p = Start-Process -FilePath $unity -PassThru -NoNewWindow -ArgumentList (@(
         '-batchmode', '-projectPath', "`"$root`"", '-logFile', "`"$log`"") + $arguments)
+    $null = $p.Handle   # cache the handle now, or ExitCode reads back empty after the exit
+    $p.WaitForExit()
     return $p.ExitCode
 }
 

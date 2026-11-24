@@ -105,16 +105,45 @@ namespace PoSumo
 
         public float SheetSlipPenalty { get; private set; }
 
-        /// Running sums of what each Po Game Standard penalty term charged (each a
-        /// negative reward, its own weight already applied) since the last
-        /// ResetPenaltyTotals. A plain struct field: no allocation in the hot path.
+        /// Running sums of what each penalty term charged (each a negative reward, its
+        /// own weight already applied) since the last ResetPenaltyTotals: the four Po
+        /// Game Standard terms plus the older effort (command^2), jerk (L1 command
+        /// change) and jerk2 (second difference). A plain struct field: no allocation
+        /// in the hot path.
         public struct PenaltyTotals
         {
             public float JointTorque, JointVelocity, ActionRate, Slip;
+            public float Effort, Jerk, Jerk2;
             public int Steps;
         }
 
         public PenaltyTotals Penalties;
+
+        /// The TensorBoard key of every penalty term, one per term.
+        public static readonly string[] PenaltyStatKeys =
+        {
+            "Penalty/Effort", "Penalty/Jerk", "Penalty/Jerk2", "Penalty/FootSlip",
+            "Penalty/JointTorque2", "Penalty/JointVelocity2", "Penalty/ActionRate2",
+        };
+
+        /// Hands each penalty term's mean per-step charge between two snapshots of
+        /// Penalties (an episode's start and end) to `log`, each under its own key
+        /// (PenaltyStatKeys). Returns how many terms it logged: 0 when no reward step
+        /// ran in between. Agent_Biped sends these to the trainer's StatsRecorder.
+        public static int PenaltyStats(in PenaltyTotals start, in PenaltyTotals end, System.Action<string, float> log)
+        {
+            int steps = end.Steps - start.Steps;
+            if (steps <= 0) return 0;
+            float n = steps;
+            log(PenaltyStatKeys[0], (end.Effort - start.Effort) / n);
+            log(PenaltyStatKeys[1], (end.Jerk - start.Jerk) / n);
+            log(PenaltyStatKeys[2], (end.Jerk2 - start.Jerk2) / n);
+            log(PenaltyStatKeys[3], (end.Slip - start.Slip) / n);
+            log(PenaltyStatKeys[4], (end.JointTorque - start.JointTorque) / n);
+            log(PenaltyStatKeys[5], (end.JointVelocity - start.JointVelocity) / n);
+            log(PenaltyStatKeys[6], (end.ActionRate - start.ActionRate) / n);
+            return PenaltyStatKeys.Length;
+        }
 
         public void ResetPenaltyTotals() => Penalties = default;
         public float SheetJerk2Penalty { get; private set; }
@@ -219,7 +248,9 @@ namespace PoSumo
             // stance.
             total += StanceFactor(body, ctx) * _rStance;
 
-            total += -ctx.Jerk * _pJerk;
+            float jerkCost = -ctx.Jerk * _pJerk;
+            Penalties.Jerk += jerkCost;
+            total += jerkCost;
 
             // ONE torque cost, not two. There used to be an L1 term on top of this:
             //
@@ -245,7 +276,9 @@ namespace PoSumo
             //
             // `energyPenalty` stays on the character sheet: Reward_WalkObjective
             // still uses it, ungated, where there is no second term to overlap with.
-            total += -ctx.Effort * _pEffort;
+            float effortCost = -ctx.Effort * _pEffort;
+            Penalties.Effort += effortCost;
+            total += effortCost;
 
             // EDGE BRACE (2026-11-10). Appended LAST so no existing term's
             // accumulation order moves. 0 on every sheet that does not set it.
@@ -258,7 +291,9 @@ namespace PoSumo
             float slipCost = -ctx.Slip * _pSlip;
             Penalties.Slip += slipCost;
             total += slipCost;
-            total += -ctx.Jerk2 * _pJerk2;
+            float jerk2Cost = -ctx.Jerk2 * _pJerk2;
+            Penalties.Jerk2 += jerk2Cost;
+            total += jerk2Cost;
 
             // PO GAME STANDARD PENALTIES (2026-11-20), appended last for the same
             // reason: 0 on every sheet, so a brain trained before them sees the same

@@ -70,6 +70,93 @@ namespace PoSumo.Tests
         }
 
         [Test]
+        public void DemoIdleTimerNeverStartsTheDemoFromStallsAlone()
+        {
+            // 100 one-second stalls (a tab in the background) add up to nothing.
+            float idle = 0f;
+            for (int stall = 0; stall < 100; stall++)
+            {
+                idle = Systems_DemoMode.AccumulateIdle(idle, 1f, 0.25f);
+            }
+            Assert.AreEqual(0f, idle);
+        }
+
+        [Test]
+        public void DemoCameraDwellSkipsALongFrame()
+        {
+            float shot = 0f;
+            // A 5 s hitch does not end a 7 s shot...
+            Assert.IsFalse(Systems_DemoMode.ShotDue(ref shot, 5f, 0.25f, 7f));
+            Assert.AreEqual(0f, shot);
+            // ...7 s of ordinary 0.1 s frames does, and the clock restarts.
+            bool due = false;
+            for (int frame = 0; frame < 69 && !due; frame++)
+            {
+                due = Systems_DemoMode.ShotDue(ref shot, 0.1f, 0.25f, 7f);
+            }
+            Assert.IsFalse(due, "6.9 s is not yet 7 s");
+            Assert.IsTrue(Systems_DemoMode.ShotDue(ref shot, 0.1f + 1e-4f, 0.25f, 7f));
+            Assert.AreEqual(0f, shot);
+        }
+
+        [Test]
+        public void BenchmarkNamesTheHardwareAndWhatItMeasured()
+        {
+            string hardware = Systems_SimBenchmark.Hardware();
+            StringAssert.Contains("CPU ", hardware);
+            StringAssert.Contains("GPU ", hardware);
+            string label = Systems_SimBenchmark.Describe(1000f, 50f, 33f, 2, 3f, hardware);
+            StringAssert.Contains(hardware, label);
+            StringAssert.Contains("Measured:", label);
+            StringAssert.Contains("not a training run", label);
+        }
+
+        [Test]
+        public void InferenceLogPrintsOneLinePerBrain()
+        {
+            Systems_InferenceLog.Clear();
+            try
+            {
+                Assert.AreEqual("[PoSumo] Kim.onnx inference running (x)", Systems_InferenceLog.Line("Kim", "x"));
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Log, Systems_InferenceLog.Line("Kim", "a"));
+                Assert.IsTrue(Systems_InferenceLog.Note("Kim", "a"));
+                Assert.IsFalse(Systems_InferenceLog.Note("Kim", "b"), "the second decision of a brain logs nothing");
+                UnityEngine.TestTools.LogAssert.Expect(LogType.Log, Systems_InferenceLog.Line("Matt", "a"));
+                Assert.IsTrue(Systems_InferenceLog.Note("Matt", "a"));
+                Assert.IsFalse(Systems_InferenceLog.Note(null, "a"));
+            }
+            finally
+            {
+                Systems_InferenceLog.Clear();
+            }
+        }
+
+        [Test]
+        public void EachRewardPenaltyTermIsLoggedUnderItsOwnKey()
+        {
+            var start = new Reward_SumoObjective.PenaltyTotals { Effort = -1f, Steps = 10 };
+            var end = new Reward_SumoObjective.PenaltyTotals
+            {
+                Effort = -3f, Jerk = -0.5f, Jerk2 = -0.25f, Slip = -0.125f,
+                JointTorque = -2f, JointVelocity = -4f, ActionRate = -8f, Steps = 20,
+            };
+            var logged = new System.Collections.Generic.Dictionary<string, float>();
+            int count = Reward_SumoObjective.PenaltyStats(start, end, (key, value) => logged.Add(key, value));
+            Assert.AreEqual(7, count);
+            Assert.AreEqual(7, logged.Count, "one key per term, no key shared");
+            // Mean per step over the episode (10 steps here).
+            Assert.AreEqual(-0.2f, logged["Penalty/Effort"], 1e-6f);
+            Assert.AreEqual(-0.05f, logged["Penalty/Jerk"], 1e-6f);
+            Assert.AreEqual(-0.025f, logged["Penalty/Jerk2"], 1e-6f);
+            Assert.AreEqual(-0.0125f, logged["Penalty/FootSlip"], 1e-6f);
+            Assert.AreEqual(-0.2f, logged["Penalty/JointTorque2"], 1e-6f);
+            Assert.AreEqual(-0.4f, logged["Penalty/JointVelocity2"], 1e-6f);
+            Assert.AreEqual(-0.8f, logged["Penalty/ActionRate2"], 1e-6f);
+            // An episode with no reward steps logs nothing.
+            Assert.AreEqual(0, Reward_SumoObjective.PenaltyStats(end, end, (key, value) => Assert.Fail(key)));
+        }
+
+        [Test]
         public void DemoModeSettingsCarryTheLongFrameCapAndBenchmarkTuning()
         {
             var settings = Resources.Load<Systems_DemoModeSettings>(Systems_DemoModeSettings.RESOURCE_PATH);

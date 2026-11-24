@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PoSumo v4-audit</title>
+<style>
+:root{--bg:#0b0f17;--fg:#e6e9f2;--muted:#9aa3b5;--card:#121826;--line:#232c3f}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 Inter,system-ui,sans-serif}
+main{max-width:1400px;margin:0 auto;padding:24px 16px 48px}h1{margin:0 0 4px;font-size:26px}
+.sub{color:var(--muted);margin:0 0 12px}a{color:#a5b4fc}section{margin-top:28px}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+figure{margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+figcaption{font-weight:600;margin-bottom:8px}img{max-width:100%;height:auto;display:block;border-radius:6px}
+</style></head>
+<body><main>
+<h1>PoSumo: v4-audit</h1>
+<p class="sub">Before: local WebGL build C:\Users\punko\AppData\Local\Temp\claude\df9198ece095fa43\974cdfaf-40cd-4f20-8d61-d0effe920ead\scratchpad\v4\evidence\PoSumo\before-build. After: the local WebGL build (Builds/WebGL), captured
+2026-11-24 00:41 at 1366x768 and 390x844 by scripts/screenshots.py. Every pair in one annotated
+image: <a href="v4-audit.png">v4-audit.png</a>.</p>
+<p>v4 audit (before = v261122 build of 0fdf460, the last release before the v4 work; after = v261124 working tree). Page: the name is now the &lt;h1&gt;, the game sits in &lt;main&gt;, pinch zoom is allowed (no visible change). /diag: one probe round is cached 60 s per tab and build, with a &#x27;Re-check now&#x27; (?fresh) link and a note under Services; in-flow footer, nothing overlaps at 390. Game frames differ because the bouts are live.</p>
+<section><h2>game 1366x768</h2><p class="sub">Changed area (red box on the sheet): x 6-677, y 8-382.</p><div class="pair"><figure><figcaption>Before</figcaption><img src="before/game_1366x768.png" alt="Before: game 1366x768"></figure><figure><figcaption>After</figcaption><img src="after/game_1366x768.png" alt="After: game 1366x768"></figure></div></section><section><h2>game 390x844</h2><p class="sub">Changed area (red box on the sheet): x 11-378, y 15-839.</p><div class="pair"><figure><figcaption>Before</figcaption><img src="before/game_390x844.png" alt="Before: game 390x844"></figure><figure><figcaption>After</figcaption><img src="after/game_390x844.png" alt="After: game 390x844"></figure></div></section><section><h2>diag 1366x768</h2><p class="sub">Changed area (red box on the sheet): x 24-677, y 9-381.</p><div class="pair"><figure><figcaption>Before</figcaption><img src="before/diag_1366x768.png" alt="Before: diag 1366x768"></figure><figure><figcaption>After</figcaption><img src="after/diag_1366x768.png" alt="After: diag 1366x768"></figure></div></section><section><h2>diag 390x844</h2><p class="sub">Changed area (red box on the sheet): x 17-378, y 18-838.</p><div class="pair"><figure><figcaption>Before</figcaption><img src="before/diag_390x844.png" alt="Before: diag 390x844"></figure><figure><figcaption>After</figcaption><img src="after/diag_390x844.png" alt="After: diag 390x844"></figure></div></section>
+</main></body></html>

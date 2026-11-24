@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#0b0f17">
     <link rel="icon" href="data:,">
     <title>{{{ PRODUCT_NAME }}}</title>
@@ -17,6 +17,7 @@
       body { display: flex; flex-direction: column; height: 100dvh; }
       #po-bar { flex: 0 0 44px; display: flex; align-items: center; justify-content: space-between;
                 padding: 0 8px 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
+      #po-bar h1 { margin: 0; font-size: 15px; line-height: 1; }
       #po-bar a.po-brand { color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; letter-spacing: 0.02em; }
       #po-bar .po-actions { display: flex; gap: 6px; }
       #po-bar .po-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 8px;
@@ -38,17 +39,19 @@
   </head>
   <body>
     <header id="po-bar">
-      <a class="po-brand" href="/">{{{ PRODUCT_NAME }}}</a>
+      <h1><a class="po-brand" href="/">{{{ PRODUCT_NAME }}}</a></h1>
       <div class="po-actions">
         <button class="po-btn" id="po-full" type="button" aria-label="Fullscreen" title="Fullscreen">&#x26F6;</button>
         <a class="po-btn" href="/diag" aria-label="Settings and system status" title="System status (/diag)">&#x2699;</a>
       </div>
     </header>
-    <div id="frame">
+    <!-- The game is the page's main content; pinch zoom stays allowed (the canvas sets touch-action: none,
+         so pinching on the game still goes to the game, not the browser). -->
+    <main id="frame">
       <canvas id="unity-canvas" tabindex="-1"></canvas>
       <div id="loading"><div>{{{ PRODUCT_NAME }}}</div><div id="bar"><div id="fill"></div></div></div>
       <div id="error"></div>
-    </div>
+    </main>
     <footer id="po-foot"><span class="po-version">v{{{ PRODUCT_VERSION }}}</span></footer>
     <script>
       var canvas = document.getElementById("unity-canvas");

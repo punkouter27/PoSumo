@@ -107,25 +107,38 @@ every publish. Tests never write into tracked files.
   `scripts/naming_audit.py` and `scripts/integrity.py` check this layout.
 - Version: `scripts/publish_webgl.ps1` computes the UTC `yyMMdd` stamp once and passes it as `PO_BUILD_VERSION`;
   `Assets/_Project/Core/Editor/WriteBuildStamp.cs` puts it in `PlayerSettings.bundleVersion` (= `Application.version`) and
-  `Resources/BuildStamp.txt`; `index.html` prints `v{PRODUCT_VERSION}`, `scripts/webgl_diag.py` writes it into diag.html.
+  `Assets/_Project/Data/Resources/BuildStamp.txt` (git-ignored; a stale tracked copy at `Assets/Resources/` shadowed it
+  in `Resources.Load` and was removed 2026-11-24); `index.html` prints `v{PRODUCT_VERSION}`, `scripts/webgl_diag.py` writes it into diag.html.
 - Page: `Assets/WebGLTemplates/Po/index.html` draws the 44px top bar (name, fullscreen, /diag gear) and the 20px
   footer with the version; the canvas fills the rest at any aspect. `GamePanelSettings` scales with screen size
   in **Expand** mode against 720x1280, so the portrait layout is intact at 450x800 and gains width at 1600x900.
+  Accessibility (axe): the name is the page's `<h1>`, the game sits in `<main>`, and pinch zoom is allowed
+  (no `user-scalable=no`; the canvas keeps `touch-action: none`, so pinching the game still reaches the game).
 - /diag: generated from `scripts/webgl.json` → `diagChecks` by `scripts/webgl_diag.py`; PoSumo makes no network
   calls, so it probes the page, every `Build/*` bundle file, WebGL2 and the deployed commit (the `X-Commit` header the
   workflow stamps into every response), live from the browser. Nothing is switched off on purpose, so no row is "Off".
+  One probe round is cached 60 s per browser tab and build (`sessionStorage`, key = stamp + hash of the `Build/` files,
+  `CACHE_SECONDS` in `scripts/webgl_diag.py`), so reloads cost the free tier nothing; `/diag?fresh` ("Re-check now")
+  probes again. The footer is an in-flow strip, never `position: fixed`, so it covers nothing at 390 px.
 - `Tab` or the 44pt "DIAG" corner button (top-left) toggles `Systems_DiagOverlay`: FPS, each fighter's episode
   reward, inference latency (rolling mean of the decision steps, `Systems_InferenceClock`) and curriculum stage
   (school + bracket stage; the trainer's `stand_assist` / `obs_delay_max` lessons when a trainer is connected).
   The fighter debug panel moved from Tab to `F3` (and the green bottom-left telemetry line).
   **BENCHMARK SIM SPEED** in the panel (`Systems_SimBenchmark`) runs the live arena flat out for
   `benchmarkSeconds` (3 s, `DemoModeSettings.asset`) by borrowing `Time.timeScale` (fixed step unchanged) and reports
-  physics ticks/s, env steps/s and decisions/s, labelled "local simulation speed, not a training run".
+  physics ticks/s, env steps/s and decisions/s, labelled with the device (`Systems_SimBenchmark.Hardware()`: CPU name
+  and logical cores, GPU name as Unity reports them) and what was measured (Physics2D ticks and ML-Agents env steps
+  with every brain deciding on CPU inference, real time; "local simulation speed, not a training run").
+- Inference log: the first time each fighter's ONNX brain acts with no trainer connected, `Systems_InferenceLog`
+  prints one `[PoSumo] <brain>.onnx inference running (...)` console line per brain and session (plain `Debug.Log`,
+  so the release WebGL player shows it). Checked in the local WebGL build at 16:9 and 9:16 and by the PlayMode test
+  `EveryFighterLogsItsOnnxInferenceLine`.
 - Demo mode: `Systems_DemoMode` + `Assets/_Project/Data/Resources/DemoModeSettings.asset` (idle 30 s, 7 s per camera shot, the
   shot list, the overlay's PanelSettings). After 30 s without any input the bracket starts itself on auto-play, the
   arena HUD hides and the camera cycles Broadcast / Follow / Orbit; any input restores HUD and camera. Idle time
   is accumulated per frame and frames longer than `maxCountedFrameSeconds` (0.25 s) do not count, so the WebGL
-  shader warm-up or a background tab cannot start the demo early. Every
+  shader warm-up or a background tab cannot start the demo early. The camera-dwell clock follows the same rule
+  (`Systems_DemoMode.ShotDue`), so a hitch cannot cut a shot short (EditMode `DemoCameraDwellSkipsALongFrame`). Every
   fighter is already an RL policy (inference only) — PoSumo has no human-driven or heuristic fighter.
 - Reward penalties (`Reward_SumoObjective`, Po Game Standard): joint torque² (`jointTorquePenalty`, the torque the
   solver applied / cap), joint angular velocity² (`jointVelocityPenalty`, speed / 600 deg/s), action rate
@@ -136,7 +149,9 @@ every publish. Tests never write into tracked files.
   the three new terms and were NOT retrained; the terms only change training-time reward. Each term is also summed
   on its own (`Reward_SumoObjective.Penalties`); the PlayMode test
   `EveryRewardPenaltyTermIsChargedWhileThePoliciesFight` sets every weight to 1 in a live bout and asserts all four
-  are charged.
+  are charged. Logging: at each episode end, while a trainer is connected, every penalty term (effort, jerk, jerk2,
+  foot slip, joint torque², joint velocity², action rate²) goes to TensorBoard under its own key `Penalty/<Term>`
+  (mean charge per step, `Reward_SumoObjective.PenaltyStats`; EditMode `EachRewardPenaltyTermIsLoggedUnderItsOwnKey`).
 - /diag and the live console: the 8 "different serialization layout" errors the WebGL player logged on every load
   came from `GamePanelSettings` pointing at App UI's theme (`com.unity.dt.app-ui`, pulled in by the Inference
   Engine) instead of the project's `UnityDefaultRuntimeTheme.tss`; that theme drags in App UI's TextMate grammar
@@ -889,8 +904,8 @@ it works.
 ## 3. Verify the repo
 
 The one command sequence below verifies the repo; run it from the repo root in PowerShell. Everything must pass with
-0 warnings. Last full run (2026-11-22): pytest 18 passed; PoChopAudio Unit 100/100, Integration 18/18; EditMode 50/50;
-PlayMode 3/3.
+0 warnings. Last full run (2026-11-24, three in a row): pytest 25 passed; EditMode 75/75; PlayMode 4/4
+(PoChopAudio last run 2026-11-22: Unit 100/100, Integration 18/18).
 
 ```powershell
 # Python (scripts/ and tests/)
@@ -913,6 +928,14 @@ $env:CI = "true"; $env:UNITY_MCP_KEEP_CONNECTED = "false"
 & $u -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Temp/editmode.xml -logFile Temp/editmode.log
 & $u -batchmode -force-d3d11 -projectPath . -runTests -testPlatform PlayMode -testResults Temp/playmode.xml -logFile Temp/playmode.log
 
-# WebGL build (EditMode gate + build + diag.html + zip, no release); then serve Builds/WebGL locally and open it
+# WebGL build (EditMode gate + build + diag.html + zip, no release); then serve Builds/WebGL locally and open it.
+# The script waits on the Unity process itself (WaitForExit), not Start-Process -Wait, which can hang on Unity's
+# licensing client outliving Unity.
 pwsh -File scripts/publish_webgl.ps1 -NoPublish
+
+# UI changes: before/after report in SCREENSHOTS/<YYYYMMDD>_<feature>/ (report.html, before/, after/ and one
+# side-by-side <feature>.png with the changed area boxed). Captures the LOCAL build (never the live site) at
+# 1366x768 and 390x844. "Before" = --before <git ref> (default HEAD~1; builds that ref in a temporary worktree,
+# slow), --before-build <WebGL folder> or --before-dir <PNGs>. Needs: pip install playwright pillow.
+python scripts/screenshots.py --feature <name> --before-dir <folder of PNGs> --notes "what changed"
 ```
