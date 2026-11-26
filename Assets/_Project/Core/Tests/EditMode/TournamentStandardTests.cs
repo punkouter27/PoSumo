@@ -4,8 +4,8 @@ using UnityEngine;
 
 namespace PoSumo.Tests
 {
-    /// EditMode tests for the Po tournament standard (2026-11-22): 16-slot bracket
-    /// seeded by rating on the 1v16, 8v9, 4v13, 5v12, 2v15, 7v10, 3v14, 6v11 chart,
+    /// EditMode tests for the eight-slot bracket
+    /// seeded by rating on the 1v8, 4v5, 2v7, 3v6 chart,
     /// BYEs on the bottom seeds, draw to the higher seed, Elo 1000 / K 32, and the
     /// five-emotion x five-level voice matrix.
     ///
@@ -56,10 +56,9 @@ namespace PoSumo.Tests
         {
             int[][] expected =
             {
-                new[] { 1, 16 }, new[] { 8, 9 }, new[] { 4, 13 }, new[] { 5, 12 },
-                new[] { 2, 15 }, new[] { 7, 10 }, new[] { 3, 14 }, new[] { 6, 11 },
+                new[] { 1, 8 }, new[] { 4, 5 }, new[] { 2, 7 }, new[] { 3, 6 },
             };
-            Assert.AreEqual(16, Systems_TournamentState.SEED_COUNT);
+            Assert.AreEqual(8, Systems_TournamentState.SEED_COUNT);
             for (int match = 0; match < expected.Length; match++)
             {
                 Assert.AreEqual(expected[match][0], Systems_TournamentState.SeedOfSlot(match * 2), "match " + match);
@@ -73,9 +72,9 @@ namespace PoSumo.Tests
             Agent_CharacterDefinition[] roster = Roster(16, out var ratings);
             Systems_TournamentState.AutoSeed(roster, character => ratings[character]);
 
-            Assert.AreEqual(16, Systems_TournamentState.FighterCount);
+            Assert.AreEqual(8, Systems_TournamentState.FighterCount);
             Assert.AreEqual(0, Systems_TournamentState.ByeCount);
-            for (int slot = 0; slot < 16; slot++)
+            for (int slot = 0; slot < 8; slot++)
             {
                 Assert.AreEqual("F" + Systems_TournamentState.SeedOfSlot(slot), NameAt(slot), "slot " + slot);
             }
@@ -88,24 +87,19 @@ namespace PoSumo.Tests
             Systems_TournamentState.AutoSeed(roster, character => ratings[character]);
 
             Assert.AreEqual(5, Systems_TournamentState.FighterCount);
-            Assert.AreEqual(11, Systems_TournamentState.ByeCount);
-            for (int slot = 0; slot < 16; slot++)
+            Assert.AreEqual(3, Systems_TournamentState.ByeCount);
+            for (int slot = 0; slot < 8; slot++)
             {
                 int seed = Systems_TournamentState.SeedOfSlot(slot);
                 Assert.AreEqual(seed <= 5 ? "F" + seed : "BYE", NameAt(slot), "slot " + slot);
             }
 
-            // 1 v BYE(16): seed 1 goes through unfought.
+            // 1 v BYE(8): seed 1 goes through unfought.
             Assert.AreEqual("F1", Systems_TournamentState.GetAdvancing(0).behaviorName);
-            // BYE(8) v BYE(9): a BYE goes on (nobody).
+            // 4 v 5 is a real quarterfinal, not decided in advance.
             Assert.IsNull(Systems_TournamentState.GetAdvancing(1));
-            // 4 v 5 meet in the quarterfinal after both walk over BYEs (13, 12)…
-            Assert.AreEqual("F4", Systems_TournamentState.GetAdvancing(2).behaviorName);
-            Assert.AreEqual("F5", Systems_TournamentState.GetAdvancing(3).behaviorName);
-            // …and the quarterfinal fed by "1 v BYE" and "BYE v BYE" sends 1 on.
-            Assert.AreEqual("F1", Systems_TournamentState.GetAdvancing(8).behaviorName);
-            // A real bout is not decided in advance.
-            Assert.IsNull(Systems_TournamentState.GetAdvancing(9));
+            Assert.AreEqual("F2", Systems_TournamentState.GetAdvancing(2).behaviorName);
+            Assert.AreEqual("F3", Systems_TournamentState.GetAdvancing(3).behaviorName);
             Assert.AreEqual(4, Systems_TournamentState.BoutCount);
         }
 
@@ -123,11 +117,11 @@ namespace PoSumo.Tests
             Agent_CharacterDefinition[] roster = Roster(16, out var ratings);
             Systems_TournamentState.AutoSeed(roster, character => ratings[character]);
 
-            Agent_CharacterDefinition seed8 = Systems_TournamentState.GetSeed(2);
-            Agent_CharacterDefinition seed9 = Systems_TournamentState.GetSeed(3);
-            Assert.AreSame(seed8, Systems_TournamentState.HigherSeed(seed8, seed9));
-            Assert.AreSame(seed8, Systems_TournamentState.HigherSeed(seed9, seed8));
-            Assert.AreSame(seed9, Systems_TournamentState.HigherSeed(null, seed9));
+            Agent_CharacterDefinition seed4 = Systems_TournamentState.GetSeed(2);
+            Agent_CharacterDefinition seed5 = Systems_TournamentState.GetSeed(3);
+            Assert.AreSame(seed4, Systems_TournamentState.HigherSeed(seed4, seed5));
+            Assert.AreSame(seed4, Systems_TournamentState.HigherSeed(seed5, seed4));
+            Assert.AreSame(seed5, Systems_TournamentState.HigherSeed(null, seed5));
         }
 
         [Test]

@@ -255,10 +255,10 @@ namespace PoSumo.EditorTools
                 }
             }
             // A finished bracket must leave nothing to resume.
-            string savePath = System.IO.Path.Combine(Application.persistentDataPath, "bracket.json");
+            string savePath = System.IO.Path.Combine(Application.persistentDataPath, "bracket8.json");
             if (System.IO.File.Exists(savePath))
             {
-                problems.AppendLine("  - bracket.json still exists after the final; the next launch " +
+                problems.AppendLine("  - bracket8.json still exists after the final; the next launch " +
                                     "would offer to RESUME a finished bracket.");
             }
 
