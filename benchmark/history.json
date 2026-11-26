@@ -72,6 +72,78 @@
    },
    "verdict": [],
    "workload_changes": []
+  },
+  {
+   "when": "2026-11-26T12:06:13-05:00",
+   "ok": false,
+   "error": "RuntimeError: Unity 6000.6.9f1 is not installed (needed once to build MattEnv.exe)",
+   "machine": {
+    "hostname": "C4T4V44",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13850HX (28 threads)",
+    "gpu": "NVIDIA RTX 2000 Ada Generation Laptop GPU",
+    "vram_gb": 8.0,
+    "ram_gb": 63.8,
+    "gpu_driver": "581.95",
+    "os": "Windows 11 (10.0.26100)"
+   },
+   "load_before": {
+    "cpu_pct": 9,
+    "cpu_max_core_pct": 93750100,
+    "trainer_cpu_cores": 0.0,
+    "trainer_thread_pct": 0,
+    "ram_used_gb": 26.1,
+    "gpu_pct": 3.0,
+    "gpu_mem_pct": 5.0,
+    "vram_used_gb": 1.2,
+    "gpu_temp_c": 65.0,
+    "sm_clock_mhz": 210.0,
+    "sm_clock_max_mhz": 3105.0,
+    "power_w": 6.03,
+    "power_limit_w": 63.57,
+    "pstate": "P8",
+    "clock_reasons": [],
+    "display_active": true,
+    "pcie": "gen 1 x8",
+    "on_battery": false,
+    "gpu_processes": [
+     "Code.exe",
+     "Creative Cloud UI Helper.exe",
+     "CrossDeviceResume.exe",
+     "Docker Desktop.exe",
+     "PhoneExperienceHost.exe",
+     "SearchHost.exe",
+     "ShellExperienceHost.exe",
+     "ShellHost.exe",
+     "StartMenuExperienceHost.exe",
+     "TeamViewer.exe",
+     "TextInputHost.exe",
+     "ZSATray.exe",
+     "[Insufficient Permissions]",
+     "explorer.exe",
+     "ms-teams.exe",
+     "msedge.exe",
+     "msedgewebview2.exe"
+    ]
+   },
+   "load_during": {},
+   "busy": false,
+   "workload_id": "f5e420",
+   "workload": {
+    "repo": "PoSumo",
+    "config": "MattUnique01.yaml"
+   },
+   "result": null,
+   "git_commit": "5f6b651",
+   "versions": {
+    "python": "3.10.11"
+   },
+   "context": {
+    "power_plan": "Balanced",
+    "power_mode": null,
+    "gpu_scheduling": null
+   },
+   "verdict": [],
+   "workload_changes": []
   }
  ]
 }
