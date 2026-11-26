@@ -9,11 +9,11 @@ using UnityEngine.InputSystem;
 namespace PoSumo
 {
     /// March-Madness style bracket screen for a single-elimination tournament
-    /// in a 16-slot frame (since 2026-11-10), drawn as a TREE: eight seeds down
-    /// the left edge and eight down the right, each round one column further in,
+    /// in an 8-slot frame, drawn as a TREE: four seeds down
+    /// the left edge and four down the right, each round one column further in,
     /// and the final with the champion in the centre. The bracket auto-seeds each
-    /// character ONCE by tournament Elo on the standard chart (1v16, 8v9, 4v13,
-    /// 5v12, 2v15, 7v10, 3v14, 6v11) and leaves the bottom seeds as BYES; the user can
+    /// character ONCE by tournament Elo on the chart (1v8, 4v5, 2v7, 3v6)
+    /// and leaves the bottom seeds as BYES; the user can
     /// drag one seed onto another to swap them before starting. Pressing START
     /// plays the whole bracket unattended: each real bout is played in SCN_SUMO,
     /// the winner is filled in on return, and the next bout launches after a
@@ -27,7 +27,7 @@ namespace PoSumo
     /// UXML/USS asset to keep in sync.
     public sealed class Systems_TournamentBracket : MonoBehaviour
     {
-        [Tooltip("Characters available as entrants. Each is seeded exactly once; with fewer than 16 the spare slots are byes.")]
+        [Tooltip("Characters available as entrants. Each is seeded exactly once; with fewer than 8 the spare slots are byes.")]
         [SerializeField] private Agent_CharacterDefinition[] _roster;
         [SerializeField] private PanelSettings _panelSettings;
         [Tooltip("Shared match tuning. Only used to state the correct best-of on this screen, so the status line cannot drift from the rule the matches actually run.")]
@@ -118,7 +118,7 @@ namespace PoSumo
         /// Replaces the ScrollView — the zero-scroll constraint (checklist #3)
         /// means every pane fits the viewport, and the overflow audit polices it.
         private const int TAB_BRACKET = 0;
-        /// The 4x4 GRID of the sixteen slots (tournament standard, 2026-11-22):
+        /// The 2x4 GRID of the eight slots:
         /// every seeded fighter as a tile in seed order, empty slots as BYE tiles.
         /// Its own tab because the BRACKET pane has no height to spare (zero-scroll).
         private const int TAB_GRID = 1;
@@ -399,7 +399,7 @@ namespace PoSumo
 
             BuildSpotlight();
 
-            // ---- Pane 2: GRID (4x4, the sixteen slots by seed) ----------------
+            // ---- Pane 2: GRID (2x4, the eight slots by seed) ------------------
             BuildGrid();
 
             // ---- Pane 3: RECORD (career/banzuke + rules) ------------------------
@@ -820,9 +820,8 @@ namespace PoSumo
 
         // --- tree ------------------------------------------------------------
 
-        /// Compact chip metrics for the tree. Seven columns share ~578pt of
-        /// usable width on a phone (measured; see SLOT_SIZE), ~82pt each, which is
-        /// below what the kit's smallest type (FONT_MICRO, 19) can fit a name
+        /// Compact chip metrics for the tree. Five columns share the available
+        /// width on a phone, which is below what the kit's smallest type can fit a name
         /// into beside a portrait. So a tree chip STACKS: portrait over name over
         /// Elo, at a dedicated small size, and the portrait is what shrinks.
         private const int TREE_FONT_NAME = 13;
@@ -830,9 +829,8 @@ namespace PoSumo
         private const int TREE_FACE = 26;
         private const int TREE_FACE_CHAMPION = 54;
 
-        /// Builds the seven columns. Left to right:
-        ///   R16 (seeds 0-7)  QF (wins 0-3)  SF (wins 8-9)  FINAL  SF (wins 10-11)
-        ///   QF (wins 4-7)  R16 (seeds 8-15)
+        /// Builds the columns, from each half's quarterfinal seeds through the
+        /// semifinal winners to the final in the center.
         /// Each column spreads its chips with SpaceAround inside the same height,
         /// which puts every winner chip EXACTLY between the two chips that feed it
         /// (chip j of an n-chip column sits at (j+0.5)/n of the height, the mean of
@@ -840,8 +838,8 @@ namespace PoSumo
         /// as a tree with no connector lines to compute.
         private void BuildTree()
         {
-            int rounds = Systems_TournamentState.ROUND_COUNT;          // 4
-            int half = Systems_TournamentState.SEED_COUNT / 2;          // 8 seeds a side
+            int rounds = Systems_TournamentState.ROUND_COUNT;
+            int half = Systems_TournamentState.SEED_COUNT / 2;
 
             _tree = Systems_UiKit.Column();
             _tree.style.flexGrow = 1;
@@ -1054,14 +1052,14 @@ namespace PoSumo
         }
 
 
-        /// The main-menu 4x4 grid: tile (row r, column c) is seed r*4+c+1, so the
+        /// The main-menu 2x4 grid: tile (row r, column c) is seed r*4+c+1, so the
         /// top row is the four top seeds. A tile shows the seed number, face, name
         /// and tournament Elo; a slot with nobody in it is a BYE tile. Built once,
         /// repainted by Refresh (seeding, a swap, a result all move it).
         private void BuildGrid()
         {
             _gridTiles.Clear();
-            Label caption = Systems_UiKit.Caption("16 SLOTS · SEEDED BY TOURNAMENT ELO",
+            Label caption = Systems_UiKit.Caption("8 SLOTS · SEEDED BY TOURNAMENT ELO",
                                                   Systems_UiKit.FONT_MICRO, Systems_UiKit.TextLow, true);
             caption.style.unityTextAlign = TextAnchor.MiddleCenter;
             caption.style.marginBottom = Systems_UiKit.SPACE_2;
@@ -1071,7 +1069,7 @@ namespace PoSumo
             grid.style.flexGrow = 1;
             grid.style.minHeight = 0;
             _paneGrid.Add(grid);
-            for (int row = 0; row < GRID_SIDE; row++)
+            for (int row = 0; row < Systems_TournamentState.SEED_COUNT / GRID_SIDE; row++)
             {
                 VisualElement line = Systems_UiKit.Row(Align.Stretch);
                 line.style.flexGrow = 1;

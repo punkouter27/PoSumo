@@ -4,9 +4,7 @@ using UnityEngine;
 
 namespace PoSumo
 {
-    /// Bracket state for a single-elimination tournament of UP TO SIXTEEN entrants
-    /// (16 slots since 2026-11-10 — see the constants; the eight-slot description
-    /// below is history, but every rule in it still holds on the larger frame).
+    /// Bracket state for a single-elimination tournament of up to eight entrants.
     ///
     /// This is static on purpose: each match is played by loading SCN_SUMO and
     /// coming back, so the bracket has to outlive a scene load. Statics persist
@@ -20,7 +18,7 @@ namespace PoSumo
     ///   6     final         — winners of 4 and 5
     ///
     /// **Every fighter is seeded exactly ONCE; the slots left over are BYES.**
-    /// The roster is five fighters and the frame is eight slots. Until 2026-10-04
+    /// Until 2026-10-04
     /// the gap was filled by seeding fighters twice, which made mirror bouts
     /// structural — a measured bracket ran Matt v Grandma in BOTH semifinals and
     /// Matt v Matt in the final, and `Systems_CareerStats.RecordMatch` guards
@@ -36,19 +34,7 @@ namespace PoSumo
     /// entrants minus one, whatever the draw).
     public static class Systems_TournamentState
     {
-        // SIXTEEN SLOTS SINCE 2026-11-10 (user: "In the main menu have placeholders
-        // for 16 players ... I will eventually have 16 players ready and trained").
-        // It was 4 slots / 3 bouts from 2026-10-04 and 8 / 7 before that. Indices:
-        //   0..7    round of 16    — seeds (0,1) (2,3) .. (14,15)
-        //   8..11   quarterfinals  — winners of (0,1) (2,3) (4,5) (6,7)
-        //   12..13  semifinals     — winners of (8,9) (10,11)
-        //   14      final          — winners of 12 and 13
-        // The LEFT half of the drawn bracket is seeds 0-7 (matches 0-3, 8-9, 12),
-        // the RIGHT half seeds 8-15 (4-7, 10-11, 13); the final sits between them.
-        // Everything below is written against these constants and the feeder
-        // formula, so the frame is any power of two. A roster smaller than 16
-        // draws byes, dealt one per first-round pair before any pair gets two.
-        public const int SEED_COUNT = 16;
+        public const int SEED_COUNT = 8;
         public const int MATCH_COUNT = SEED_COUNT - 1;
         public const int FINAL_MATCH = MATCH_COUNT - 1;
         /// Matches whose entrants are SEEDS rather than earlier winners.
@@ -61,7 +47,7 @@ namespace PoSumo
         private const int OUTCOME_BOUT = 1;
         private const int OUTCOME_WALKOVER = 2;
 
-        private const string FILE_NAME = "bracket.json";
+        private const string FILE_NAME = "bracket8.json";
 
         /// This project runs with Enter Play Mode domain reload DISABLED, so
         /// statics survive Stop -> Play and a finished bracket would still be on
@@ -69,7 +55,7 @@ namespace PoSumo
         /// every play session, before the first scene loads, which is exactly the
         /// hook needed to clear it — relying on the domain reload does not work.
         ///
-        /// MEMORY ONLY. It deliberately does not read `bracket.json` back: a
+        /// MEMORY ONLY. It deliberately does not read `bracket8.json` back: a
         /// session always opens on a fresh draw and the bracket screen OFFERS the
         /// saved one (`TryPeekSaved` / `TryResume`). Resuming here would put a
         /// half-played bracket under anything that presses START on a new session
@@ -141,7 +127,7 @@ namespace PoSumo
         /// title off this, so it has to follow the fighters and not the frame.
         public static bool IsTitleBout => Active && FighterCount - BoutsPlayed == 2;
 
-        /// Number of rounds in the frame: 4 for 16 seeds.
+        /// Number of rounds in the frame: 3 for 8 seeds.
         public static readonly int ROUND_COUNT = Log2(SEED_COUNT);
 
         private static int Log2(int value)
@@ -260,9 +246,7 @@ namespace PoSumo
             return true;
         }
 
-        /// First of the two matches that feed `match` (the other is the next
-        /// index). Sixteen slots: 8 <- 0,1 .. 11 <- 6,7, 12 <- 8,9, 13 <- 10,11,
-        /// 14 <- 12,13. (The same formula served the 4- and 8-slot frames.)
+        /// First of the two matches that feed `match` (the other is the next index).
         private static int FeederOf(int match) => (match - FIRST_ROUND_MATCHES) * 2;
 
         /// A drawn bout: the higher seed advances.
@@ -332,12 +316,10 @@ namespace PoSumo
         /// required before the bracket can start. Empty slots are byes, not gaps.
         public static bool SeedsReady() => _seeded && FighterCount >= 2;
 
-        /// The standard 16-slot seeding chart (Po tournament standard, 2026-11-22):
-        /// first-round pairs, top to bottom, are 1v16, 8v9, 4v13, 5v12, 2v15, 7v10,
-        /// 3v14, 6v11. `SLOT_SEEDS[slot]` is the 1-based seed that sits in a slot,
-        /// so slots (0,1) hold seeds 1 and 16, (2,3) seeds 8 and 9, and so on. Seeds
+        /// The eight-slot seeding chart: first-round pairs, top to bottom, are
+        /// 1v8, 4v5, 2v7, 3v6. `SLOT_SEEDS[slot]` is the 1-based seed in a slot. Seeds
         /// 1 and 2 can only meet in the final, 1-4 only from the semifinals.
-        public static readonly int[] SLOT_SEEDS = { 1, 16, 8, 9, 4, 13, 5, 12, 2, 15, 7, 10, 3, 14, 6, 11 };
+        public static readonly int[] SLOT_SEEDS = { 1, 8, 4, 5, 2, 7, 3, 6 };
 
         /// 1-based seed of a slot on the standard chart.
         public static int SeedOfSlot(int slot) =>
@@ -679,9 +661,8 @@ namespace PoSumo
             if (file == null || !Resolves(file, roster))
             {
                 // A save this build cannot pick up is DISCARDED, not left on disk
-                // to be re-read and re-rejected on every launch: one written on
-                // the old eight-slot frame (the array lengths no longer match), or
-                // one naming a fighter that no longer exists — the heuristic Bot
+                // to be re-read and re-rejected on every launch: for example, one
+                // naming a fighter that no longer exists — the heuristic Bot
                 // was removed on 2026-10-04 and a bracket saved before that names
                 // it. No-op when there is simply no file.
                 DeleteSave();
